@@ -298,6 +298,21 @@ def refresh_ncbr(args, prev_state: dict) -> dict:
 
 
 # --- web crawler -----------------------------------------------------------------
+def export_web(conn: sqlite3.Connection, out: Path) -> int:
+    """The crawler writes straight to the database, while the app pipeline reads data/normalized/*.jsonl
+    (`harvester-web` in app/sources.yaml): export the live web records as one radar.record/v1 file,
+    written atomically and ordered so an unchanged crawl gives the same file."""
+    rows = conn.execute("SELECT data FROM records WHERE source LIKE 'web\\_%' ESCAPE '\\' AND removed_at IS NULL "
+                        "ORDER BY source, record_id").fetchall()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out.with_name(out.name + ".tmp")
+    with tmp.open("w", encoding="utf-8") as fh:
+        for (data,) in rows:
+            fh.write(data + "\n")
+    os.replace(tmp, out)
+    return len(rows)
+
+
 def refresh_web(args, prev_state: dict, conn: sqlite3.Connection | None = None) -> dict:
     """Sites from config/sites.json whose interval has passed; the crawler writes to the database itself."""
     from .crawl.crawler import crawl_due, totals
@@ -309,8 +324,9 @@ def refresh_web(args, prev_state: dict, conn: sqlite3.Connection | None = None) 
     if not sites:
         log("web: brak włączonych witryn w konfiguracji")
         return {"download": "no_sites", "rebuild": "skipped_unchanged", "records": 0}
+    out = Path(args.out_dir) / "web.jsonl"
     if args.offline:
-        return {"download": "offline", "rebuild": "skipped_unchanged", "records": 0}
+        return {"download": "offline", "rebuild": "exported", "records": export_web(conn, out)}
     if args.dry_run:
         log(f"web: [dry-run] przeszedłbym witryny: {', '.join(s.id for s in sites)}")
         return {"download": "would_crawl", "rebuild": "would_rebuild"}
@@ -319,9 +335,10 @@ def refresh_web(args, prev_state: dict, conn: sqlite3.Connection | None = None) 
     for r in results:
         log(f"web/{r['site']}: {r['status']} pobrane {r['fetched']}, nowe {r['added']}, zmienione {r['changed']}, "
             f"304 {r['not_modified']}, pominięte {r['skipped']}" + (f" ({r['error']})" if r["error"] else ""))
-    res = {"download": "crawled", "rebuild": "rebuilt" if results else "skipped_unchanged",
-           "records": conn.execute("SELECT COUNT(*) FROM records WHERE source LIKE 'web\\_%' ESCAPE '\\' "
-                                   "AND removed_at IS NULL").fetchone()[0],
+    n = export_web(conn, out)
+    log(f"web: {n} rekordów w {out}")
+    res = {"download": "crawled", "rebuild": "rebuilt" if results else "skipped_unchanged", "records": n,
+           "output_sha256": sha256_file(out),
            "added": t["added"], "changed": t["changed"], "removed": t["removed"],
            "sites": [{k: r[k] for k in ("site", "status", "error", "fetched", "added", "changed", "not_modified")}
                      for r in results]}
