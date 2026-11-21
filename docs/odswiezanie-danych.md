@@ -237,7 +237,8 @@ Na Linuksie / macOS wpis w `crontab -e`:
 | `FetchError` | brak sieci albo serwer źródła nie odpowiada; spróbuj później, pozostałe źródła i tak zostały odświeżone |
 | `interreg: strona niedostępna (...); używam zapisanego pliku` | strona Interreg nie odpowiada; wynik zbudowano z ostatniego pobranego pliku XLSX (ostrzeżenie, kod 1), nowy plik pobierze się, gdy strona wróci |
 | `CERTIFICATE_VERIFY_FAILED` (`certificate has expired`, `unable to get local issuer`) | na Windows Python ufa zapamiętanym certyfikatom pośrednim Windows i nie zna nowszych korzeni (Let's Encrypt Root YE, HARICA 2021); `radar/http.py` dokłada korzenie Mozilli z `certifi` albo z Git for Windows. Gdy żadnego nie ma: `pip install certifi` albo zmienna `RADAR_CA_BUNDLE` ze ścieżką do pliku z certyfikatami (np. z dodanym certyfikatem firmowego proxy). Weryfikacji nie wyłączamy |
-| `OpenAlex: Wyczerpany limit zapytań` | dzienny limit zapytań z jednego IP; ustaw `OPENALEX_API_KEY` albo poczekaj do północy UTC |
+| `OpenAlex: brak OPENALEX_API_KEY, tryb oszczędny` | bez klucza pobieramy najwyżej 5 stron (1000 prac) co 2 s; darmowy klucz z https://openalex.org/settings/api wpisz do `.env` (`radar.refresh` czyta `.env` sam) |
+| `OpenAlex: wyczerpany limit zapytań (429)` | to nie błąd źródła: zapisujemy rekordy pobrane przed limitem albo zostaje poprzedni wynik; ustaw `OPENALEX_API_KEY` albo poczekaj do północy UTC |
 | `UWAGA: witryny zablokowane (nie obchodzimy)` | witryna postawiła ochronę antybotową; ustaw w `config/sites.json` `enabled: false` z notatką i opisz ją w [`zrodla.md`](zrodla.md) |
 | `UWAGA: N rekordów zniknęło ze źródła naraz` | z jednego pobrania zniknęła ponad połowa rekordów źródła, więc nic nie oznaczono jako usunięte; sprawdź źródło, a jeśli to prawda, uruchom z `--force` |
 | `web: pomijam, ostatnio ... h temu` | przy `--due-only` termin jeszcze nie minął; bez `--due-only` źródło uruchomi się od razu |

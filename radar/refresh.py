@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import store
+from .env import load_env
 from .http import FetchError, fetch, fetch_bytes
 from .sources import interreg, ncbr
 
@@ -501,6 +502,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--offline", action="store_true", help="bez sieci, tylko z zapisanych plików")
     ap.add_argument("--dry-run", action="store_true", help="pokaż, co by zrobiono, nic nie zapisuj")
     args = ap.parse_args(argv)
+    load_env()  # OPENALEX_API_KEY, OPENALEX_MAILTO, RADAR_DB... from .env; the environment wins
     if args.offline and args.force:
         ap.error("--offline i --force wzajemnie się wykluczają")
 

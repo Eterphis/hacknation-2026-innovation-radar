@@ -12,7 +12,9 @@ without marking missing records as removed.
 Credentials come only from the environment, never from code or fixtures:
   OPENALEX_API_KEY   own key (free; its own daily budget instead of the budget shared per IP)
   OPENALEX_MAILTO    contact address for the "polite pool"
-Both are stripped from every URL that is saved or printed.
+Both are stripped from every URL that is saved or printed. `.env` in the working directory is read too.
+Without a key the run is frugal (at most NO_KEY_MAX_PAGES pages, NO_KEY_MIN_DELAY s apart), and a 429
+never fails the run: records fetched before the limit are written, or the previous output stays.
 
 Run:  python -X utf8 -m radar.sources.openalex --limit 50 --out data/normalized/openalex.jsonl
 """
@@ -36,6 +38,7 @@ from typing import Callable, Iterator
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from .. import RECORD_SCHEMA
+from ..env import load_env
 from ..http import FetchError, Response, fetch
 from ..text import clean_text, fold
 from .ncbr import org_type_hint
@@ -50,6 +53,9 @@ MAX_PER_PAGE = 200
 MIN_TEXT_CHARS = 200
 MAX_PEOPLE = 50  # collaboration papers list thousands of authors
 DEFAULT_DAYS = 30
+# without OPENALEX_API_KEY the daily budget is shared per IP: take a small slice, slowly, and never fail on 429
+NO_KEY_MAX_PAGES = 5
+NO_KEY_MIN_DELAY = 2.0
 SELECT = ("id,doi,title,display_name,publication_date,publication_year,type,language,"
           "abstract_inverted_index,authorships,topics,keywords,primary_location,open_access,"
           "cited_by_count,updated_date,grants,funders")
@@ -525,10 +531,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--max-pages", type=int, default=None)
     ap.add_argument("--delay", type=float, default=1.0, help="seconds between API pages")
     args = ap.parse_args(argv)
+    load_env()
 
     since = args.since
     if since is None and args.days:
         since = (date.today() - timedelta(days=args.days)).isoformat()
+    api_key = os.environ.get("OPENALEX_API_KEY") or None
+    max_pages, delay = args.max_pages, args.delay
+    if not api_key and not args.offline:
+        max_pages = NO_KEY_MAX_PAGES if max_pages is None else min(max_pages, NO_KEY_MAX_PAGES)
+        delay = max(delay, NO_KEY_MIN_DELAY)
+        print(f"OpenAlex: brak OPENALEX_API_KEY, tryb oszczędny (maks. {max_pages} stron po {MAX_PER_PAGE}, "
+              f"{delay:g} s przerwy). Darmowy klucz: https://openalex.org/settings/api, wpisz go do .env.",
+              file=sys.stderr)
     stats = HarvestStats()
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -538,17 +553,24 @@ def main(argv: list[str] | None = None) -> int:
         with tmp.open("w", encoding="utf-8") as fh:
             for rec in harvest(RawStore(Path(args.raw_dir)), offline=args.offline, limit=args.limit, since=since,
                                require_abstract=not args.with_empty_abstracts, extra_filter=args.filter,
-                               max_pages=args.max_pages, mailto=os.environ.get("OPENALEX_MAILTO") or None,
-                               api_key=os.environ.get("OPENALEX_API_KEY") or None, delay=args.delay, stats=stats):
+                               max_pages=max_pages, mailto=os.environ.get("OPENALEX_MAILTO") or None,
+                               api_key=api_key, delay=delay, stats=stats):
                 fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 rows.append(_csv_row(rec))
     except FetchError as e:
-        tmp.unlink(missing_ok=True)
         print(f"OpenAlex: {e}", file=sys.stderr)
-        if "429" in str(e):
-            print("Wyczerpany limit zapytań. Ustaw OPENALEX_API_KEY (darmowy klucz z własnym budżetem) "
-                  "albo spróbuj po północy UTC.", file=sys.stderr)
-        return 2
+        if "429" not in str(e):
+            tmp.unlink(missing_ok=True)
+            return 2
+        # rate limit: not a failure of the source. Keep what came before the limit, or the previous output.
+        print("OpenAlex: wyczerpany limit zapytań (429). "
+              + ("" if api_key else "Ustaw OPENALEX_API_KEY (darmowy klucz z własnym budżetem) albo ")
+              + "spróbuj po północy UTC.", file=sys.stderr)
+        if not rows:
+            tmp.unlink(missing_ok=True)
+            print("OpenAlex: nic nie pobrano, poprzedni wynik zostaje bez zmian.", file=sys.stderr)
+            return 0
+        print(f"OpenAlex: zapisuję {len(rows)} rekordów pobranych przed limitem.", file=sys.stderr)
     tmp.replace(out)
     if args.csv:
         with open(args.csv, "w", encoding="utf-8-sig", newline="") as fh:
