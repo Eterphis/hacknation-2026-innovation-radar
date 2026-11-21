@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Local CPU model behind llama.cpp server (OpenAI-compatible), e.g. Bielik 1.5B GGUF. Empty = disabled.
     local_llm_url: str = ""
     local_llm_model: str = "bielik-1.5b-v3.0-instruct"
+    local_llm_json_mode: bool = False
     llm_timeout_s: float = 60.0
 
     # Shared secrets for webhook sources are looked up as RADAR_WEBHOOK_SECRET_<SOURCE_ID_UPPER>.

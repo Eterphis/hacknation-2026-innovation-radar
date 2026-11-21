@@ -1,18 +1,18 @@
-"""Implementation agent (`assess`): can this idea be deployed, how, by whom, at what risk, for whom, and how good is it?
+"""Implementation agent (`assess`, T027): can this idea be deployed, how, by whom, at what risk, for whom, how good?
 
-1. Tools (code, no LLM) gather facts: similar ideas (graph), regional context (supply per voivodeship x sector,
-   gaps), recipients (institutions in the data + recipient types), Basal labels.
-2. A rule-based baseline Assessment is always built from those facts (works offline, demo mode, tests).
-3. If a real LLM is configured (cloud or the local CPU model), it rewrites paths / risks / mitigations in plain
-   Polish using ONLY the tool facts; its output must keep the schema.
+1. Agent loop (`radar.pipeline.agent`): the model calls tools (code, no LLM) — similar ideas from the graph,
+   regional context (supply per voivodeship x sector, gaps), recipients, internal registry lookup — and returns
+   paths / risks / summary. Router order: local CPU model (Bielik) -> cloud -> deterministic rules.
+2. Citation check in code: every path, risk, objection and the summary must cite facts the tools returned
+   (T1.., rec:<id>, karta, basal); invented ones are sent back once, then dropped.
+3. Rule-based baseline from the same facts: fallback and offline mode (demo, tests) with the same shape.
 4. Basal recheck validates the result against the data (paths vs maturity, cost vs institution capacity, every
    risk has a mitigation and an owner); violations are fixed or listed as warnings.
-5. Weighted, published criteria give the total score used for ranking.
+5. Reviewer "co przemawia przeciw" (LLM or rules), then weighted, published criteria give the ranking score.
 """
 
 from __future__ import annotations
 
-import json
 from collections import Counter
 
 from sqlalchemy import func, select
@@ -156,7 +156,7 @@ def _risks(rec: Record, card: Card, ctx: dict, similar: list[dict]) -> list[dict
     if (card.maturity or "exploring") == "exploring":
         R.append({"risk": "brak dowodu działania poza laboratorium", "level": "wysokie",
                   "mitigation": "pilotaż w kontrolowanych warunkach przed rozmowami z odbiorcami", "owner": "twórca"})
-    if any(x["similarity"] >= 0.35 and x.get("kind") != "possible_duplicate" for x in similar):
+    if any(x.get("closeness", 0) >= 0.1 and x.get("kind") != "possible_duplicate" for x in similar):
         R.append({"risk": "podobne rozwiązania już istnieją — ryzyko dublowania prac", "level": "średnie",
                   "mitigation": "porównać z podobnymi kartami i połączyć zespoły zamiast budować drugi raz", "owner": "PCI"})
     if (card.provenance or {}).get("provider") == "mock":
@@ -174,8 +174,11 @@ def _scores(rec: Record, card: Card, ctx: dict, similar: list[dict], recipients:
     cost = {"niski": 5, "sredni": 4, "wysoki": 2, "bardzo_wysoki": 1}.get(rec.cost_level or "sredni", 3)
     quotes = sum(1 for e in (card.evidence or {}).values() if e and e.get("quote"))
     evid = min(5, 1 + quotes // 2 + (1 if rec.doi or rec.kind == "patent" else 0) + (1 if rec.amounts else 0))
-    top_sim = max((x["similarity"] for x in similar if x.get("kind") != "possible_duplicate"), default=0.0)
-    novelty = 5 if top_sim < 0.2 else 4 if top_sim < 0.3 else 3 if top_sim < 0.4 else 2 if top_sim < 0.55 else 1
+    # closeness: 0 at the embedder's "similar" threshold, 1 at "near-duplicate" (embed.CALIBRATION)
+    near = [x for x in similar if x.get("kind") != "possible_duplicate"]
+    top_sim = max((x["similarity"] for x in near), default=0.0)
+    top = max((x.get("closeness", 0.0) for x in near), default=None)
+    novelty = 5 if top is None else 4 if top < 0.1 else 3 if top < 0.3 else 2 if top < 0.6 else 1
     raw = {"dojrzalosc": 1 + lvl + (1 if lvl == 3 else 0), "przenaszalnosc": min(5, transfer), "skala_problemu": scale,
            "koszt_wdrozenia": cost, "sila_dowodow": evid, "nowosc": novelty}
     why = {
@@ -184,7 +187,8 @@ def _scores(rec: Record, card: Card, ctx: dict, similar: list[dict], recipients:
         "skala_problemu": f"{gaps} województw bez podobnej podaży w sektorze; {len(recipients)} potencjalnych odbiorców",
         "koszt_wdrozenia": label_pl("cost_level", rec.cost_level),
         "sila_dowodow": f"{quotes} cytatów ze źródła" + (", DOI" if rec.doi else "") + (", kwoty" if rec.amounts else ""),
-        "nowosc": f"najbliższe podobne rozwiązanie: podobieństwo {top_sim:.2f}",
+        "nowosc": "brak podobnych rozwiązań w danych" if top is None else
+                  f"najbliższe podobne rozwiązanie: podobieństwo {top_sim:.2f} (bliskość {top:.2f} w skali embeddera)",
     }
     return {k: {"score": max(0, min(5, int(v))), "why": why[k]} for k, v in raw.items()}
 
@@ -234,56 +238,49 @@ def total(scores: dict) -> float:
     return round(sum(CRITERIA[k][0] * v["score"] for k, v in scores.items() if k in CRITERIA) / 5 * 100, 1)
 
 
-# =========================================================================== LLM refinement
-SYSTEM = """Jesteś analitykiem wdrożeń innowacji w Podkarpackim Centrum Innowacji. Dostajesz FAKTY (wynik narzędzi)
-i WERSJĘ ROBOCZĄ oceny. Popraw tylko: "paths" (kroki: kto co robi i kiedy), "risks" (ryzyko, poziom, mitygacja,
-właściciel) i "summary". Nie dodawaj faktów spoza FAKTÓW, nie zmieniaj ocen liczbowych. Odpowiedz WYŁĄCZNIE JSON
-{"paths":[...], "risks":[...], "summary":"..."} w tym samym kształcie co wersja robocza, po polsku."""
-
-
-def _llm_available() -> bool:
+# =========================================================================== entry
+def use_llm() -> bool:
+    """A real model (local CPU or cloud) is configured; otherwise the deterministic agent runs the same loop."""
     from radar.llm.router import router
 
-    return any(p.name != "mock" and p.available() for p in router().providers)
+    return router().real_available()
 
 
-def llm_refine(facts: dict, draft: dict) -> tuple[dict | None, dict]:
-    from radar.llm.router import AllProvidersFailed, router
-
-    try:
-        out, prov = router().complete_json(SYSTEM, "FAKTY:\n" + json.dumps(facts, ensure_ascii=False, default=str)[:6000]
-                                           + "\n\nWERSJA ROBOCZA:\n" + json.dumps(draft, ensure_ascii=False)[:4000])
-    except AllProvidersFailed as e:
-        return None, {"error": str(e)}
-    if prov.get("provider") == "mock" or not isinstance(out.get("paths"), list) or not isinstance(out.get("risks"), list):
-        return None, prov
-    return out, prov
-
-
-# =========================================================================== entry
 def assess(s, rec: Record, card: Card) -> dict:
-    similar = tool_similar(s, rec)
-    ctx = tool_regional_context(s, rec)
-    recipients = tool_recipients(s, rec, similar)
-    paths = _paths(rec, card)
-    risks = _risks(rec, card, ctx, similar)
+    """Agent loop with tools -> citation checks -> Basal recheck -> reviewer "what speaks against" -> score."""
+    from radar.pipeline import agent as AG
+
+    def baseline(box) -> dict:
+        ctx = box.cache.get("ctx") or tool_regional_context(s, rec)
+        return {"paths": _paths(rec, card), "risks": _risks(rec, card, ctx, box.cache.get("similar") or [])}
+
+    llm = use_llm()
+    run = AG.run_agent(s, rec, card, baseline, llm)
+    box = run["toolbox"]
+    for name, args in AG.RulePolicy.PLAN:  # scores need every tool's facts, whatever the model chose to call
+        if name not in {f["tool"] for f in box.facts.values()}:
+            fid, _ = box.run(name, args)
+            run["trace"].append({"step": len(run["trace"]) + 1, "tool": name, "args": args, "fact": fid, "by": "reguły (uzupełnienie)"})
+    similar, ctx, recipients = box.cache.get("similar") or [], box.cache["ctx"], box.cache.get("recipients") or []
+    paths, risks = run["final"]["paths"], run["final"]["risks"]
+    if not risks:  # a model that returned no valid risk does not make the idea risk-free
+        risks = AG._rules_final(box, {"paths": [], "risks": _risks(rec, card, ctx, similar)})["risks"]
     scores = _scores(rec, card, ctx, similar, recipients)
     a = {"version": VERSION, "paths": paths, "risks": risks, "recipients": recipients, "scores": scores,
-         "similar": similar, "regional_context": ctx, "metrics": _metrics(paths, rec),
+         "similar": similar, "regional_context": ctx, "registry": box.cache.get("registry") or [],
+         "metrics": _metrics(paths, rec), "summary": run["final"].get("summary"),
          "levels": {"tech_area": label_pl("tech_area", rec.tech_area), "advancement": card.maturity,
                     "cost": label_pl("cost_level", rec.cost_level), "sector": label_pl("sector", rec.sector)},
-         "by": "reguły"}
-    if _llm_available():
-        facts = {"karta": {"nazwa": card.solution_name, "problem": card.problem_solved, "co_nowego": card.what_is_new},
-                 "basal": {k: (rec.basal or {}).get(k, {}).get("value") for k in ("sector", "tech_area", "innovation_type", "institution_type", "cost_level", "voivodeship")},
-                 "podobne": similar, "region": ctx, "odbiorcy": recipients}
-        refined, prov = llm_refine(facts, {"paths": paths, "risks": risks})
-        if refined:
-            a["paths"], a["risks"] = refined["paths"], refined["risks"]
-            a["summary"] = refined.get("summary")
-            a["by"] = f"LLM {prov.get('provider')}/{prov.get('model')} na faktach z narzędzi"
-    a["recheck"] = basal_recheck(a, rec, card)
+         "by": run["by"],
+         "agent": {"trace": run["trace"], "facts": {k: {"tool": v["tool"], "args": v["args"]} for k, v in run["facts"].items()},
+                   "citation_errors": run["errors"][:10], "provider": run["provenance"].get("provider")}}
+    a["recheck"] = basal_recheck(a, rec, card) + [f"walidacja cytatów: {e}" for e in run["errors"][:5]]
     a["total"] = total(a["scores"])
+    against, rprov, rerr = (AG.llm_review(box, a, db=s) if llm else (None, {}, []))
+    a["against"] = against or AG.rule_review(rec, card, box, scores, risks)
+    a["against_by"] = f"LLM {rprov.get('provider')}/{rprov.get('model')}" if against else "reguły"
+    if rerr:
+        a["recheck"] += [f"recenzent: {e}" for e in rerr[:3]]
     a["criteria"] = {k: {"weight": w, "what": d} for k, (w, d) in CRITERIA.items()}
     return a
 
@@ -305,4 +302,5 @@ def brief(rec: Record, card: Card, a: dict) -> dict:
         "score": a["total"],
         "top_criteria": sorted(((k, v["score"]) for k, v in a["scores"].items()), key=lambda kv: -kv[1])[:3],
         "metric": (a.get("metrics") or [None])[0],
+        "against": ((a.get("against") or [{}])[0]).get("point"),
     }

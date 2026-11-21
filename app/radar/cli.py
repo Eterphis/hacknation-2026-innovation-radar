@@ -7,6 +7,7 @@
   reconcile                 re-enqueue records whose pipeline stopped mid-way
   reassess                  re-index the graph and re-score all ready cards (also daily via beat)
   demo                      eager run of all demo sources into the local DB (no broker, no keys)
+  basal-eval [--log CSV]    accuracy of Basal on the hand-labelled real test set (eval/basal_gold.jsonl)
 """
 
 from __future__ import annotations
@@ -29,6 +30,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("reconcile")
     sub.add_parser("demo")
     sub.add_parser("reassess")
+    e = sub.add_parser("basal-eval")
+    e.add_argument("--data"); e.add_argument("--gold"); e.add_argument("--log"); e.add_argument("--note", default="")
+    e.add_argument("--errors", action="store_true", help="print misclassified records")
     a = p.parse_args(argv)
 
     if a.cmd == "demo":
@@ -36,6 +40,15 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["RADAR_DEMO_MODE"] = "1"
         from radar.config import get_settings
         get_settings.cache_clear()
+
+    if a.cmd == "basal-eval":
+        from radar.basal.evaluate import main as basal_eval
+
+        res = basal_eval(a.data, a.gold, a.log, a.note)
+        if not a.errors:
+            res.pop("errors")
+        print(json.dumps(res, ensure_ascii=False, indent=1))
+        return 0
 
     from radar.db import create_all
 

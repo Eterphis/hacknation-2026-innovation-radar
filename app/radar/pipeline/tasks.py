@@ -346,7 +346,8 @@ def score(self, raw_id: int, h: str) -> str:
             {"step": "Ocena wg kryteriów", "items": [f"{k}: {v['score']}/5 — {v['why']}" for k, v in a["scores"].items()]
              + [f"Wynik łączny: {a['total']}/100"]},
             {"step": "Rekomendowana ścieżka", "items": [f"{p['path']}: {p['why']}" for p in a["paths"]]},
-            {"step": "Co przemawia przeciw (ryzyka)", "items": [f"{r['risk']} → {r['mitigation']} ({r['owner']})" for r in a["risks"]] or ["—"]},
+            {"step": "Co przemawia przeciw", "items": [f"{x['point']} ({x['severity']}; {', '.join(x['cite'])})" for x in a.get("against") or []] or ["—"]},
+            {"step": "Ryzyka i mitygacje", "items": [f"{r['risk']} → {r['mitigation']} ({r['owner']})" for r in a["risks"]] or ["—"]},
             {"step": "Mierniki skuteczności", "items": a["metrics"]},
         ] + (card.reasoning or [])[3:]
         _mark(s, raw_id, "score", h, "ok", f"{a['total']} ({a['by']})")

@@ -23,14 +23,24 @@ class ProviderError(RuntimeError):
     pass
 
 
+class BadOutput(ProviderError):
+    """The provider answered, but not with a JSON object: retry or ask again, do not open the circuit."""
+
+
 def _parse_json(text: str) -> dict:
-    m = re.search(r"\{.*\}", text, re.S)
-    if not m:
-        raise ProviderError("no JSON object in model output")
-    try:
-        return json.loads(m.group(0))
-    except json.JSONDecodeError as e:
-        raise ProviderError(f"invalid JSON from model: {e}") from e
+    """First complete JSON object in the output (small models add prose or a second object after it)."""
+    dec = json.JSONDecoder()
+    t = re.sub(r"```(?:json)?", "", text or "")
+    err = None
+    for m in re.finditer(r"\{", t):
+        try:
+            obj, _ = dec.raw_decode(t, m.start())
+        except json.JSONDecodeError as e:
+            err = err or e
+            continue
+        if isinstance(obj, dict):
+            return obj
+    raise BadOutput(f"invalid JSON from model: {err}" if err else "no JSON object in model output")
 
 
 class Provider(ABC):
@@ -72,6 +82,8 @@ class AnthropicProvider(Provider):
 
 class OpenAICompatProvider(Provider):
     name = "openai"
+    json_mode = True  # response_format=json_object (constrained decoding where the server supports it)
+    max_tokens = 1500
 
     def __init__(self):
         s = get_settings()
@@ -86,7 +98,8 @@ class OpenAICompatProvider(Provider):
             r = httpx.post(
                 self.base.rstrip("/") + "/chat/completions",
                 headers=headers,
-                json={"model": self.model, "response_format": {"type": "json_object"},
+                json={"model": self.model, "temperature": 0.2, "max_tokens": self.max_tokens,
+                      **({"response_format": {"type": "json_object"}} if self.json_mode else {}),
                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
                 timeout=self.timeout,
             )
@@ -144,6 +157,10 @@ class LocalProvider(OpenAICompatProvider):
     def __init__(self):
         s = get_settings()
         self.key, self.base, self.model, self.timeout = None, s.local_llm_url, s.local_llm_model, max(s.llm_timeout_s, 120)
+        # llama.cpp builds differ: some fail to build the JSON grammar ("Failed to initialize samplers"); the
+        # prompt asks for JSON and _parse_json takes the first object, which is enough for the agent protocol.
+        self.json_mode = s.local_llm_json_mode
+        self.max_tokens = 900
 
     def available(self) -> bool:
         return bool(self.base)

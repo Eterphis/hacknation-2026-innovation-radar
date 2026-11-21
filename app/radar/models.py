@@ -89,7 +89,25 @@ class StageRun(Base):
     # ok | needs_review | skipped | failed
     outcome: Mapped[str] = mapped_column(String(20))
     detail: Mapped[str | None] = mapped_column(Text)
+    # wall time of the stage body (ms), for the stage latency metrics
+    duration_ms: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class LlmCall(Base):
+    """One call to an LLM provider (extract, agent step, reviewer). Workers write it, /metrics on the API reads it,
+    so latency and errors per provider are visible without a multiprocess metrics registry."""
+
+    __tablename__ = "llm_calls"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    provider: Mapped[str] = mapped_column(String(30), index=True)
+    model: Mapped[str | None] = mapped_column(String(120))
+    purpose: Mapped[str] = mapped_column(String(30), index=True)  # extract | agent | review | other
+    ok: Mapped[bool] = mapped_column(Boolean, default=True)
+    latency_ms: Mapped[float] = mapped_column(Float)
+    error: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
 
 class Card(Base):

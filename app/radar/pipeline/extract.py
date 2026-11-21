@@ -73,7 +73,7 @@ def extract(text: str, max_retries: int = 2) -> tuple[dict | None, list[str], di
     for attempt in range(max_retries + 1):
         msg = user if not errors else f"{user}\n\nPOPRZEDNIA ODPOWIEDŹ MIAŁA BŁĘDY, popraw je:\n- " + "\n- ".join(errors)
         try:
-            out, p = router().complete_json(SYSTEM, msg)
+            out, p = router().complete_json(SYSTEM, msg, purpose="extract")
         except AllProvidersFailed as e:
             return None, [f"żaden dostawca LLM nie odpowiedział: {e}"], prov
         prov.update(p, attempts=attempt + 1)

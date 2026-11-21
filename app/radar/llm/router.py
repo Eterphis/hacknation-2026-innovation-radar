@@ -1,7 +1,11 @@
 """Provider chain with fallback and a simple circuit breaker.
 
-RADAR_LLM_PROVIDERS="anthropic,openai,mock": try in order; a provider that failed is skipped for
-`cooldown_s`, so a dead API does not add its timeout to every record.
+RADAR_LLM_PROVIDERS="local,anthropic,openai,mock": try in order (small CPU model on the VPS first, then the
+cloud, then the offline heuristic); a provider that failed is skipped for `cooldown_s`, so a dead API does not
+add its timeout to every record. The agent (`assess`) excludes `mock` and falls back to its rules instead.
+
+Every attempt (success or failure) is logged to the `llm_calls` table with its latency, so `/metrics` on the API
+shows latency, errors and fallbacks per provider for all worker processes.
 """
 
 from __future__ import annotations
@@ -10,13 +14,36 @@ import logging
 import time
 
 from radar.config import get_settings
-from radar.llm.providers import PROVIDERS, Provider, ProviderError
+from radar.llm.providers import PROVIDERS, BadOutput, Provider, ProviderError
 
 log = logging.getLogger(__name__)
 
 
 class AllProvidersFailed(RuntimeError):
-    pass
+    def __init__(self, msg: str, only_bad_output: bool = False):
+        super().__init__(msg)
+        self.only_bad_output = only_bad_output  # a model answered, just not in JSON: worth asking again
+
+
+def _record(db, provider: str, model: str | None, purpose: str, ok: bool, latency_ms: float,
+            error: str | None = None) -> None:
+    """Best effort: metrics must never break the pipeline (e.g. classification without a DB).
+    `db`: the caller's open session (the agent runs inside the score transaction; a second writer would wait
+    on SQLite's lock), else a short session of our own."""
+    try:
+        from radar.models import LlmCall
+
+        row = LlmCall(provider=provider, model=(model or "")[:120], purpose=purpose[:30], ok=ok,
+                      latency_ms=round(latency_ms, 1), error=(error or None) and error[:300])
+        if db is not None:
+            db.add(row)
+            return
+        from radar.db import session
+
+        with session() as s:
+            s.add(row)
+    except Exception as e:  # pragma: no cover - only without a database
+        log.debug("llm call not recorded: %s", e)
 
 
 class LLMRouter:
@@ -29,24 +56,41 @@ class LLMRouter:
         self.cooldown_s = cooldown_s
         self._open_until: dict[str, float] = {}
 
-    def complete_json(self, system: str, user: str) -> tuple[dict, dict]:
-        """Returns (result, provenance). Provenance names the provider and model that answered."""
+    def real_available(self) -> bool:
+        """True when a non-heuristic model is configured (and its circuit is closed)."""
+        now = time.monotonic()
+        return any(p.name != "mock" and p.available() and self._open_until.get(p.name, 0) <= now for p in self.providers)
+
+    def complete_json(self, system: str, user: str, purpose: str = "other",
+                      exclude: tuple[str, ...] = (), db=None) -> tuple[dict, dict]:
+        """Returns (result, provenance). Provenance names the provider and model that answered and its latency."""
         errors = []
         for p in self.providers:
+            if p.name in exclude:
+                continue
             if not p.available():
                 errors.append(f"{p.name}: not configured")
                 continue
             if self._open_until.get(p.name, 0) > time.monotonic():
                 errors.append(f"{p.name}: circuit open")
                 continue
+            t0 = time.perf_counter()
             try:
                 out = p.complete_json(system, user)
-                return out, {"provider": p.name, "model": p.model, "fallbacks": errors}
             except ProviderError as e:
-                log.warning("LLM provider %s failed: %s", p.name, e)
-                self._open_until[p.name] = time.monotonic() + self.cooldown_s
+                ms = (time.perf_counter() - t0) * 1000
+                log.warning("LLM provider %s failed: %s", p.name, e, extra={"provider": p.name})
+                _record(db, p.name, p.model, purpose, False, ms, str(e))
+                if not isinstance(e, BadOutput):  # the server answered: no reason to skip it for the next records
+                    self._open_until[p.name] = time.monotonic() + self.cooldown_s
                 errors.append(f"{p.name}: {e}")
-        raise AllProvidersFailed("; ".join(errors))
+                continue
+            ms = (time.perf_counter() - t0) * 1000
+            _record(db, p.name, p.model, purpose, True, ms)
+            return out, {"provider": p.name, "model": p.model, "fallbacks": errors, "latency_ms": round(ms, 1)}
+        raise AllProvidersFailed("; ".join(errors) or "no provider", only_bad_output=bool(errors) and all(
+            "invalid JSON" in e or "no JSON" in e or "not configured" in e or "circuit open" in e for e in errors)
+            and any("JSON" in e for e in errors))
 
 
 _router: LLMRouter | None = None
