@@ -204,3 +204,50 @@ def basal_train():
                                    .where(Card.decision.in_(("approved", "rejected"))))
                 if r.basal and r.basal.get("features")]
     return train_head(rows)
+
+
+# ---------------------------------------------------------------- audiences (personas) + business case
+@router.get("/personas")
+def personas():
+    from radar.business import PERSONAS
+
+    return [{"key": k, **{f: v[f] for f in ("name", "icon", "promise", "cta", "metric")}} for k, v in PERSONAS.items()]
+
+
+@router.get("/personas/{key}")
+def persona(key: str, voivodeship: str | None = None, limit: int = 24):
+    """Ideas matched to one audience, ranked by its money metric x quality, with deterministic business cases."""
+    from radar.business import PERSONAS, business_case, dedup_key, is_infrastructure, metric_value
+
+    p = PERSONAS.get(key)
+    if p is None:
+        raise HTTPException(404, "unknown audience")
+    f = dict(p["filters"])
+    with session() as s:
+        recs = s.scalars(select(Record).join(Card, Card.record_id == Record.id)
+                         .where(_filters(**f, voivodeship=voivodeship), Card.decision != "rejected")
+                         .order_by(Card.score.desc().nulls_last()).limit(400)).all()
+        rows, seen = [], set()
+        for r in recs:  # recs are best-first, so the first of a programme/title group wins
+            if is_infrastructure(r) or r.source_id in p.get("skip_sources", ()):
+                continue
+            k = dedup_key(r)
+            if k in seen:
+                continue
+            seen.add(k)
+            bc = business_case(r, r.card)
+            d = idea_dict(r)
+            d["business"] = {"metric": metric_value(bc, p["metric"]), "deploy_cost_pln": bc["deploy_cost_pln"],
+                             "adopters": bc["adopters"], "som_3y_pln": bc["market"]["som_3y_pln"],
+                             "funding": [x["programme"] for x in bc["funding"][:2]], "payback": bc["payback"]}
+            rows.append(d)
+    import math
+
+    rows.sort(key=lambda d: -((d["score"] or 0) * .75 + min(25, 25 * math.log10(1 + d["business"]["metric"]) / 8)))
+    top = rows[:min(limit, 60)]
+    return {"key": key, **{k: p[k] for k in ("name", "icon", "promise", "cta", "metric")},
+            "total": len(rows),
+            "summary": {"ideas": len(rows), "metric_sum_pln": round(sum(d["business"]["metric"] for d in rows)),
+                        "som_3y_sum_pln": round(sum(d["business"]["som_3y_pln"] for d in rows)),
+                        "regions": len({d["voivodeship"] for d in rows if d["voivodeship"]})},
+            "items": top}
