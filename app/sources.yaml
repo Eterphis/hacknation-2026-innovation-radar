@@ -247,6 +247,7 @@ sources:
       record_type: record_type
       harvester_source: source
       quality_status: quality.status
+      organizations: organizations   # ids (RAD-on uuid, REGON, NIP, KRS) for resolve_org
 
   - id: harvester-interreg
     type: snapshot

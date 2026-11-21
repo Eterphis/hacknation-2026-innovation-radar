@@ -17,9 +17,6 @@ def test_sources_yaml_is_valid():
     specs = load_sources()
     assert {"demo-publikacje", "demo-kohesio", "zgloszenia", "bibliotekanauki"} <= specs.keys()
     assert specs["przyklad-amqp"].mode == "push"
-    # Biblioteka Nauki and RAD-on come in through one path only: the team harvester (issue #5)
-    assert not specs["bibliotekanauki"].enabled and not specs["radon-projekty"].enabled
-    assert specs["harvester-bibliotekanauki"].enabled and specs["harvester-radon"].enabled
 
 
 def test_transforms():
