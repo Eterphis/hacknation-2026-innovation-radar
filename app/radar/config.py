@@ -28,7 +28,12 @@ class Settings(BaseSettings):
     local_llm_url: str = ""
     local_llm_model: str = "bielik-1.5b-v3.0-instruct"
     local_llm_json_mode: bool = False
+    # a 1.5B model on a few vCPU needs ~1 min per agent step; a separate, longer timeout than the cloud APIs
+    local_llm_timeout_s: float = 300.0
     llm_timeout_s: float = 60.0
+    # Prices for the cost metric, USD per million tokens: {"anthropic": [in, out], "openai": [in, out]}.
+    # Not hard-coded (they change); unset = cost 0, the token counters are still exported. Local model = 0.
+    llm_prices: str = ""
 
     # Shared secrets for webhook sources are looked up as RADAR_WEBHOOK_SECRET_<SOURCE_ID_UPPER>.
     http_user_agent: str = "innovation-radar/0.1 (+https://github.com/Eterphis/hacknation-2026-innovation-radar)"

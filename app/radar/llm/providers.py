@@ -46,6 +46,7 @@ def _parse_json(text: str) -> dict:
 class Provider(ABC):
     name: str
     model: str
+    last_usage: dict | None = None  # {"in": tokens, "out": tokens} of the last call, when the API reports it
 
     def available(self) -> bool:
         return True
@@ -76,6 +77,8 @@ class AnthropicProvider(Provider):
             r.raise_for_status()
         except httpx.HTTPError as e:
             raise ProviderError(f"anthropic: {e}") from e
+        u = r.json().get("usage") or {}
+        self.last_usage = {"in": u.get("input_tokens"), "out": u.get("output_tokens")}
         text = "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
         return _parse_json(text)
 
@@ -106,6 +109,8 @@ class OpenAICompatProvider(Provider):
             r.raise_for_status()
         except httpx.HTTPError as e:
             raise ProviderError(f"openai: {e}") from e
+        u = r.json().get("usage") or {}
+        self.last_usage = {"in": u.get("prompt_tokens"), "out": u.get("completion_tokens")}
         return _parse_json(r.json()["choices"][0]["message"]["content"])
 
 
@@ -156,7 +161,7 @@ class LocalProvider(OpenAICompatProvider):
 
     def __init__(self):
         s = get_settings()
-        self.key, self.base, self.model, self.timeout = None, s.local_llm_url, s.local_llm_model, max(s.llm_timeout_s, 120)
+        self.key, self.base, self.model, self.timeout = None, s.local_llm_url, s.local_llm_model, s.local_llm_timeout_s
         # llama.cpp builds differ: some fail to build the JSON grammar ("Failed to initialize samplers"); the
         # prompt asks for JSON and _parse_json takes the first object, which is enough for the agent protocol.
         self.json_mode = s.local_llm_json_mode

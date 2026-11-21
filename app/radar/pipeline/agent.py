@@ -144,14 +144,32 @@ def check_citations(items: list[dict], valid: set[str], text_keys: tuple[str, ..
     return kept, errors
 
 
+PATHS = ("rozwój", "komercjalizacja", "wdrożenie w innej organizacji (transfer)", "pilotaż", "skalowanie i finansowanie")
+
+
+def _path_name(v) -> str | None:
+    """Exactly one of PATHS (small models paste the whole "a|b|c" enum, or use a short form like "transfer")."""
+    v = fold(str(v or "")).strip()
+    if not v or "|" in v:
+        return None
+    for p in PATHS:
+        f = fold(p)
+        if v == f or (len(v) >= 5 and (v in f or f.startswith(v))):
+            return p
+    return None
+
+
 def validate_final(out: dict, box: Toolbox) -> tuple[dict, list[str]]:
     valid = box.valid_ids()
     paths, e1 = check_citations(out.get("paths") if isinstance(out.get("paths"), list) else [], valid, ("path", "why"), "paths")
     for p in paths:
+        p["path"] = _path_name(p.get("path"))
         p["steps"] = [st for st in (p.get("steps") or []) if isinstance(st, dict) and st.get("step")]
-        if not p["steps"]:
+        if p["path"] is None:
+            e1.append(f"ścieżka spoza listy {list(PATHS)} (wybierz jedną nazwę)")
+        elif not p["steps"]:
             e1.append(f"ścieżka „{p.get('path')}” bez kroków")
-    paths = [p for p in paths if p["steps"]]
+    paths = [p for p in paths if p["path"] and p["steps"]]
     risks, e2 = check_citations(out.get("risks") if isinstance(out.get("risks"), list) else [], valid,
                                 ("risk", "mitigation"), "risks")
     for r in risks:
@@ -180,9 +198,10 @@ Każda odpowiedź to JEDEN obiekt JSON:
 {{"action":"tool","name":"<narzędzie>","args":{{...}}}}
 albo, gdy masz dość faktów (najpóźniej w kroku {max_steps}):
 {{"action":"final","summary":"2 zdania","summary_cite":["T1"],
- "paths":[{{"path":"rozwój|komercjalizacja|wdrożenie w innej organizacji (transfer)|pilotaż|skalowanie i finansowanie",
-   "why":"...","cite":["karta","T2"],"steps":[{{"step":"...","who":"...","time":"..."}}]}}],
+ "paths":[{{"path":"pilotaż","why":"...","cite":["karta","T2"],"steps":[{{"step":"...","who":"...","time":"..."}}]}}],
  "risks":[{{"risk":"...","level":"niskie|średnie|wysokie","mitigation":"...","owner":"...","cite":["T1","rec:12"]}}]}}
+"path" to JEDNA nazwa z listy: rozwój, komercjalizacja, wdrożenie w innej organizacji (transfer), pilotaż,
+skalowanie i finansowanie. Każde narzędzie wywołaj najwyżej raz.
 Zasady: "cite" to identyfikatory faktów (T1, T2...), rekordów zwróconych przez narzędzia (rec:<id>), "karta" albo
 "basal". Nie podawaj faktów, liczb ani instytucji, których nie ma w faktach. Po polsku."""
 
@@ -275,6 +294,13 @@ def run_agent(s, rec: Record, card: Card, baseline_fn, use_llm: bool) -> dict:
             act = out.get("action") or ("final" if "paths" in out else None)
             if act == "tool" and step <= MAX_STEPS:
                 name, args = str(out.get("name") or ""), out.get("args") or {}
+                prev = next((f for f, x in box.facts.items() if x["tool"] == name and x["args"] == args), None)
+                if prev:  # small models loop on one tool: point at the fact they already have
+                    trace.append({"step": step, "tool": name, "args": args, "fact": prev, "repeat": True, "by": pol.prov.get("provider")})
+                    left = [t for t in TOOLS if t not in {x["tool"] for x in box.facts.values()}]
+                    transcript.append(f"KROK {step}: {name} już wywołane, wynik to {prev}. "
+                                      + (f"Użyj innego narzędzia ({', '.join(left)}) albo " if left else "") + "odpowiedz action=final.")
+                    continue
                 fid, res = box.run(name, args)
                 trace.append({"step": step, "tool": name, "args": args, "fact": fid, "by": pol.prov.get("provider"),
                               "latency_ms": pol.prov.get("latency_ms")})
@@ -302,7 +328,7 @@ def run_agent(s, rec: Record, card: Card, baseline_fn, use_llm: bool) -> dict:
         final, errs = validate_final(_rules_final(box, baseline_fn(box)), box)
         return {"final": final, "trace": trace, "facts": box.facts, "by": "reguły (fallback po LLM)",
                 "errors": errors + errs, "provenance": pol.prov, "toolbox": box}
-    by = f"agent LLM {pol.prov.get('provider')}/{pol.prov.get('model')}, {len([t for t in trace if t.get('tool')])} wywołań narzędzi"
+    by = f"agent LLM {pol.prov.get('provider')}/{pol.prov.get('model')}, {len([t for t in trace if t.get('tool') and not t.get('repeat')])} wywołań narzędzi"
     return {"final": final, "trace": trace, "facts": box.facts, "by": by, "errors": errors, "provenance": pol.prov, "toolbox": box}
 
 

@@ -13,7 +13,11 @@ is not terminal and re-enqueues them. Nothing is lost silently; counters come fr
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from datetime import datetime, timezone
+
+from celery import signals
 
 from sqlalchemy import select
 
@@ -34,8 +38,31 @@ def _done(s, raw_id: int, stage: str, h: str) -> bool:
                                               StageRun.content_hash == h)) is not None
 
 
+# Stage wall time: a stack per thread, because eager mode (tests, `radar demo`) runs the next stage inside this one.
+_clock = threading.local()
+
+
+@signals.task_prerun.connect
+def _start_clock(task_id=None, **_):
+    _clock.__dict__.setdefault("stack", []).append(time.perf_counter())
+
+
+@signals.task_postrun.connect
+def _stop_clock(task_id=None, **_):
+    st = _clock.__dict__.get("stack")
+    if st:
+        st.pop()
+
+
+def _elapsed_ms() -> float | None:
+    st = _clock.__dict__.get("stack")
+    return round((time.perf_counter() - st[-1]) * 1000, 1) if st else None
+
+
 def _mark(s, raw_id: int, stage: str, h: str, outcome: str = "ok", detail: str | None = None) -> None:
-    s.add(StageRun(raw_id=raw_id, stage=stage, content_hash=h, outcome=outcome, detail=detail))
+    ms = _elapsed_ms()
+    s.add(StageRun(raw_id=raw_id, stage=stage, content_hash=h, outcome=outcome, detail=detail, duration_ms=ms))
+    log.info("stage %s %s", stage, outcome, extra={"raw_id": raw_id, "stage": stage, "outcome": outcome, "duration_ms": ms})
 
 
 def _next(stage: str, raw_id: int, h: str, priority: int | None = None) -> None:
@@ -86,7 +113,7 @@ def harvest(self, source_id: str) -> dict:
             st = s.get(SourceState, source_id)
             st.last_run_at, st.last_status, st.last_error = datetime.now(timezone.utc), status, err
             st.counters = totals
-    log.info("harvest %s: %s", source_id, totals)
+    log.info("harvest %s: %s", source_id, totals, extra={"source_id": source_id, "stage": "harvest"})
     return totals
 
 
@@ -333,13 +360,16 @@ def score(self, raw_id: int, h: str) -> str:
     from radar.basal.graph import index_record
     from radar.pipeline.assess import assess, brief
 
+    with session() as s:  # graph index first, committed: edges are rebuilt idempotently on redelivery
+        if _done(s, raw_id, "score", h):
+            return "duplicate-delivery"
+        index_record(s, s.scalar(select(Record).where(Record.raw_id == raw_id)))
+    # The agent may spend minutes on a CPU model: its transaction holds no graph locks of other records.
     with session() as s:
         if _done(s, raw_id, "score", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
         card = rec.card
-        index_record(s, rec)
-        s.flush()
         a = assess(s, rec, card)
         card.assessment, card.score, card.brief = a, a["total"], brief(rec, card, a)
         card.reasoning = (card.reasoning or [])[:3] + [

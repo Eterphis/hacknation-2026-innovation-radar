@@ -1,6 +1,6 @@
 """radar <command>
 
-  initdb                    create tables (TODO T030: Alembic)
+  initdb | migrate          apply Alembic migrations (T030); a pre-Alembic database is stamped at 0001 first
   sources                   validate and list sources.yaml
   harvest <source_id>       pull one source now (inline when RADAR_EAGER=1, else via the broker)
   consume <source_id>       run the consumer of a push source (amqp | gcp_pubsub | kafka)
@@ -24,6 +24,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="radar")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("initdb")
+    sub.add_parser("migrate")
     sub.add_parser("sources")
     h = sub.add_parser("harvest"); h.add_argument("source_id")
     c = sub.add_parser("consume"); c.add_argument("source_id")
@@ -50,11 +51,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(res, ensure_ascii=False, indent=1))
         return 0
 
-    from radar.db import create_all
+    from radar.db import migrate
 
-    if a.cmd == "initdb":
-        create_all()
-        print("ok")
+    if a.cmd in ("initdb", "migrate"):
+        print("schema at revision", migrate())
     elif a.cmd == "sources":
         from radar.sources.registry import active_sources, load_sources
 
@@ -62,13 +62,13 @@ def main(argv: list[str] | None = None) -> int:
         for s in load_sources().values():
             print(f"{'*' if s.id in active else ' '} {s.id:28} {s.type:10} {s.mode:5} {s.description}")
     elif a.cmd == "harvest":
-        create_all()
+        migrate()
         from radar.pipeline.tasks import harvest
 
         r = harvest.apply_async((a.source_id,), queue="harvest", routing_key="harvest")
         print(json.dumps(r.get() if r.ready() else {"task_id": r.id}, default=str))
     elif a.cmd == "consume":
-        create_all()
+        migrate()
         from radar.sources.push import CONSUMERS
         from radar.sources.registry import get_source
 
@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"re-enqueued {reconcile_all()}")
     elif a.cmd == "demo":
-        create_all()
+        migrate()
         from radar.pipeline.tasks import harvest
         from radar.sources.registry import active_sources
 
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
 
         print("reassessed", reassess.apply().get())
     elif a.cmd == "reassess":
-        create_all()
+        migrate()
         from radar.pipeline.tasks import reassess
 
         print("reassessed", reassess.apply().get())

@@ -5,10 +5,17 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 COPY radar ./radar
-RUN pip install ".[gcp,kafka]"
+RUN pip install ".[gcp,kafka,embed]"
+
+# multilingual-e5-small (ONNX, ~120 MB) baked in at build time: RADAR_EMBEDDER=fastembed works offline, on CPU
+ENV FASTEMBED_CACHE_PATH=/opt/fastembed
+RUN RADAR_EMBEDDER=fastembed python -c "from radar.basal.embed import FastEmbedEmbedder as F; print(F().name)"     && chmod -R a+rX /opt/fastembed
+ENV HF_HUB_OFFLINE=1
 
 COPY sources.yaml ./sources.yaml
 COPY samples ./samples
+COPY alembic.ini ./alembic.ini
+COPY eval ./eval
 
 RUN useradd --uid 10001 --create-home radar && mkdir -p /data && chown radar /data
 USER 10001

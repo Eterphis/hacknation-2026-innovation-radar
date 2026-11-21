@@ -11,6 +11,11 @@ x-radar: &radar
     RADAR_LLM_PROVIDERS: ${RADAR_LLM_PROVIDERS:-local,anthropic,openai,mock}
     # set to http://llm:8080/v1 when running with `--profile local-llm`
     RADAR_LOCAL_LLM_URL: ${RADAR_LOCAL_LLM_URL:-}
+    RADAR_LOCAL_LLM_TIMEOUT_S: ${RADAR_LOCAL_LLM_TIMEOUT_S:-300}
+    # hashing (default) | fastembed = multilingual-e5-small baked into the image (ONNX, CPU)
+    RADAR_EMBEDDER: ${RADAR_EMBEDDER:-hashing}
+    # USD per 1M tokens for radar_llm_cost_usd_total, e.g. {"anthropic":[3,15]}
+    RADAR_LLM_PRICES: ${RADAR_LLM_PRICES:-}
     # outputs of the team harvester (radar/refresh.py) -> `harvester-*` sources in app/sources.yaml
     RADAR_HARVEST_DIR: /data/normalized
   volumes: ["./data:/data:ro"]
@@ -38,11 +43,11 @@ services:
 
   worker-ingest:
     <<: *radar
-    command: celery -A radar.pipeline.celery_app worker -Q harvest,normalize,resolve_org,dedup,gate,link -c 4 -n ingest@%h --loglevel=INFO
+    command: celery -A radar.pipeline.celery_app worker -Q harvest,normalize,resolve_org,dedup,gate,link -c 4 -n ingest@%h -E --loglevel=INFO
 
   worker-llm:
     <<: *radar
-    command: celery -A radar.pipeline.celery_app worker -Q extract,maturity,score -c 2 -n llm@%h --loglevel=INFO
+    command: celery -A radar.pipeline.celery_app worker -Q extract,maturity,score -c 2 -n llm@%h -E --loglevel=INFO
 
   beat:
     <<: *radar
@@ -58,7 +63,8 @@ services:
     volumes: [llm-cache:/root/.cache]
     ports: ["8081:8080"]
 
-  # ---- observability: `docker compose --profile observability up` -> Grafana http://localhost:3000 (admin/admin), Flower :5555
+  # ---- observability: `docker compose --profile observability up` -> Grafana http://localhost:3000 (admin/admin),
+  #      Prometheus :9090 (alerts: deploy/observability/alerts.yml), Flower :5555 (also scraped: /metrics)
   prometheus:
     profiles: [observability]
     image: prom/prometheus:v2.55.1

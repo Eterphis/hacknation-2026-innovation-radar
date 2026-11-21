@@ -107,6 +107,8 @@ class LlmCall(Base):
     ok: Mapped[bool] = mapped_column(Boolean, default=True)
     latency_ms: Mapped[float] = mapped_column(Float)
     error: Mapped[str | None] = mapped_column(String(300))
+    tokens_in: Mapped[int | None] = mapped_column(Integer)
+    tokens_out: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
 

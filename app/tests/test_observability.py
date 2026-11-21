@@ -19,6 +19,14 @@ def test_metrics_exposition():
         assert f"# TYPE {name}" in body
     assert 'radar_stage_runs_total{stage="gate",outcome="ok"}' in body
     assert 'radar_source_last_accepted{source="demo-zgloszenia"} 20' in body
+    # stage latency histogram, every LLM call (here the offline extractor), alert inputs
+    assert 'radar_stage_duration_seconds_bucket{stage="gate",le="+Inf"}' in body
+    assert 'radar_stage_duration_seconds_count{stage="score"}' in body
+    assert 'radar_llm_requests_total{provider="mock",model="heuristic-v1",purpose="extract",outcome="ok"}' in body
+    assert "# TYPE radar_llm_latency_seconds histogram" in body and "# TYPE radar_llm_cost_usd_total counter" in body
+    assert "# TYPE radar_source_schedule_seconds gauge" in body
+    counts = [float(l.split()[-1]) for l in body.splitlines() if l.startswith('radar_stage_duration_seconds_bucket{stage="gate"')]
+    assert counts == sorted(counts) and counts[-1] >= 20  # cumulative buckets
 
 
 def test_json_log_line():

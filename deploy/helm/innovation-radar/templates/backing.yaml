@@ -108,7 +108,7 @@ spec:
       containers:
         - name: migrate
           image: {{ include "radar.image" . }}
-          command: ["radar", "initdb"]
+          command: ["radar", "migrate"]
           env: {{- include "radar.env" . | nindent 12 }}
           envFrom: {{- include "radar.envFrom" . | nindent 12 }}
           volumeMounts: {{- include "radar.volumeMounts" . | nindent 12 }}

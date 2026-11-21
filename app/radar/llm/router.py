@@ -26,7 +26,7 @@ class AllProvidersFailed(RuntimeError):
 
 
 def _record(db, provider: str, model: str | None, purpose: str, ok: bool, latency_ms: float,
-            error: str | None = None) -> None:
+            error: str | None = None, usage: dict | None = None) -> None:
     """Best effort: metrics must never break the pipeline (e.g. classification without a DB).
     `db`: the caller's open session (the agent runs inside the score transaction; a second writer would wait
     on SQLite's lock), else a short session of our own."""
@@ -34,7 +34,8 @@ def _record(db, provider: str, model: str | None, purpose: str, ok: bool, latenc
         from radar.models import LlmCall
 
         row = LlmCall(provider=provider, model=(model or "")[:120], purpose=purpose[:30], ok=ok,
-                      latency_ms=round(latency_ms, 1), error=(error or None) and error[:300])
+                      latency_ms=round(latency_ms, 1), error=(error or None) and error[:300],
+                      tokens_in=(usage or {}).get("in"), tokens_out=(usage or {}).get("out"))
         if db is not None:
             db.add(row)
             return
@@ -75,6 +76,7 @@ class LLMRouter:
                 errors.append(f"{p.name}: circuit open")
                 continue
             t0 = time.perf_counter()
+            p.last_usage = None
             try:
                 out = p.complete_json(system, user)
             except ProviderError as e:
@@ -86,7 +88,7 @@ class LLMRouter:
                 errors.append(f"{p.name}: {e}")
                 continue
             ms = (time.perf_counter() - t0) * 1000
-            _record(db, p.name, p.model, purpose, True, ms)
+            _record(db, p.name, p.model, purpose, True, ms, usage=p.last_usage)
             return out, {"provider": p.name, "model": p.model, "fallbacks": errors, "latency_ms": round(ms, 1)}
         raise AllProvidersFailed("; ".join(errors) or "no provider", only_bad_output=bool(errors) and all(
             "invalid JSON" in e or "no JSON" in e or "not configured" in e or "circuit open" in e for e in errors)

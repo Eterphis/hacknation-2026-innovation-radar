@@ -60,6 +60,12 @@ amqp://{{ .Values.rabbitmq.user }}:{{ .Values.rabbitmq.password }}@{{ include "r
   value: {{ printf "http://%s-llm:8080/v1" (include "radar.fullname" .) | quote }}
 - name: RADAR_LOCAL_LLM_MODEL
   value: {{ .Values.localLLM.alias | quote }}
+- name: RADAR_LOCAL_LLM_TIMEOUT_S
+  value: {{ .Values.localLLM.timeoutSeconds | default 300 | quote }}
+{{- end }}
+{{- with .Values.config.llmPrices }}
+- name: RADAR_LLM_PRICES
+  value: {{ toJson . | quote }}
 {{- end }}
 - name: RADAR_DATABASE_URL
   valueFrom:

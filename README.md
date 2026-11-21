@@ -44,7 +44,7 @@ On Windows use `py -3.12 house\bin\house …` instead of `python3 house/bin/hous
 
 ## Aplikacja (`app/`, `deploy/helm/`)
 
-Python 3.12: FastAPI (API + UI operatora), Celery + RabbitMQ (jedna kolejka na etap, `acks_late`, DLQ, idempotencja po `(raw_id, stage, content_hash)`), Postgres, router LLM z fallbackiem (`anthropic → openai-compatible → mock`).
+Python 3.12: FastAPI (API + UI operatora), Celery + RabbitMQ (jedna kolejka na etap, `acks_late`, DLQ, idempotencja po `(raw_id, stage, content_hash)`), Postgres z migracjami Alembic, router LLM z fallbackiem (`local (Bielik na CPU) → anthropic → openai-compatible → reguły`).
 
 **Źródła danych** to wpisy w [`app/sources.yaml`](app/sources.yaml), nie kod. Wszystkie kończą w jednym `ingest()`:
 
@@ -71,7 +71,21 @@ Lokalnie bez Dockera: `cd app && python -m venv .venv && .venv/Scripts/pip insta
 ```bash
 helm install radar deploy/helm/innovation-radar --set image.repository=<registry>/innovation-radar --set image.tag=<tag>
 ```
-`values.yaml`: `workers[]` (grupy kolejek i współbieżność), `sources:` (treść sources.yaml → ConfigMap; źródła push dostają konsumentów), `secrets:` / `existingSecret`, `postgresql.enabled` / `rabbitmq.enabled` (wbudowane albo zewnętrzne), `ingress`, `api.autoscaling`.
+`values.yaml`: `workers[]` (grupy kolejek i współbieżność), `sources:` (treść sources.yaml → ConfigMap; źródła push dostają konsumentów), `secrets:` / `existingSecret`, `postgresql.enabled` / `rabbitmq.enabled` (wbudowane albo zewnętrzne), `ingress`, `api.autoscaling`, `localLLM`, `config.embedder`, `config.llmPrices`.
+
+**Lokalnie na k3d** (to samo robi job `k3d` w CI):
+```bash
+docker build -t innovation-radar:dev app
+k3d cluster create radar --agents 1 --wait
+k3d image import innovation-radar:dev -c radar
+kubectl create secret generic radar-keys --from-literal=RADAR_ANTHROPIC_API_KEY=...   # opcjonalnie
+helm install radar deploy/helm/innovation-radar --set image.repository=innovation-radar --set image.tag=dev   --set image.pullPolicy=Never --set existingSecret=radar-keys --wait --timeout 15m
+kubectl get pods                                  # wszystkie Ready; Job radar-...-migrate-1 = Alembic
+kubectl port-forward svc/radar-innovation-radar-api 8080:80   # http://localhost:8080
+```
+Publiczny URL: `--set ingress.enabled=true --set ingress.host=<domena>` (k3d ma Traefik: `k3d cluster create radar -p "80:80@loadbalancer"`).
+
+**CI** (`.github/workflows/ci.yml`): pytest obu pakietów (osobne joby, bo oba nazywają się `radar`), `helm lint` i `helm template` (warianty domyślny, z lokalnym LLM i z zewnętrznymi usługami), build obrazu ze smoke testem (`radar migrate` i e5-small offline), push do GHCR z `main`, a w PR instalacja na k3d z czekaniem na Ready i zapytaniem do `/healthz` i `/metrics`.
 
 Zadania do zrobienia: [`.house/tasks/`](.house/tasks/) (T020–T036).
 
@@ -79,7 +93,7 @@ Zadania do zrobienia: [`.house/tasks/`](.house/tasks/) (T020–T036).
 
 1. **Wejście danych:** pull/push/formularz, jak wyżej.
 2. **Basal** (`app/radar/basal/`, bez LLM, milisekundy na rekord, zwykły vCPU): jedna decyzja *przyjmij / do przeglądu / odrzuć* z powodem oraz etykiety na 7 osiach (sektor PKD, obszar technologii, typ innowacji, typ instytucji, dojrzałość, koszt, województwo) i priorytet w kolejce (`x-max-priority`). Słowniki + podobieństwo do prototypów etykiet w przestrzeni embeddingów + głowa decyzji uczona na decyzjach operatora (`POST /api/basal/train`).
-3. **Agent wdrożeniowy** (`app/radar/pipeline/assess.py`): narzędzia (podobne pomysły z grafu, kontekst regionu, odbiorcy) → ścieżki „kto co robi”, ryzyka z mitygacjami, odbiorcy, 6 jawnych kryteriów z wagami, mierniki skuteczności → Basal sprawdza spójność → wynik 0–100 do rankingu. Bez klucza działa wersja regułowa; z LLM (chmura albo lokalny model) agent dopisuje uzasadnienia na faktach z narzędzi.
+3. **Agent wdrożeniowy** (`app/radar/pipeline/assess.py`, pętla w `agent.py`): model sam wywołuje narzędzia (`find_similar`, `regional_context`, `recipients`, `lookup_registry`) w protokole JSON, który działa także na 1,5B bez natywnego tool calling, i zwraca ścieżki „kto co robi”, ryzyka z mitygacjami i podsumowanie. **Każde twierdzenie musi wskazywać fakt** (`T1…` = wynik narzędzia, `rec:<id>` = rekord zwrócony przez narzędzie, `karta`, `basal`). Kod to sprawdza: zmyślone odnośniki i ścieżki spoza listy wracają raz do modelu, potem są odrzucane. Potem recenzent **„co przemawia przeciw”** (LLM albo reguły, też z odnośnikami), Basal sprawdza spójność, a 6 jawnych kryteriów daje wynik 0–100. Bez modelu działa ta sama pętla z polityką regułową (ten sam kształt, ślad narzędzi w `assessment.agent.trace`).
 4. **Prezentacja** (UI w stylu „Zero Interface”): *Przegląd* (trendy, wyróżniające się, najbardziej zaawansowane, gotowe do powielenia, tanie wdrożenia, wymagające dużego budżetu, ukryte perełki, dublowanie prac, luki regionalne, portfel koszt × dojrzałość), *Odkrywaj* (fasety), *Graf* (jak w Obsidianie), *Mapa* (kartogram + macierz województwo × sektor), *Rolki* (jednostronicowe briefy z polubieniami), *Zgłoś* (podgląd Basala na żywo), *Operator*. Wyszukiwanie klawiszem `/`, także głosem tam, gdzie przeglądarka wspiera Web Speech API.
 
 ### Lekki model na VPS (bez GPU)
@@ -87,11 +101,27 @@ Zadania do zrobienia: [`.house/tasks/`](.house/tasks/) (T020–T036).
 ```bash
 RADAR_LOCAL_LLM_URL=http://llm:8080/v1 docker compose --profile local-llm up --build
 ```
-llama.cpp server z **Bielik 1.5B v3.0 Instruct GGUF Q8_0** (polski, Apache-2.0, ~1,7 GB, pobierany przy pierwszym starcie). W Helm: `--set localLLM.enabled=true`. Embeddingi: domyślnie `hashing` (numpy, zero pobierań); `RADAR_EMBEDDER=fastembed` = `multilingual-e5-small` na ONNX/CPU (`pip install .[embed]`).
+llama.cpp server z **Bielik 1.5B v3.0 Instruct GGUF Q8_0** (polski, Apache-2.0, ~1,7 GB, pobierany przy pierwszym starcie). W Helm: `--set localLLM.enabled=true`. Na 4–10 vCPU jedno wywołanie trwa ~1 min (`RADAR_LOCAL_LLM_TIMEOUT_S`, domyślnie 300 s), więc agent na 1,5B nadaje się do kolejki w tle, nie do odpowiedzi na żywo. Wyniki: `.house/experiments.csv` (agent-eval). Embeddingi: domyślnie `hashing` (numpy, zero pobierań); `RADAR_EMBEDDER=fastembed` = `multilingual-e5-small` (ONNX/CPU, wbudowany w obraz). Progi podobieństwa są kalibrowane osobno dla każdego embeddera (`radar/basal/embed.py`, `CALIBRATION`).
+
+### Ewaluacja (Basal i agent)
+
+```bash
+cd app && radar basal-eval --errors                       # trafność Basala na 60 prawdziwych rekordach
+cd app && radar basal-eval --log ../.house/experiments.csv # + wpis E-### do dziennika eksperymentów
+RADAR_LOCAL_LLM_URL=http://localhost:8081/v1 python eval/agent_eval.py --n 4 --log ../.house/experiments.csv
+```
+Zbiór testowy [`app/eval/basal_gold.jsonl`](app/eval/basal_gold.jsonl): 32 sukcesy NCBR i 28 projektów Interreg 2021–2027, wylosowane ze stałym ziarnem z wyników harvestera, ręcznie oznaczone (sektor, decyzja, typ instytucji; reguły w `eval/build_testset.py`). W repo są tylko identyfikatory i etykiety. Treść rekordów zostaje w `data/` (licencja nieustalona), więc ewaluacja wymaga lokalnego `data/normalized/`. Wynik **strict** to zgodność z pierwszą etykietą, a **lenient** to trafienie w jedną z etykiet „a|b”, gdy dwie są równie uzasadnione.
+
+### Obserwowalność
+
+```bash
+docker compose --profile observability up -d   # Grafana :3000 (dashboard „Radar”), Prometheus :9090, Flower :5555
+```
+`GET /metrics` liczy się z bazy (jedno źródło prawdy dla API i wszystkich workerów): etapy potoku (licznik i histogram czasu `radar_stage_duration_seconds`), każde wywołanie LLM (`radar_llm_requests_total` wg dostawcy, celu i wyniku, histogram `radar_llm_latency_seconds`, tokeny, koszt z `RADAR_LLM_PRICES`), kolejki i DLQ z RabbitMQ, wiek ostatniego pobrania i harmonogram źródeł. Alerty (`deploy/observability/alerts.yml`): DLQ > 0, źródło bez pobrania dłużej niż 2× `schedule_s`, błędy i p95 opóźnienia LLM, wolne etapy bez LLM, API niedostępne. Logi to JSON z `raw_id`, `stage`, `source_id`, `duration_ms`.
 
 ### Aktualizacja istniejącej instalacji
 - Kolejki dostały argument `x-max-priority`: przy aktualizacji usuń stare kolejki `link`, `extract`, `maturity`, `score` w RabbitMQ (albo jego wolumen), inaczej broker odrzuci deklarację (`PRECONDITION_FAILED`).
-- Schemat bazy rozszerzony (Basal, embeddingi, krawędzie, polubienia); do czasu migracji Alembic (T030) nowa baza albo `radar initdb` na pustej.
+- Schemat bazy: migracje Alembic (`radar migrate`; w Helm Job post-install/pre-upgrade, API też migruje pod blokadą doradczą Postgresa). Baza utworzona wcześniej przez `create_all` jest najpierw oznaczana jako rewizja `0001`, więc dane zostają.
 - `radar reassess` przelicza graf i oceny (też codziennie z beat).
 
 ## Harvester danych (`radar/`, `config/`, z gałęzi `feature/pobieranie-danych`)

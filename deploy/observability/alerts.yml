@@ -3,21 +3,41 @@ groups:
     rules:
       - alert: RadarDeadLetters
         expr: sum(radar_dlq_messages) > 0
-        for: 5m
+        for: 2m
         labels: { severity: warning }
-        annotations: { summary: "Wiadomości w kolejkach DLQ: rekordy nie przeszły etapu po ponowieniach" }
+        annotations: { summary: "Wiadomości w kolejkach DLQ: rekordy nie przeszły etapu po ponowieniach (radar reconcile po naprawie)" }
       - alert: RadarSourceFailed
         expr: max by (source) (radar_source_failed) == 1
         for: 10m
         labels: { severity: warning }
         annotations: { summary: "Ostatnie pobranie źródła {{ $labels.source }} zakończyło się błędem" }
+      # no harvest for more than 2x the source's own schedule_s (sources.yaml), not a fixed interval
       - alert: RadarSourceStale
-        expr: radar_source_last_run_age_seconds > 2 * 86400
-        for: 30m
+        expr: radar_source_last_run_age_seconds > 2 * on (source) radar_source_schedule_seconds
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Źródło {{ $labels.source }} nie było pobierane od ponad 2× harmonogramu" }
+      - alert: RadarLLMErrors
+        expr: sum by (provider) (increase(radar_llm_requests_total{outcome="error"}[15m])) > 3
+        labels: { severity: warning }
+        annotations: { summary: "Błędy LLM u dostawcy {{ $labels.provider }} (>3 w 15 min); router przechodzi na kolejnego dostawcę lub reguły" }
+      - alert: RadarLLMSlow
+        expr: histogram_quantile(0.95, sum by (le, provider) (rate(radar_llm_latency_seconds_bucket[15m]))) > 60
+        for: 15m
         labels: { severity: info }
-        annotations: { summary: "Źródło {{ $labels.source }} nie było pobierane od ponad 2 dni" }
+        annotations: { summary: "p95 opóźnienia LLM {{ $labels.provider }} > 60 s — za mały CPU dla lokalnego modelu albo przeciążone API" }
+      - alert: RadarStageSlow
+        expr: histogram_quantile(0.95, sum by (le, stage) (rate(radar_stage_duration_seconds_bucket{stage!~"extract|score"}[15m]))) > 15
+        for: 15m
+        labels: { severity: info }
+        annotations: { summary: "Etap {{ $labels.stage }} (bez LLM) ma p95 > 15 s — sprawdź bazę danych" }
       - alert: RadarQueueBacklog
         expr: sum(radar_queue_messages{queue=~"extract|score"}) > 500
         for: 15m
         labels: { severity: info }
         annotations: { summary: "Duża kolejka do LLM — rozważ więcej replik workera llm" }
+      - alert: RadarApiDown
+        expr: up{job="radar-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "Prometheus nie może pobrać /metrics z API radaru" }
