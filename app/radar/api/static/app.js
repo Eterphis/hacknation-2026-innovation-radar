@@ -90,9 +90,14 @@ async function pageHome(v) {
   const live = src.filter(s => s.active && s.mode === "pull"), records = src.reduce((a, s) => a + s.records, 0);
   if (d.empty) { v.innerHTML = header("Radar innowacji", "radar", "Radar czeka na pierwsze pobranie", "Uruchom źródła w zakładce Źródła.") + `<a class="btn" href="#/zrodla">${icon("radar")}Źródła</a>`; return; }
   const k = d.kpi, maxHeat = Math.max(...d.trends.map(t => t.heat), 1);
-  const list = (key, extra) => `<div class="items">${(d[key] || []).map(i => ideaItem(i, extra ? extra(i) : "")).join("") || `<p class="faint">Brak pozycji spełniających regułę.</p>`}</div>`;
-  const how = key => `<details class="how"><summary>${icon("filter")}Jak liczymy</summary>${esc(d.rules[key])}</details>`;
-  const section = (ic, title, sub, key, body, red) => `<div class="card reveal">${cardH(ic, title, sub, "", red)}<div class="card-b">${body}${how(key)}</div></div>`;
+  // Readability: 4 items per insight + "Więcej" into Explore with the matching filter; the rule hides behind an (i) button.
+  const MORE = {standouts: {sort: "score"}, advanced: {maturity: "business_ready,market_ready"}, realized: {maturity: "business_ready,market_ready", innovation_type: "organizacyjna,edukacyjna,spoleczna,procesowa,uslugowa"},
+    cheap: {cost_level: "niski,sredni", maturity: "tech_ready,business_ready,market_ready"}, budget: {cost_level: "wysoki,bardzo_wysoki"}, hidden: {institution_type: "szkola,uczelnia,instytut"}};
+  const list = (key, extra) => { const all = d[key] || [];
+    return `<div class="items">${all.slice(0, 4).map(i => ideaItem(i, extra ? extra(i) : "")).join("") || `<p class="faint">Brak pozycji spełniających regułę.</p>`}</div>` +
+      (MORE[key] && all.length ? `<a class="more" href="#/odkrywaj?${qs(MORE[key])}">Więcej ${icon("arrow-right")}</a>` : ""); };
+  const info = key => `<button class="info" data-info="${key}" aria-expanded="false" aria-label="Jak liczymy">${icon("filter")}</button>`;
+  const section = (ic, title, sub, key, body, red) => `<div class="card reveal">${cardH(ic, title, sub, info(key), red)}<div class="card-b"><p class="info-pop" id="pop-${key}">${esc(d.rules[key])}</p>${body}</div></div>`;
   v.innerHTML = header(`Radar sam przeszukuje ${live.length} źródeł · ${records.toLocaleString("pl-PL")} rekordów`, "radar", "Ukryte innowacje z instytucji publicznych",
     "Pomysły z publikacji, projektów, patentów i inwestycji: odsiane przez Basala, ocenione przez agenta wdrożeniowego według jawnych kryteriów i skierowane do odbiorców.",
     `<a class="btn" href="#/mapa">${icon("map")}Zobacz mapę</a>`) + `
@@ -124,6 +129,8 @@ async function pageHome(v) {
   drawPortfolio($("#portfolio"), d.portfolio);
   const reg = await api("/api/regions");
   await drawPoland($("#minimap"), reg, {compact: true});
+  $$("[data-info]", v).forEach(b => b.onclick = () => { const open = b.getAttribute("aria-expanded") !== "true";
+    b.setAttribute("aria-expanded", open); $("#pop-" + b.dataset.info).classList.toggle("on", open); });
   $$(".bar[data-tech]", v).forEach(b => { const t = d.trends.find(x => x.key === b.dataset.tech);
     b.onmousemove = e => tip(`<b>${esc(t.pl)}</b><br>${t.ideas} pomysłów · ${t.likes} polubień<br>średnia ocena ${t.avg_score} · ${t.regions} woj. · ${t.ready} gotowych`, e);
     b.onmouseleave = () => tip(); b.onclick = () => go("odkrywaj", {tech_area: t.key}); });
@@ -159,7 +166,7 @@ function drawPortfolio(el, pts) {
     c.onmouseleave = () => tip(); c.onclick = () => openCard(p.card_id); });
   const used = [...new Set(pts.map(p => SECTOR_SLOT[p.sector] ? p.sector : "_"))].sort((a, b) => (SECTOR_SLOT[a] || 9) - (SECTOR_SLOT[b] || 9));
   $("#plegend").innerHTML = used.map(s => `<span><i class="dot" style="background:${s === "_" ? "var(--other)" : secColor(s)}"></i>${esc(s === "_" ? "inne sektory" : lp("sector", s))}</span>`).join("");
-  $("#ptable").innerHTML = `<table class="t"><tr><th>Pomysł</th><th>Koszt</th><th>Dojrzałość</th><th>Wynik</th></tr>${pts.slice().sort((a, b) => b.score - a.score).map(p => `<tr><td><a href="#" data-card="${p.card_id}">${esc(p.title)}</a></td><td>${["niski", "średni", "wysoki", "b. wysoki"][p.cost_i]}</td><td>${LVL[p.maturity_i]}</td><td class="mono">${Math.round(p.score)}</td></tr>`).join("")}</table>`;
+  $("#ptable").innerHTML = `<div class="table-wrap"><table class="t"><tr><th>Pomysł</th><th>Koszt</th><th>Dojrzałość</th><th>Wynik</th></tr>${pts.slice().sort((a, b) => b.score - a.score).map(p => `<tr><td><a href="#" data-card="${p.card_id}">${esc(p.title)}</a></td><td>${["niski", "średni", "wysoki", "b. wysoki"][p.cost_i]}</td><td>${LVL[p.maturity_i]}</td><td class="mono">${Math.round(p.score)}</td></tr>`).join("")}</table></div>`;
   bindCards($("#ptable"));
 }
 
@@ -171,15 +178,20 @@ async function drawPoland(el, reg, opts = {}) {
   const max = Math.max(0.0001, ...reg.regions.map(val));
   const fill = r => { const t = val(r) / max; return t <= 0 ? "var(--white)" : `color-mix(in srgb, var(--red) ${Math.round(12 + 88 * t)}%, var(--white))`; };
   el.innerHTML = `<svg class="pl-map" viewBox="${POLAND.viewBox}" role="img" aria-label="Mapa Polski: ${mode === "gap" ? "luki" : "liczba pomysłów"} w województwach">
-    ${POLAND.regions.map(p => { const r = by[p.name] || {selected: 0, gap: 0, ideas: 0}; return `<path d="${p.d}" fill="${fill(r)}" data-v="${esc(p.name)}" class="${opts.selected === p.name ? "sel" : ""}"/>`; }).join("")}
+    ${POLAND.regions.map(p => { const r = by[p.name] || {selected: 0, gap: 0, ideas: 0};
+      const lab = `${p.name}: ${r.selected} pomysłów${mode === "gap" && r.gap > 0 ? ", luka " + r.gap : ""}`;
+      return `<path d="${p.d}" fill="${fill(r)}" data-v="${esc(p.name)}" class="${opts.selected === p.name ? "sel" : ""}" tabindex="0" role="button" aria-label="${esc(lab)}"/>`; }).join("")}
     ${POLAND.regions.map(p => { const r = by[p.name] || {selected: 0, gap: 0}; const t = val(r) / max, n = mode === "gap" ? (r.gap > 0 ? "luka" : "") : r.selected;
       return n || n === 0 && !opts.compact ? `<text x="${p.cx}" y="${p.cy}" text-anchor="middle" class="${t > .6 ? "on-red" : ""}">${n}</text>` : ""; }).join("")}</svg>
     <div class="map-scale"><span>${mode === "gap" ? "brak luki" : "0"}</span><i></i><span>${mode === "gap" ? "największa luka" : Math.round(max) + " pomysłów"}</span></div>
-    <p class="faint" style="margin:.5rem 0 0">${icon("map")} Granice: ppatrzyk/polska-geojson (MIT), uproszczone.</p>`;
+    ${opts.compact ? "" : `<div class="map-legend"><span><i style="background:var(--white)"></i>${mode === "gap" ? "brak luki" : "brak pomysłów"}</span><span><i style="background:var(--red)"></i>${mode === "gap" ? "największa luka" : "najwięcej"}</span><span>${icon("map-pin")}klik lub Enter: pomysły województwa</span></div>`}
+    <p class="faint" style="margin:.5rem 0 0">Granice: ppatrzyk/polska-geojson (MIT), uproszczone.</p>`;
   $$("path[data-v]", el).forEach(p => { const r = by[p.dataset.v] || {selected: 0, ideas: 0, gap: 0, top_sectors: []};
-    p.onmousemove = e => tip(`<b>${esc(p.dataset.v)}</b><br>${r.selected} pomysłów${reg.national_avg != null ? ` · średnio ${reg.national_avg}/woj.` : ""}${r.top_sectors?.length ? "<br>" + esc(r.top_sectors.map(t => t.pl).join(", ")) : ""}`, e);
-    p.onmouseleave = () => tip();
-    p.onclick = () => opts.onPick ? opts.onPick(p.dataset.v) : go("mapa", {voivodeship: p.dataset.v}); });
+    const html = `<b>${esc(p.dataset.v)}</b><br>${r.selected} pomysłów${reg.national_avg != null ? ` · średnio ${reg.national_avg}/woj.` : ""}${r.top_sectors?.length ? "<br>" + esc(r.top_sectors.map(t => t.pl).join(", ")) : ""}`;
+    const pick = () => opts.onPick ? opts.onPick(p.dataset.v) : go("mapa", {voivodeship: p.dataset.v});
+    p.onmousemove = e => tip(html, e); p.onmouseleave = () => tip();
+    p.onfocus = () => { const b = p.getBoundingClientRect(); tip(html, {clientX: b.left + b.width / 2, clientY: b.top + b.height / 2}); }; p.onblur = () => tip();
+    p.onclick = pick; p.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } }; });
 }
 async function pageMap(v) {
   const sector = F.sector || "", mode = F.mode || "count", sel = F.voivodeship || "";
@@ -239,7 +251,7 @@ async function pageGraph(v) {
   const active = ["sector", "tech_area", "voivodeship", "innovation_type", "maturity"].filter(k => F[k]);
   v.innerHTML = header("Graf wiedzy", "network", "Jak pomysły łączą się ze sobą", "Kropki to pomysły (kolor = sektor). Białe węzły z ikoną to huby: sektor, obszar technologii, województwo. Czerwone linie = podobna treść.",
     active.length ? `<button class="btn-soft" id="clearf">${icon("x")}Wyczyść filtry</button>` : "") +
-    `<div class="card reveal"><canvas id="graph" aria-label="Graf pomysłów"></canvas></div><div class="legend" id="glegend"></div>`;
+    `<div class="card reveal"><canvas id="graph" role="img" aria-label="Graf pomysłów; ta sama treść jest dostępna jako lista poniżej"></canvas></div><div class="legend" id="glegend"></div><div id="gtext"></div>`;
   if ($("#clearf")) $("#clearf").onclick = () => go("graf", {});
   if (!g.nodes.length) { $("#graph").outerHTML = empty("Brak pomysłów dla tych filtrów."); return; }
   drawGraph(g);
@@ -297,6 +309,12 @@ function drawGraph(g) {
   const used = [...new Set(N.filter(n => n.type === "idea").map(n => SECTOR_SLOT[n.sector] ? n.sector : "_"))].sort((a, b) => (SECTOR_SLOT[a] || 9) - (SECTOR_SLOT[b] || 9));
   $("#glegend").innerHTML = used.map(s => `<span><i class="dot" style="background:${s === "_" ? "var(--other)" : secColor(s)}"></i>${esc(s === "_" ? "inne sektory" : lp("sector", s))}</span>`).join("") +
     `<span>${icon("map-pin")}hub (sektor, obszar, województwo)</span><span><i class="dot" style="background:var(--red);width:16px;height:3px;border-radius:2px"></i>podobna treść</span>`;
+  // text alternative for screen readers and keyboard users: the strongest ideas and their closest neighbours
+  const ideas = N.filter(n => n.type === "idea").sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 25);
+  const nb = n => Lk.filter(l => sim(l) && (l.s === n || l.t === n)).map(l => (l.s === n ? l.t : l.s).label).slice(0, 2);
+  $("#gtext").innerHTML = `<details class="how"><summary>${icon("layers")}Graf jako lista (${ideas.length} najlepszych)</summary><div class="items" style="margin-top:.75rem">${ideas.map(n =>
+    `<div class="item" tabindex="0" data-card="${n.card_id}">${avatar(SECTOR_ICON[n.sector] || "lightbulb")}<h3>${esc(n.label)}</h3>${ring(n.score, "sm")}<div class="plates">${n.voivodeship ? plate("map-pin", n.voivodeship, "", "sm red") : ""}${nb(n).map(t => plate("git-compare-arrows", t.slice(0, 40), "", "sm")).join("")}</div></div>`).join("")}</div></details>`;
+  bindCards($("#gtext"));
 }
 
 // ------------------------------------------------------------------ ROLKI (component-built briefs)
@@ -306,7 +324,7 @@ const saveLiked = () => { try { localStorage.setItem("radar-liked", JSON.stringi
 async function pageReels(v) {
   const items = await api("/api/feed?limit=50");
   v.innerHTML = `<div class="reels" id="reels">${items.map((i, n) => { const b = i.brief || {}, lvl = LVLK[b.maturity] ?? 0;
-    return `<section class="reel" data-n="${n}"><article class="reel-card">
+    return `<section class="reel" data-n="${n}" aria-label="Pomysł ${n + 1} z ${items.length}"><article class="reel-card"><div class="reel-progress" aria-hidden="true"><i></i></div>
       <div class="reel-top">${avatar(INST_ICON[i.institution_type] || "building-2")}<div class="who"><b>${esc(i.institution || INST_PL[i.institution_type] || "Instytucja")}</b><small>${esc(INST_PL[i.institution_type] || "")} ${demo(i.synthetic)}</small></div>${ring(b.score)}</div>
       <div class="plates">${locPlate(i)}${sectorPlate(i.sector)}</div>
       <div class="reel-title">${esc(b.solution)}</div>
@@ -320,10 +338,22 @@ async function pageReels(v) {
       </div>
       <div class="reel-foot"><button class="like ${liked.has(i.card_id) ? "on" : ""}" data-like="${i.card_id}" aria-pressed="${liked.has(i.card_id)}" aria-label="Lubię to">${icon("heart")}</button>
         <span class="likes-n" id="ln-${i.card_id}">${i.likes}</span><a class="btn-soft" style="margin-left:auto" href="#" data-card="${i.card_id}">${icon("arrow-right")}Karta</a></div>
-    </article></section>`; }).join("") || empty("Brak briefów.")}</div><div class="reel-dots" id="dots">${items.map(() => "<i></i>").join("")}</div>`;
-  const reels = $$(".reel", v), dots = $$("#dots i");
-  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("active"); dots.forEach((d, k) => d.classList.toggle("on", k === +e.target.dataset.n)); } else e.target.classList.remove("active"); }), {threshold: .6});
+    </article></section>`; }).join("") || empty("Brak briefów.")}</div><div class="reel-dots" id="dots">${items.map(() => "<i></i>").join("")}</div>
+    <div class="reel-nav"><button class="btn-icon" id="rprev" aria-label="Poprzedni pomysł (strzałka w górę)">${icon("chevron-down", "flip")}</button>
+      <button class="btn-icon" id="rnext" aria-label="Następny pomysł (strzałka w dół)">${icon("chevron-down")}</button><span class="kbd-hint">↑ ↓ · L</span></div>`;
+  const box = $("#reels"), reels = $$(".reel", v), dots = $$("#dots i");
+  let cur = 0;
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("active"); cur = +e.target.dataset.n;
+    dots.forEach((d, k) => d.classList.toggle("on", k === cur)); } else e.target.classList.remove("active"); }), {root: box, threshold: .6});
   reels.forEach(r => io.observe(r)); if (reels[0]) reels[0].classList.add("active");
+  const goTo = n => { n = Math.max(0, Math.min(reels.length - 1, n)); reels[n]?.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"}); };
+  $("#rprev").onclick = () => goTo(cur - 1); $("#rnext").onclick = () => goTo(cur + 1);
+  const onKey = e => { if (!document.body.contains(box)) { document.removeEventListener("keydown", onKey); return; }
+    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || $("#drawer").classList.contains("on")) return;
+    if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); goTo(cur + 1); }
+    else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); goTo(cur - 1); }
+    else if (e.key === "l" || e.key === "L") { const b = $("[data-like]", reels[cur]); if (b) toggleLike(b); } };
+  document.addEventListener("keydown", onKey);
   async function toggleLike(btn, force) {
     const id = +btn.dataset.like; if (force && liked.has(id)) return;
     const r = await api(`/api/cards/${id}/like`, {method: "POST", headers: {"X-Voter": voter}});
