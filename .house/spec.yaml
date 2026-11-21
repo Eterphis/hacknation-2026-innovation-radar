@@ -108,6 +108,13 @@ submissions:
 
 deploy: true        # czy wolno samemu wystawić publiczne demo
 
+architecture:       # człowiek, D-003 (2026-11-21); szczegóły w reports/ideation-2.md „Architektura”
+  deploy: "Kubernetes, Helm chart (jeden chart, values per środowisko); lokalnie i dla jury: k3d/kind albo docker compose z tych samych obrazów"
+  queue: "RabbitMQ jako broker + Celery workery, jedna kolejka na etap potoku"
+  no_skip: "acks_late + reject_on_worker_lost, idempotentne zadania po (source, record_id), retry z backoff, dead-letter queue, uzgadnianie liczników pobrane = przetworzone + DLQ, walidacja schematu wyniku LLM z ponowieniem"
+  dedup: "etap przed LLM (D-007): 1) ten sam rekord: (source, record_id) + content_hash; 2) ten sam obiekt w kilku źródłach: DOI, numer patentu/rodzina, kod projektu, identyfikator organizacji; 3) prawie duplikaty: ujednolicony tytuł + rok + organizacja, MinHash na abstrakcie; 4) semantycznie: embeddingi, próg do przeglądu; wynik: klaster z rekordem kanonicznym i zapisanym powodem"
+  llm: "adapter z interfejsem (extract, classify, score_explain, embed); dostawca główny + zapasowy z konfiguracji; ostatni fallback offline (reguły + słowa kluczowe), żeby demo działało bez klucza"
+
 languages:
   team: pl          # PROGRESS, QUESTIONS, DECISIONS, briefing
   public: pl      # pitch, README, raporty — domyślnie język konkursu, inaczej en
