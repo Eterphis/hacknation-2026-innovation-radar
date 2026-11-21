@@ -88,3 +88,12 @@ def test_every_harvester_output_has_a_source():
                 "uprp_import"}
     assert {f"{n}.jsonl" for n in expected} <= set(paths)
     assert all(s.mapping == paths["ncbr.jsonl"].mapping for s in paths.values())  # one shared &record_v1
+
+
+def test_biblioteka_nauki_and_radon_have_one_path():
+    """Issue #5: these came in twice (app connectors and the harvester); the harvester path is the one."""
+    from radar.sources.registry import load_sources
+
+    specs = load_sources()
+    assert not specs["bibliotekanauki"].enabled and not specs["radon-projekty"].enabled
+    assert specs["harvester-bibliotekanauki"].enabled and specs["harvester-radon"].enabled

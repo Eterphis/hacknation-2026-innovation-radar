@@ -122,14 +122,37 @@ def normalize(self, raw_id: int, h: str) -> str:
 # ---------------------------------------------------------------- resolve_org
 @app.task(**RETRY)
 def resolve_org(self, raw_id: int, h: str) -> str:
-    """TODO(T023): split affiliations, match against the org registry (RAD-on, ROR, Wikidata), set is_public,
-    region, org_id with confidence. For now affiliations pass through unchanged."""
+    """T023: match affiliations against the organisation registry (RAD-on institutions; radar.orgs), cascade
+    id -> alias -> acronym -> contains -> fuzzy with confidence. A sure match gives Basal the institution type,
+    public/private and the voivodeship (when the record has no region). No registry yet = pass-through."""
+    from radar import orgs
+
     with session() as s:
         if _done(s, raw_id, "resolve_org", h):
             return "duplicate-delivery"
-        _mark(s, raw_id, "resolve_org", h, "ok", "pass-through (rejestr organizacji: T023)")
+        rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        matcher = orgs.ensure_registry(s)
+        if matcher is None or not rec.affiliations:
+            _mark(s, raw_id, "resolve_org", h, "ok", "brak rejestru organizacji" if matcher is None else "brak afiliacji")
+            outcome = "pass-through"
+        else:
+            results = orgs.resolve(matcher, rec.affiliations, (rec.extra or {}).get("organizations"))
+            facts = orgs.summary(results)
+            extra = {**(rec.extra or {}), "orgs": results}
+            if facts:
+                extra["org_id"] = facts.get("org_id")
+                extra["is_public"] = facts.get("is_public")
+                # a type declared in a submission form stays; otherwise the registry is the sure source
+                if facts.get("institution_type") and not extra.get("institution_type"):
+                    extra["institution_type"] = facts["institution_type"]
+                if facts.get("voivodeship") and not rec.region:
+                    rec.region = facts["voivodeship"]
+            rec.extra = extra
+            n_ok = sum(1 for r in results if r["accepted"])
+            outcome = f"{n_ok}/{len(results)} dopasowanych"
+            _mark(s, raw_id, "resolve_org", h, "ok", outcome)
     _next("dedup", raw_id, h)
-    return "ok"
+    return outcome
 
 
 # ---------------------------------------------------------------- dedup
