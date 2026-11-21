@@ -36,7 +36,7 @@ class RestConnector(PullConnector):
         max_pages = int(self.spec.opt("max_pages", get_settings().max_pages_per_run))
         page_no = int(pg.get("start", 1 if ptype == "page" else 0))
         newest = cursor
-        with client(self.spec.opt("headers", {})) as c:
+        with client(self.spec.opt("headers", {}), self.spec.opt("timeout")) as c:
             for _ in range(max_pages):
                 if ptype == "page":
                     params[pg.get("param", "page")] = page_no

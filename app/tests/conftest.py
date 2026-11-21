@@ -12,7 +12,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("RADAR_EAGER", "1")
     monkeypatch.setenv("RADAR_LLM_PROVIDERS", "mock")
     monkeypatch.setenv("RADAR_SOURCES_FILE", str(APP / "sources.yaml"))
-    monkeypatch.delenv("RADAR_DEMO_MODE", raising=False)
+    monkeypatch.setenv("RADAR_DEMO_MODE", "1")  # tests run on the synthetic snapshots, never on the network
     from radar.config import get_settings
     from radar.db import create_all, reset_engine
 

@@ -30,7 +30,7 @@ class GraphQLConnector(PullConnector):
         if cursor:
             variables[cursor_var] = cursor
         max_pages = int(self.spec.opt("max_pages", get_settings().max_pages_per_run))
-        with client(self.spec.opt("headers", {})) as c:
+        with client(self.spec.opt("headers", {}), self.spec.opt("timeout")) as c:
             for _ in range(max_pages):
                 data = request(c, "POST", url, json={"query": query, "variables": variables}).json()
                 if data.get("errors"):

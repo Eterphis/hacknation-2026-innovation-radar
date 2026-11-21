@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import and_, func, or_, select
 
 from radar.basal import taxonomy as T
-from radar.basal.classifier import classify, label_pl, train_head
+from radar.basal.classifier import city, classify, label_pl, train_head
 from radar.basal.graph import build_graph
 from radar.db import session
 from radar.models import Card, Like, Record
@@ -22,7 +22,12 @@ AXES = ("sector", "tech_area", "innovation_type", "institution_type", "voivodesh
 
 def _filters(q=None, sector=None, tech_area=None, innovation_type=None, institution_type=None, voivodeship=None,
              maturity=None, cost_level=None, min_score=None, decision=None, exclude: str | None = None):
+    from radar.sources.registry import hidden_source_ids
+
     cond = [Record.status.in_(("extracted", "ready"))]
+    hidden = hidden_source_ids()
+    if hidden:
+        cond.append(Record.source_id.not_in(hidden))
     for axis, val in (("sector", sector), ("tech_area", tech_area), ("innovation_type", innovation_type),
                       ("institution_type", institution_type), ("voivodeship", voivodeship), ("cost_level", cost_level)):
         if val and axis != exclude:
@@ -48,6 +53,11 @@ def idea_dict(r: Record) -> dict:
         "labels": {a: {"value": getattr(r, a), "pl": label_pl(a, getattr(r, a)) if a != "voivodeship" else getattr(r, a)} for a in AXES},
         "maturity": c.maturity, "score": c.score, "priority": r.priority, "likes": c.likes, "decision": c.decision,
         "path": ((c.assessment or {}).get("paths") or [{}])[0].get("path"),
+        # plate data for components (location, budget, institution)
+        "city": city(*(r.affiliations or []), r.abstract), "voivodeship": r.voivodeship, "sector": r.sector,
+        "tech_area": r.tech_area, "institution_type": r.institution_type, "cost_level": r.cost_level,
+        "cost_range": T.COST_RANGE.get(r.cost_level or ""),
+        "amount": max([v for v in (r.amounts or {}).values() if isinstance(v, (int, float))] or [0]) or None,
     }
 
 

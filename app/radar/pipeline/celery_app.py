@@ -8,7 +8,7 @@ No-loss settings (D-003, D-005):
 * tasks are idempotent by (raw_id, stage, content_hash), so redelivery is a no-op.
 """
 
-from celery import Celery
+from celery import Celery, signals
 from kombu import Exchange, Queue
 
 from radar.config import get_settings
@@ -72,3 +72,11 @@ def _setup_beat(sender, **_):
         import logging
 
         logging.getLogger(__name__).exception("could not build beat schedule")
+
+
+@signals.setup_logging.connect
+def _json_logs(**_):
+    """Workers log JSON like the API (RADAR_LOG_FORMAT=json, default)."""
+    from radar.observability import setup_logging
+
+    setup_logging()

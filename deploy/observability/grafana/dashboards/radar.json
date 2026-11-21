@@ -1,0 +1,479 @@
+{
+ "uid": "radar",
+ "title": "Radar Innowacji — potok",
+ "schemaVersion": 39,
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "refresh": "30s",
+ "panels": [
+  {
+   "id": 1,
+   "title": "Rekordy wg statusu",
+   "type": "stat",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 5
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "radar_records",
+     "legendFormat": "{{status}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "area"
+   }
+  },
+  {
+   "id": 2,
+   "title": "Etapy potoku (narastająco)",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 5,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (stage) (radar_stage_runs_total)",
+     "legendFormat": "{{stage}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 3,
+   "title": "Odrzucone / do przeglądu wg etapu",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 12,
+    "y": 5,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (stage, outcome) (radar_stage_runs_total{outcome!=\"ok\"})",
+     "legendFormat": "{{stage}} {{outcome}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 4,
+   "title": "Kolejki RabbitMQ (gotowe wiadomości)",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 13,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "radar_queue_messages",
+     "legendFormat": "{{queue}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 5,
+   "title": "DLQ (dead letters)",
+   "type": "stat",
+   "gridPos": {
+    "x": 12,
+    "y": 13,
+    "w": 6,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(radar_dlq_messages)",
+     "legendFormat": "DLQ"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "area"
+   }
+  },
+  {
+   "id": 6,
+   "title": "Konsumenci kolejek",
+   "type": "stat",
+   "gridPos": {
+    "x": 18,
+    "y": 13,
+    "w": 6,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(radar_queue_consumers)",
+     "legendFormat": "consumers"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "area"
+   }
+  },
+  {
+   "id": 7,
+   "title": "Ekstrakcje wg dostawcy LLM",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 21,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "radar_llm_extractions_total",
+     "legendFormat": "{{provider}}/{{model}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 8,
+   "title": "Fallbacki LLM",
+   "type": "stat",
+   "gridPos": {
+    "x": 12,
+    "y": 21,
+    "w": 6,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "radar_llm_fallbacks_total",
+     "legendFormat": "fallbacki"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "area"
+   }
+  },
+  {
+   "id": 9,
+   "title": "Średni wynik kart",
+   "type": "stat",
+   "gridPos": {
+    "x": 18,
+    "y": 21,
+    "w": 6,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "radar_card_score_avg",
+     "legendFormat": "wynik"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "area"
+   }
+  },
+  {
+   "id": 10,
+   "title": "Ostatnie pobranie źródła (wiek)",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 29,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "radar_source_last_run_age_seconds",
+     "legendFormat": "{{source}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 11,
+   "title": "Rekordy pobrane wg źródła",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 12,
+    "y": 29,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (source) (radar_raw_records)",
+     "legendFormat": "{{source}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 12,
+   "title": "Decyzje operatora i polubienia",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 37,
+    "w": 24,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "radar_cards",
+     "legendFormat": "{{decision}}"
+    },
+    {
+     "refId": "B",
+     "expr": "radar_likes_total",
+     "legendFormat": "polubienia"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "palette-classic"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  }
+ ],
+ "tags": [
+  "radar"
+ ]
+}

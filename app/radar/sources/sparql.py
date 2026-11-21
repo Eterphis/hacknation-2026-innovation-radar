@@ -22,7 +22,7 @@ class SparqlConnector(PullConnector):
         size = int(self.spec.opt("page_size", 100))
         offset = int(cursor or 0) if self.spec.opt("resume_offset", False) else 0
         max_pages = int(self.spec.opt("max_pages", get_settings().max_pages_per_run))
-        with client({"Accept": "application/sparql-results+json"}) as c:
+        with client({"Accept": "application/sparql-results+json"}, self.spec.opt("timeout")) as c:
             for _ in range(max_pages):
                 q = template.replace("{limit}", str(size)).replace("{offset}", str(offset))
                 data = request(c, "POST", endpoint, data={"query": q}).json()

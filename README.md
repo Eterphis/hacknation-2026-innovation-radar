@@ -187,3 +187,17 @@ python -X utf8 -m radar.gui --data data/normalized/interreg.jsonl
 - **Źródło wczytania** przy każdym rekordzie: nazwa źródła, strona projektu albo plik źródłowy z numerem wiersza, strona listy, czasy pobrania, wersja konektora, schemat, ID rekordu, hash treści, plik danych i ścieżki do zapisanych surowych stron lub pliku.
 - Dane rekordu z wartością odczytaną obok wartości ze źródła (kwoty, okres, województwo), treść według sekcji, jakość wczytania (powody `needs_review`) i surowy JSON rekordu.
 - Tylko odczyt; serwer na `127.0.0.1`, biblioteka standardowa Pythona.
+
+### Prawdziwe dane (domyślnie)
+`docker compose up` pobiera z baz publicznych przez kolejkę i workery (bez syntetyków): **Biblioteka Nauki** (OAI-PMH), **OpenAIRE** `/projects` z polskim partnerem, **RAD-on** projekty krajowe (NCN, NCBR), **Kohesio** projekty spójności UE w Polsce. Każde źródło ma harmonogram w `app/sources.yaml`, a przycisk „Pobierz” w zakładce Źródła. `RADAR_DEMO_MODE=1` przełącza na same dane syntetyczne (fallback dla jury bez sieci). EPO czeka na szybsze zapytanie, konektory z `radar/` (NCBR, Interreg, CORDIS, FE, OpenAlex, crawler) — issue „[Dane]”.
+
+### Obserwowalność
+- `GET /metrics` (Prometheus): etapy potoku, statusy rekordów, źródła (wiek ostatniego pobrania, błędy), decyzje, LLM per dostawca, fallbacki, głębokość kolejek RabbitMQ i DLQ.
+- Logi JSON (`RADAR_LOG_FORMAT=json`) z `raw_id`, `stage`, `source_id` w API i workerach.
+- `docker compose --profile observability up`: Prometheus (:9090, alerty w `deploy/observability/alerts.yml`), Grafana (:3000, dashboard „Radar Innowacji — potok”), Flower (:5555).
+
+### UI
+Neumorfizm (designmd.app/library/neumorphism) w barwach biało-czerwonych z czernią dla kontrastu i beżowym tłem; przełącznik trybu jasny/systemowy/ciemny; logo w stylu ikony aplikacji; układ według szablonu dashboardu Tabler (navbar, nagłówek strony, karty, kafle statystyk); ikony z jednego zestawu (Lucide, `static/icons.svg`); mapa Polski z prawdziwych granic województw (`static/poland.json`, ppatrzyk/polska-geojson, MIT); rolki zbudowane z komponentów (tabliczka lokalizacji, budżet, dojrzałość, ścieżka, odbiorcy).
+
+### Praca w zespole
+Zadania dla 3 osób: `.github/issues/` (dane i potok · UI · ocena, LLM, obserwowalność, wdrożenie). Publikacja jako GitHub Issues: `gh auth login`, potem `powershell -ExecutionPolicy Bypass -File scripts/publish-issues.ps1`.

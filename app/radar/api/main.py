@@ -34,6 +34,9 @@ STATIC = Path(__file__).parent / "static"
 
 @asynccontextmanager
 async def lifespan(_app):
+    from radar.observability import setup_logging
+
+    setup_logging()
     create_all()  # TODO(T030): Alembic migrations run by the Helm pre-upgrade Job instead
     yield
 
@@ -45,6 +48,9 @@ from radar.api.insights import router as insights_router  # noqa: E402
 
 app.include_router(explore_router)
 app.include_router(insights_router)
+from radar.observability import router as metrics_router, setup_logging  # noqa: E402
+
+app.include_router(metrics_router)
 
 
 @app.get("/healthz")
@@ -228,6 +234,15 @@ def stats():
 def index():
     # no-cache: the single-page UI changes with every deploy; browsers must revalidate
     return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.middleware("http")
+async def _revalidate_static(request: Request, call_next):
+    """UI assets change with every deploy: browsers revalidate (ETag makes it a cheap 304)."""
+    resp = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

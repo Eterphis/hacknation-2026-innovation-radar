@@ -152,3 +152,16 @@ CITY_VOIV = {
     "koszalin": "zachodniopomorskie", "bydgoszcz": "kujawsko-pomorskie", "torun": "kujawsko-pomorskie", "kielc": "świętokrzyskie",
     "opol": "opolskie", "zielon\\w* gor": "lubuskie", "gorzow": "lubuskie",
 }
+
+# Display names for CITY_VOIV keys (location plates in the UI)
+CITY_NAME = {
+    "rzeszow": "Rzeszów", "krosn": "Krosno", "przemysl": "Przemyśl", "mielec": "Mielec", "tarnobrzeg": "Tarnobrzeg",
+    "sanok": "Sanok", "jaslo": "Jasło", "dukl": "Dukla", "debic": "Dębica", "krakow": "Kraków", "tarnow": "Tarnów",
+    "nowy sacz": "Nowy Sącz", "warszaw": "Warszawa", "radom": "Radom", "plock": "Płock", "wroclaw": "Wrocław",
+    "legnic": "Legnica", "poznan": "Poznań", "kalisz": "Kalisz", "gdansk": "Gdańsk", "gdyni": "Gdynia", "slupsk": "Słupsk",
+    "lodz": "Łódź", "katowic": "Katowice", "gliwic": "Gliwice", "czestochow": "Częstochowa", "bielsk": "Bielsko-Biała",
+    "lublin": "Lublin", "zamosc": "Zamość", "bialystok": "Białystok", "olsztyn": "Olsztyn", "elblag": "Elbląg",
+    "szczecin": "Szczecin", "koszalin": "Koszalin", "bydgoszcz": "Bydgoszcz", "torun": "Toruń", "kielc": "Kielce",
+    "opol": "Opole", r"zielon\w* gor": "Zielona Góra", "gorzow": "Gorzów Wielkopolski",
+}
+COST_RANGE = {"niski": "do 100 tys. zł", "sredni": "100 tys. – 2 mln zł", "wysoki": "2–20 mln zł", "bardzo_wysoki": "powyżej 20 mln zł"}

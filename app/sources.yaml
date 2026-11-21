@@ -98,7 +98,8 @@ sources:
       base_url: https://bibliotekanauki.pl/api/oai/articles
       metadata_prefix: oai_dc
       from: "2026-10-01"
-      max_pages: 20
+      max_pages: 5
+      timeout: 60
     mapping:
       title: { expr: title, transform: first }
       abstract: { expr: description, transform: first }
@@ -115,13 +116,14 @@ sources:
     type: rest
     kind: project
     schedule_s: 86400
-    description: "OpenAIRE Graph /projects, kraj PL (token: OPENAIRE_TOKEN, 7200 zapytań/h) [sprawdzić nazwy parametrów]"
+    description: "OpenAIRE Graph /projects z polskim partnerem (ok. 15,8 tys.; bez tokena 60 zapytań/h, z OPENAIRE_TOKEN 7200/h)"
     options:
       url: https://api.openaire.eu/graph/v1/projects
-      params: { countryCode: PL, pageSize: 50, cursor: "*" }
+      params: { relOrganizationCountryCode: PL, pageSize: 50, cursor: "*" }
       headers: { Authorization: "Bearer ${OPENAIRE_TOKEN:-}" }
       pagination: { type: cursor, cursor_param: cursor, cursor_path: header.nextCursor }
-      max_pages: 20
+      max_pages: 5
+      timeout: 60
     record_path: results
     id_path: id
     mapping:
@@ -137,15 +139,15 @@ sources:
 
   - id: radon-projekty
     type: rest
-    enabled: false
     kind: project
     schedule_s: 604800
-    description: "RAD-on projekty krajowe (NCN, NCBR), ok. 49 tys., stronicowanie tokenem [sprawdzić kształt odpowiedzi]"
+    description: "RAD-on projekty krajowe (NCN, NCBR), ok. 49 tys., stronicowanie tokenem (sprawdzone 2026-11-21)"
     options:
       url: https://radon.nauka.gov.pl/opendata/polon/projects
       params: { resultNumbers: 100 }
       pagination: { type: cursor, cursor_param: token, cursor_path: pagination.token }
-      max_pages: 500
+      max_pages: 5
+      timeout: 60
     record_path: results
     id_path: projectUuid
     mapping:
@@ -158,33 +160,41 @@ sources:
 
   - id: kohesio-projekty
     type: rest
-    enabled: false
     kind: project
-    schedule_s: 604800
-    description: "Kohesio /api/projects (nieudokumentowany endpoint strony; preferuj eksport CSV jako snapshot)"
+    schedule_s: 86400
+    description: "Kohesio /api/projects, Polska (ok. 121 tys. projektów spójności UE); pobierane porcjami po 100"
     options:
       url: https://kohesio.ec.europa.eu/api/projects
       params: { country: "https://linkedopendata.eu/entity/Q13", language: pl, limit: 100 }
       pagination: { type: offset, param: offset }
-      max_pages: 50
+      max_pages: 5
+      timeout: 60
+      min_abstract_chars: 150
     record_path: list
     id_path: item
     mapping:
-      title: { expr: label, transform: first }
-      abstract: { expr: description, transform: first }
-      year: { expr: startTime, transform: year }
+      title: { expr: labels, transform: first }
+      abstract: { expr: descriptions, transform: first }
+      year: { expr: startTimes, transform: year }
+      url: link
       amount_eu: { expr: euBudgets, transform: pl_decimal }
       amount_total: { expr: totalBudgets, transform: pl_decimal }
+      start: { expr: startTimes, transform: first }
+      end: { expr: endTimes, transform: first }
+      objective: { expr: objectiveIds, transform: first }
+      coordinates: { expr: coordinates, transform: first }
       implementation: { const: true }
 
   - id: epo-patenty-prz
     type: sparql
+    enabled: false   # TODO(issue Dane): CONTAINS() over all applicants times out; query by exact vcard:fn / applicant URI
     kind: patent
     schedule_s: 604800
     description: "EPO Linked Data: publikacje EP zgłaszającego (przykład: Politechnika Rzeszowska)"
     options:
       endpoint: https://data.epo.org/linked-data/query
       page_size: 100
+      timeout: 120
       query: |
         PREFIX patent: <http://data.epo.org/linked-data/def/patent/>
         PREFIX vcard: <http://www.w3.org/2006/vcard/ns#>

@@ -12,9 +12,10 @@ from fastapi import APIRouter
 from sqlalchemy import select
 
 from radar.basal import taxonomy as T
-from radar.basal.classifier import label_pl
+from radar.basal.classifier import city, label_pl
 from radar.db import session
 from radar.models import Card, Edge, Record
+from radar.sources.registry import hidden_source_ids
 
 router = APIRouter(prefix="/api")
 LEVELS = ["exploring", "tech_ready", "business_ready", "market_ready"]
@@ -38,6 +39,7 @@ def _row(r: Record) -> dict:
         "novelty": g("nowosc"), "transfer": g("przenaszalnosc"), "evidence": g("sila_dowodow"),
         "path": ((c.assessment or {}).get("paths") or [{}])[0].get("path"),
         "synthetic": bool((r.extra or {}).get("synthetic")), "year": r.year,
+        "city": city(*(r.affiliations or [])), "cost_level": r.cost_level,
     }
 
 
@@ -49,7 +51,8 @@ def _top(rows, key, n=6, cond=lambda x: True):
 def insights():
     with session() as s:
         recs = s.scalars(select(Record).join(Card, Card.record_id == Record.id)
-                         .where(Record.status == "ready", Card.decision != "rejected", Card.score.is_not(None))).all()
+                         .where(Record.status == "ready", Card.decision != "rejected", Card.score.is_not(None),
+                                Record.source_id.not_in(hidden_source_ids() or ["-"]))).all()
         rows = [_row(r) for r in recs]
         by_id = {r.id: r for r in recs}
         edges = s.scalars(select(Edge).where(Edge.weight >= 0.3).order_by(Edge.weight.desc()).limit(50)).all()

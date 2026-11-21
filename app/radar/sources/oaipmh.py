@@ -73,7 +73,7 @@ class OaiPmhConnector(PullConnector):
             params["from"] = since[:10]
         newest = cursor
         max_pages = int(self.spec.opt("max_pages", get_settings().max_pages_per_run))
-        with client() as c:
+        with client(None, self.spec.opt("timeout")) as c:
             for _ in range(max_pages):
                 text = request(c, "GET", base, params=params).content
                 records, token, _ = parse_page(text)

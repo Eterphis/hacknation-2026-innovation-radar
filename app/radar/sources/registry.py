@@ -49,8 +49,17 @@ def load_sources(path: str | None = None) -> dict[str, SourceSpec]:
 
 
 def active_sources() -> dict[str, SourceSpec]:
+    """Demo mode: only `demo` sources. Live mode: everything enabled except synthetic snapshots."""
     demo = get_settings().demo_mode
-    return {k: s for k, s in load_sources().items() if s.enabled and (s.demo or not demo)}
+    return {k: s for k, s in load_sources().items()
+            if s.enabled and (s.demo if demo else not (s.demo and s.type == "snapshot"))}
+
+
+def hidden_source_ids() -> list[str]:
+    """Sources whose records the UI hides in the current mode (synthetic snapshots when running on live data)."""
+    if get_settings().demo_mode:
+        return []
+    return [k for k, s in load_sources().items() if s.demo and s.type == "snapshot"]
 
 
 def get_source(source_id: str) -> SourceSpec:
