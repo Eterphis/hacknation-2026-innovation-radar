@@ -258,3 +258,4 @@ body.reels-on .foot { display:none; }
 .item { grid-template-columns:auto minmax(0, 1fr) auto; } .item h3 { min-width:0; overflow-wrap:anywhere; }
 .card, .card-b, details.how { min-width:0; max-width:100%; } .table-wrap { width:100%; } .table-wrap table { min-width:0; }
 @media (max-width: 720px) { html, body { overflow-x:hidden; } .item { grid-template-columns:auto minmax(0, 1fr) auto; } }
+@media (max-width: 720px) { .sec-row { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; padding:.5rem .4rem .7rem; margin:0 -.4rem; } .sec-row .chip { flex:none; } }

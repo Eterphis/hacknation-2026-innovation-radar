@@ -63,6 +63,8 @@ function applyTheme(t) {
   try { localStorage.setItem("radar-theme", t); } catch (e) {}
 }
 let THEME = "system"; try { THEME = localStorage.getItem("radar-theme") || "system"; } catch (e) {}
+const QT = new URLSearchParams(location.search).get("theme");  // ?theme=dark|light|system for shared links and screenshots
+if (["dark", "light", "system"].includes(QT)) THEME = QT;
 $$("#theme button").forEach(b => { b.innerHTML = icon({light: "sun", system: "monitor", dark: "moon"}[b.dataset.t]); b.onclick = () => { THEME = b.dataset.t; applyTheme(THEME); if (location.hash.startsWith("#/graf")) route(); }; });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => THEME === "system" && applyTheme("system"));
 applyTheme(THEME);
@@ -200,7 +202,7 @@ async function pageMap(v) {
     "Kolor = liczba pomysłów albo wielkość luki względem średniej krajowej. Kliknij województwo, by zobaczyć jego pomysły.") + `
   <div class="grid g-7-5"><div class="card reveal"><div class="card-h">${avatar("map", "red")}<div class="chips" style="margin-left:auto">
       <button class="chip ${mode === "count" ? "on" : ""}" data-mode="count">${icon("lightbulb")}Pomysły</button><button class="chip ${mode === "gap" ? "on" : ""}" data-mode="gap">${icon("target")}Luki</button></div></div>
-    <div class="card-b"><div class="chips" style="margin-bottom:1rem"><button class="chip ${!sector ? "on" : ""}" data-sec="">${icon("layers")}Wszystkie</button>${reg.sectors.map(s => `<button class="chip ${sector === s.key ? "on" : ""}" data-sec="${s.key}" title="${esc(s.pl)}">${icon(SECTOR_ICON[s.key] || "layers")}${esc(s.pl.split(",")[0])}</button>`).join("")}</div>
+    <div class="card-b"><div class="chips sec-row" style="margin-bottom:1rem"><button class="chip ${!sector ? "on" : ""}" data-sec="">${icon("layers")}Wszystkie</button>${reg.sectors.map(s => `<button class="chip ${sector === s.key ? "on" : ""}" data-sec="${s.key}" title="${esc(s.pl)}">${icon(SECTOR_ICON[s.key] || "layers")}${esc(s.pl.split(",")[0])}</button>`).join("")}</div>
       <div id="bigmap"></div></div></div>
     <div class="card reveal" id="side">${cardH(sel ? "map-pin" : "trending-up", sel || "Najwięcej i najmniej", sel ? "pomysły w województwie" : (sector ? lp("sector", sector) : "wszystkie sektory"))}<div class="card-b" id="sidelist"></div></div></div>`;
   await drawPoland($("#bigmap"), reg, {mode, selected: sel, onPick: name => go("mapa", {...F, voivodeship: name})});
