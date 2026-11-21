@@ -251,3 +251,68 @@ def persona(key: str, voivodeship: str | None = None, limit: int = 24):
                         "som_3y_sum_pln": round(sum(d["business"]["som_3y_pln"] for d in rows)),
                         "regions": len({d["voivodeship"] for d in rows if d["voivodeship"]})},
             "items": top}
+
+
+# ---------------------------------------------------------------- personalization: a few answers -> a tailored list
+COSTS = ["niski", "sredni", "wysoki", "bardzo_wysoki"]
+STAGES = ["exploring", "tech_ready", "business_ready", "market_ready"]
+
+
+@router.get("/match")
+def match(role: str = "innowatorzy", voivodeship: str | None = None, sectors: str | None = None,
+          budget: str = "wysoki", stage: str = "exploring", goal: str = "wdrozenie", limit: int = 20):
+    """Rank ideas for one person's profile. Deterministic, explainable: every % comes with the reasons behind it.
+    goal: zysk (return on investment) | wdrozenie (deploy at my institution) | partner (find a partner) | finansowanie."""
+    import math
+
+    from radar.business import PERSONAS, business_case, dedup_key, is_infrastructure, metric_value
+
+    p = PERSONAS.get(role, PERSONAS["innowatorzy"])
+    want_sectors = set(filter(None, (sectors or "").split(",")))
+    bmax = COSTS.index(budget) if budget in COSTS else 2
+    smin = STAGES.index(stage) if stage in STAGES else 0
+    metric = {"zysk": "licence_or_spinoff_pln", "wdrozenie": "savings_per_adopter_pln", "partner": "som_3y_pln",
+              "finansowanie": "deploy_cost_pln"}.get(goal, p["metric"])
+    with session() as s:
+        recs = s.scalars(select(Record).join(Card, Card.record_id == Record.id)
+                         .where(_filters(), Card.decision != "rejected").order_by(Card.score.desc().nulls_last()).limit(600)).all()
+        out, seen = [], set()
+        for r in recs:
+            if is_infrastructure(r) or r.source_id in p.get("skip_sources", ()):
+                continue
+            k = dedup_key(r)
+            if k in seen:
+                continue
+            seen.add(k)
+            bc = business_case(r, r.card)
+            lvl = STAGES.index(r.card.maturity) if r.card.maturity in STAGES else 0
+            cost_i = COSTS.index(r.cost_level) if r.cost_level in COSTS else 1
+            why, pts = [], 0.0
+            if want_sectors:
+                if r.sector in want_sectors:
+                    pts += 30; why.append(f"sektor: {label_pl('sector', r.sector)}")
+            else:
+                pts += 15
+            if voivodeship:
+                if r.voivodeship == voivodeship:
+                    pts += 20; why.append(f"Twój region: {voivodeship}")
+                elif goal == "wdrozenie" and r.voivodeship:
+                    pts += 8; why.append(f"sprawdzone w: {r.voivodeship}")
+            else:
+                pts += 10
+            if cost_i <= bmax:
+                pts += 20; why.append(f"mieści się w budżecie ({bc['deploy_cost_pln']:,} zł)".replace(",", " "))
+            if lvl >= smin:
+                pts += 15; why.append("dojrzałość: " + {"exploring": "badania", "tech_ready": "technologia gotowa", "business_ready": "gotowe do wdrożenia", "market_ready": "na rynku"}.get(r.card.maturity, "—"))
+            pts += 15 * (r.card.score or 0) / 100
+            if goal == "finansowanie" and bc["funding"]:
+                why.append("finansowanie: " + bc["funding"][0]["programme"])
+            d = idea_dict(r)
+            d["match"] = round(min(100, pts))
+            d["why"] = why[:4]
+            d["business"] = {"metric": metric_value(bc, metric), "deploy_cost_pln": bc["deploy_cost_pln"],
+                             "adopters": bc["adopters"], "payback": bc["payback"], "funding": [x["programme"] for x in bc["funding"][:2]]}
+            out.append(d)
+    out.sort(key=lambda d: (-d["match"], -math.log10(1 + d["business"]["metric"])))
+    return {"profile": {"role": role, "voivodeship": voivodeship, "sectors": sorted(want_sectors), "budget": budget,
+                        "stage": stage, "goal": goal}, "metric": metric, "total": len(out), "items": out[:min(limit, 60)]}
