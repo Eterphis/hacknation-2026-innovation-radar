@@ -27,6 +27,9 @@ def env(tmp_path, monkeypatch):
     from radar.basal import classifier
 
     classifier._head_cache.update(w=None, at=None)  # module cache must not carry a head across test databases
+    from radar.basal import graph
+
+    graph.reset_threshold()  # nor the corpus-adaptive graph threshold
     create_all()
     yield
     reset_engine()
