@@ -224,13 +224,13 @@ def parse_detail(html: str) -> Parsed | None:
 # --- normalization helpers ---------------------------------------------------
 ORG_TYPE_HINTS: list[tuple[str, tuple[str, ...]]] = [
     ("university", ("uniwersytet", "politechnika", "akademia", "uczelnia", "wyzsza szkola", "collegium", "szkola glowna")),
-    ("research_institute", ("instytut", "lukasiewicz", "polska akademia nauk", " pan", "centrum badan", "narodowe centrum")),
+    ("research_institute", ("instytut", "lukasiewicz", "polska akademia nauk", " pan ", "centrum badan", "narodowe centrum")),
     ("local_government", ("gmina", "miasto ", "urzad miasta", "urzad gminy", "starostwo", "powiat", "wojewodztwo", "marszalkowski")),
     ("public_administration", ("ministerstw", "minister ", "komend", "policj", "straz ", "urzad", "inspektorat", "glowny inspektor")),
     ("school", ("szkola", "zespol szkol", "liceum", "technikum", "przedszkole")),
     ("hospital", ("szpital", "klinika")),
     ("ngo", ("fundacja", "stowarzyszenie")),
-    ("company", ("sp. z o.o", "spolka", "s.a.", " sa", "sp.k", "sp. k.", "s.c.", "ltd", "gmbh", "inc.", "p.s.a")),
+    ("company", ("sp. z o.o", "spolka", "s.a.", " sa ", "sp.k", "sp. k.", "s.c.", "ltd", "gmbh", "inc.", "p.s.a")),
     ("other_org", ("centrum", "osrodek", "konsorcjum", "laboratorium", "park ", "klaster", "agencja", "izba", "zaklad", "przedsiebiorstwo", "siec badawcza")),
 ]
 SUBUNIT_WORDS = ("wydzial", "katedra", "zaklad ", "instytut ", "pracownia", "filia", "oddzial")

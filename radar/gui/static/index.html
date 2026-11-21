@@ -37,7 +37,7 @@ input[type=search], select { width: 100%; padding: 7px 10px; border: 1px solid v
 .item .t { font-weight: 550; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .item .m { color: var(--muted); font-size: 13px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tag { display: inline-block; font-size: 12px; padding: 0 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
-.tag.ok { background: var(--ok-soft); color: var(--ok); }
+.tag.src { background: var(--soft); color: var(--muted); margin-left: 0; margin-right: 6px; }
 .tag.warn { background: var(--warn-soft); color: var(--warn); }
 #detail { overflow-y: auto; padding: 24px 32px 80px; min-width: 0; }
 .wrap { max-width: 860px; }
@@ -81,7 +81,8 @@ a { color: var(--accent); }
 <main>
   <aside>
     <div class="filters">
-      <input type="search" id="q" placeholder="Szukaj po tytule, beneficjencie, konkursie" autocomplete="off">
+      <input type="search" id="q" placeholder="Szukaj po tytule, beneficjencie, programie" autocomplete="off">
+      <select id="f-source" aria-label="Źródło"><option value="">Wszystkie źródła</option></select>
       <div class="row">
         <select id="f-quality" aria-label="Jakość rekordu"><option value="">Każda jakość</option><option value="ok">Kompletne (ok)</option><option value="needs_review">Do przeglądu</option></select>
         <select id="f-voiv" aria-label="Województwo"><option value="">Każde województwo</option></select>
@@ -93,55 +94,64 @@ a { color: var(--accent); }
   <div id="detail"><div class="empty">Wybierz rekord z listy.</div></div>
 </main>
 <script>
-const TEXT_PL = {problem: "Jaki problem rozwiązuje", result: "Efekt pracy", users: "Kto korzysta / skorzysta",
-  challenges: "Największe wyzwania", advice: "Rada dla wnioskodawców", market_readiness: "Gotowość rynkowa",
-  commercialization: "Ścieżka komercjalizacji", commercialization_barriers: "Trudności w komercjalizacji", ip: "Własność intelektualna"};
+const SOURCE_SHORT = {ncbr_sukcesy: "NCBR", interreg_pl: "Interreg"};
+const TEXT_PL = {description: "Opis projektu", problem: "Jaki problem rozwiązuje", result: "Efekt pracy",
+  users: "Kto korzysta / skorzysta", challenges: "Największe wyzwania", advice: "Rada dla wnioskodawców",
+  market_readiness: "Gotowość rynkowa", commercialization: "Ścieżka komercjalizacji",
+  commercialization_barriers: "Trudności w komercjalizacji", ip: "Własność intelektualna"};
 const STATUS_PL = {finished: "zakończony", running: "w trakcie", planned: "planowany"};
-const ROLE_PL = {beneficiary: "beneficjent", partner: "partner"};
+const ROLE_PL = {beneficiary: "beneficjent", partner: "partner", lead_partner: "partner wiodący"};
 
 let ALL = [], VIEW = [], SEL = null;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const safeUrl = (u) => /^https?:\/\//.test(u || "") ? u : null;
-const link = (u) => safeUrl(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>` : esc(u || "—");
-const dt = (s) => s ? esc(s.replace("T", " ").replace("+00:00", " UTC")) : "—";
+const link = (u) => safeUrl(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>` : null;
+const dt = (s) => s ? esc(s.replace("T", " ").replace("+00:00", " UTC")) : null;
 const or = (v) => (v === null || v === undefined || v === "" || (Array.isArray(v) && !v.length)) ? '<span class="raw">brak</span>' : v;
-const pln = (x) => x == null ? null : x.toLocaleString("pl-PL", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const amount = (x, cur) => x == null ? null : x.toLocaleString("pl-PL", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " " + esc(cur || "");
+const yesno = (b) => b === true ? "tak" : b === false ? "nie" : null;
 const kv = (rows) => `<div class="kv">${rows.filter(Boolean).map(([k, v]) => `<div class="k">${esc(k)}</div><div>${or(v)}</div>`).join("")}</div>`;
-const listOf = (obj) => Object.entries(obj || {}).map(([k, v]) => `${esc(k)} (${v})`).join(", ");
+const short = (s) => SOURCE_SHORT[s] || s;
 
 async function load() {
   const [meta, rows] = await Promise.all([fetch("/api/meta").then((r) => r.json()), fetch("/api/records").then((r) => r.json())]);
   ALL = rows;
-  $("file").innerHTML = `Plik: <code>${esc(meta.file)}</code> · ${meta.records} rekordów · źródło: ${listOf(meta.sources)}` +
-    (meta.list_fetched_at.length ? ` · pobrano: ${dt(meta.list_fetched_at[meta.list_fetched_at.length - 1])}` : "");
+  $("file").innerHTML = `${meta.records} rekordów z plików: ` +
+    meta.files.map((f) => `<code>${esc(f.path)}</code> (${f.records})`).join(", ");
+  for (const [id, name] of Object.entries(meta.source_ids)) {
+    const o = document.createElement("option"); o.value = id; o.textContent = name; $("f-source").appendChild(o);
+  }
   for (const v of [...new Set(ALL.flatMap((r) => r.voivodeships))].sort((a, b) => a.localeCompare(b, "pl"))) {
     const o = document.createElement("option"); o.value = v; o.textContent = v; $("f-voiv").appendChild(o);
   }
   render();
-  const first = decodeURIComponent(location.hash.slice(1)) || (VIEW[0] && VIEW[0].record_id);
+  const first = decodeURIComponent(location.hash.slice(1)) || (VIEW[0] && VIEW[0].key);
   if (first) select(first);
 }
 
 function render() {
-  const q = $("q").value.trim().toLowerCase(), qual = $("f-quality").value, voiv = $("f-voiv").value;
+  const q = $("q").value.trim().toLowerCase(), src = $("f-source").value, qual = $("f-quality").value, voiv = $("f-voiv").value;
   VIEW = ALL.filter((r) =>
-    (!q || [r.title, r.beneficiary, r.contest].join(" ").toLowerCase().includes(q)) &&
-    (!qual || r.quality === qual) && (!voiv || r.voivodeships.includes(voiv)));
+    (!q || [r.title, r.beneficiary, r.programme, r.contest].join(" ").toLowerCase().includes(q)) &&
+    (!src || r.source === src) && (!qual || r.quality === qual) && (!voiv || r.voivodeships.includes(voiv)));
   $("count").textContent = `${VIEW.length} z ${ALL.length} rekordów`;
-  $("list").innerHTML = VIEW.map((r) => `
-    <div class="item${r.record_id === SEL ? " sel" : ""}" data-id="${esc(r.record_id)}" role="option">
+  $("list").innerHTML = VIEW.map((r) => {
+    const where = r.voivodeships.length ? r.voivodeships.join(", ") : (r.country && r.country !== "Polska" ? r.country : "");
+    return `<div class="item${r.key === SEL ? " sel" : ""}" data-id="${esc(r.key)}" role="option">
       <div class="t">${esc(r.title)}${r.quality === "needs_review" ? '<span class="tag warn">do przeglądu</span>' : ""}</div>
-      <div class="m">${esc(r.beneficiary || "beneficjent nieustalony")}${r.voivodeships.length ? " · " + esc(r.voivodeships.join(", ")) : ""}</div>
-    </div>`).join("") || '<div class="empty">Brak rekordów.</div>';
+      <div class="m"><span class="tag src">${esc(short(r.source))}</span>${esc(r.beneficiary || "beneficjent nieustalony")}${where ? " · " + esc(where) : ""}</div>
+    </div>`;
+  }).join("") || '<div class="empty">Brak rekordów.</div>';
   for (const el of $("list").querySelectorAll(".item")) el.onclick = () => select(el.dataset.id);
 }
 
-async function select(id) {
-  SEL = id;
-  history.replaceState(null, "", "#" + encodeURIComponent(id));
-  for (const el of $("list").querySelectorAll(".item")) el.classList.toggle("sel", el.dataset.id === id);
-  const res = await fetch("/api/records/" + encodeURIComponent(id));
+async function select(key) {
+  SEL = key;
+  history.replaceState(null, "", "#" + encodeURIComponent(key));
+  for (const el of $("list").querySelectorAll(".item")) el.classList.toggle("sel", el.dataset.id === key);
+  const [source, id] = key.split("/");
+  const res = await fetch(`/api/records/${encodeURIComponent(source)}/${encodeURIComponent(id)}`);
   if (!res.ok) { $("detail").innerHTML = '<div class="empty">Nie znaleziono rekordu.</div>'; return; }
   renderDetail(await res.json());
 }
@@ -149,20 +159,24 @@ async function select(id) {
 function renderDetail({record: r, raw_files: raw, data_file}) {
   const p = r.provenance || {}, q = r.quality || {}, f = r.funding || {}, per = r.period || {}, reg = r.region || {};
   const rawRow = (label, info) => info ? [label, `<code>${esc(info.path)}</code>${info.exists ? "" : ' <span class="raw">(brak pliku)</span>'}`] : null;
+  const fileSource = !!p.source_file_url;
 
   const source = kv([
     ["Źródło", esc(r.source_name) + ` <span class="raw">(${esc(r.source)})</span>`],
-    ["Strona projektu", link(r.url)],
+    fileSource ? null : ["Strona projektu", link(r.url)],
     ["Strona listy", link(r.list_url)],
-    ["Pobrano listę", dt(p.list_fetched_at)],
-    ["Pobrano stronę projektu", dt(p.detail_fetched_at)],
+    fileSource ? ["Plik źródłowy", link(p.source_file_url)] : null,
+    fileSource ? ["Wiersz w pliku", p.source_row != null ? String(p.source_row) : null] : null,
+    ["Pobrano stronę listy", dt(p.list_fetched_at)],
+    [fileSource ? "Pobrano plik" : "Pobrano stronę projektu", dt(p.detail_fetched_at)],
     ["Konektor", p.connector ? `<code>${esc(p.connector)}</code>` : null],
     ["Schemat rekordu", r.schema ? `<code>${esc(r.schema)}</code>` : null],
     ["ID rekordu", `<code>${esc(r.record_id)}</code>`],
     ["Hash treści", r.content_hash ? `<code>${esc(r.content_hash.slice(0, 16))}…</code>` : null],
     ["Plik danych", `<code>${esc(data_file)}</code>`],
-    rawRow("Surowa strona projektu", raw.detail_page),
-    rawRow("Surowa strona listy", raw.list_page),
+    rawRow("Zapisany plik źródłowy", raw.source_file),
+    rawRow("Zapisana strona projektu", raw.detail_page),
+    rawRow("Zapisana strona listy", raw.list_page),
   ]);
 
   const quality = kv([
@@ -172,20 +186,30 @@ function renderDetail({record: r, raw_files: raw, data_file}) {
     ["Długość opisu", q.narrative_chars != null ? `${q.narrative_chars} znaków` : null],
   ]);
 
-  const orgs = (r.organizations || []).map((o) => `<li>${esc(o.name)} <span class="raw">· ${esc(ROLE_PL[o.role] || o.role)}${o.type_hint ? " · typ (podpowiedź): " + esc(o.type_hint) : ""}</span></li>`).join("");
+  const loc = (o) => o.location ? [o.location.city, o.location.powiat && o.location.powiat !== o.location.city ? "pow. " + o.location.powiat : null, o.location.region, o.location.country].filter(Boolean).join(", ") : "";
+  const orgs = (r.organizations || []).map((o) => `<li>${esc(o.name)} <span class="raw">· ${esc(ROLE_PL[o.role] || o.role)}${o.type_hint ? " · typ (podpowiedź): " + esc(o.type_hint) : ""}${loc(o) ? " · " + esc(loc(o)) : ""}</span></li>`).join("");
   const people = (r.people || []).map((x) => `<li>${esc(x.name)} <span class="raw">· ${esc(ROLE_PL[x.role] || x.role || "rola nieznana")}${x.titles ? " · " + esc(x.titles) : ""}</span></li>`).join("");
   const raws = f.raw || {};
+  const inSource = (v) => v ? ` <span class="raw">· w źródle: ${esc(v)}</span>` : "";
   const data = kv([
     ["Tytuł", esc(r.title)],
     ["Organizacje", orgs ? `<ul>${orgs}</ul>` : null],
-    ["Osoby", people ? `<ul>${people}</ul>` : null],
+    people ? ["Osoby", `<ul>${people}</ul>`] : null,
     ["Operator / program", [f.operator, f.programme].filter(Boolean).map(esc).join(" · ") || null],
-    ["Konkurs", f.contest ? esc(f.contest) : null],
-    ["Wartość projektu", f.total_value != null ? `${pln(f.total_value)} ${esc(f.currency || "")} <span class="raw">· w źródle: ${esc(raws.total_value)}</span>` : (raws.total_value ? `<span class="raw">nieodczytane: ${esc(raws.total_value)}</span>` : null)],
-    ["Dofinansowanie", f.grant_value != null ? `${pln(f.grant_value)} ${esc(f.currency || "")}${f.grant_share != null ? ` (${Math.round(f.grant_share * 100)}%)` : ""} <span class="raw">· w źródle: ${esc(raws.grant_value)}</span>` : (raws.grant_value ? `<span class="raw">nieodczytane: ${esc(raws.grant_value)}</span>` : null)],
-    ["Okres", per.start || per.end ? `${esc(per.start || "?")} – ${esc(per.end || (per.ongoing ? "w toku" : "?"))} · ${esc(STATUS_PL[per.status] || per.status || "")} <span class="raw">· w źródle: ${esc(per.raw)}</span>` : (per.raw ? `<span class="raw">nieodczytane: ${esc(per.raw)}</span>` : null)],
-    ["Województwo", (reg.voivodeships || []).length || reg.nationwide ? `${esc((reg.voivodeships || []).join(", ") || "cała Polska")} <span class="raw">· w źródle: ${esc(reg.raw)}</span>` : (reg.raw ? `<span class="raw">nieodczytane: ${esc(reg.raw)}</span>` : null)],
-    ["Słowa kluczowe", (r.keywords || []).length ? esc(r.keywords.join(", ")) : null],
+    f.project_no ? ["Numer projektu", `<code>${esc(f.project_no)}</code>`] : null,
+    f.contest ? ["Konkurs", esc(f.contest)] : null,
+    f.fund ? ["Fundusz", esc(f.fund)] : null,
+    f.specific_objective ? ["Cel szczegółowy", esc(f.specific_objective)] : null,
+    f.intervention_field ? ["Zakres interwencji", esc(f.intervention_field)] : null,
+    ["Wartość projektu", f.total_value != null ? amount(f.total_value, f.currency) + inSource(raws.total_value) : (raws.total_value ? `<span class="raw">nieodczytane: ${esc(raws.total_value)}</span>` : null)],
+    ["Dofinansowanie", f.grant_value != null ? amount(f.grant_value, f.currency) + (f.grant_share != null ? ` (${Math.round(f.grant_share * 100)}%)` : "") +
+      (f.grant_value_computed ? ' <span class="raw">· wyliczone: wartość × stopa dofinansowania</span>' : inSource(raws.grant_value)) : null],
+    f.strategic_project != null ? ["Projekt strategiczny", yesno(f.strategic_project)] : null,
+    f.above_5m_eur != null ? ["Powyżej 5 mln EUR", yesno(f.above_5m_eur)] : null,
+    ["Okres", per.start || per.end ? `${esc(per.start || "?")} – ${esc(per.end || (per.ongoing ? "w toku" : "?"))} · ${esc(STATUS_PL[per.status] || per.status || "")}${inSource(per.raw)}` : (per.raw ? `<span class="raw">nieodczytane: ${esc(per.raw)}</span>` : null)],
+    ["Województwo / region", (reg.voivodeships || []).length || reg.nationwide ? esc((reg.voivodeships || []).join(", ") || "cała Polska") + inSource(reg.raw)
+      : (reg.raw ? esc(reg.raw) + (reg.country ? ` <span class="raw">· ${esc(reg.country)}</span>` : "") : null)],
+    (r.keywords || []).length ? ["Słowa kluczowe", esc(r.keywords.join(", "))] : null,
     ["Prawa do treści", r.rights ? `${esc(r.rights.licence)} <span class="raw">· ${esc(r.rights.note || "")}</span>` : null],
   ]);
 
@@ -201,7 +225,7 @@ function renderDetail({record: r, raw_files: raw, data_file}) {
     <div class="sub">${esc(r.source_name)} · rekord ${q.status === "ok" ? '<span class="status-ok">kompletny</span>' : '<span class="status-warn">do przeglądu</span>'}</div>
     <section><h3>Źródło wczytania</h3>${source}</section>
     <section><h3>Dane rekordu</h3>${data}</section>
-    <section><h3>Treść ze strony</h3><div class="text">${texts}</div></section>
+    <section><h3>${fileSource ? "Treść z pliku" : "Treść ze strony"}</h3><div class="text">${texts}</div></section>
     <section><h3>Jakość wczytania</h3>${quality}</section>
     <details><summary>Surowy JSON rekordu</summary><pre>${esc(JSON.stringify(r, null, 2))}</pre></details>
   </div>`;
@@ -209,16 +233,16 @@ function renderDetail({record: r, raw_files: raw, data_file}) {
 }
 
 function move(step) {
-  const i = VIEW.findIndex((r) => r.record_id === SEL);
+  const i = VIEW.findIndex((r) => r.key === SEL);
   const next = VIEW[Math.max(0, Math.min(VIEW.length - 1, i + step))];
-  if (next) { select(next.record_id); document.querySelector(`.item[data-id="${CSS.escape(next.record_id)}"]`)?.scrollIntoView({block: "nearest"}); }
+  if (next) { select(next.key); document.querySelector(`.item[data-id="${CSS.escape(next.key)}"]`)?.scrollIntoView({block: "nearest"}); }
 }
 document.addEventListener("keydown", (e) => {
   if (["INPUT", "SELECT"].includes(document.activeElement.tagName)) return;
   if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
   if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
 });
-for (const id of ["q", "f-quality", "f-voiv"]) $(id).addEventListener("input", render);
+for (const id of ["q", "f-source", "f-quality", "f-voiv"]) $(id).addEventListener("input", render);
 load();
 </script>
 </body>

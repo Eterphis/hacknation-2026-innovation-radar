@@ -35,6 +35,18 @@ python -X utf8 -m radar.sources.ncbr --offline   # przebudowa z zapisanych stron
 - Karta nie ginie: błąd pobrania albo brak opisu oznacza `needs_review` z powodem, a nie pominięcie rekordu.
 - `data/` jest w `.gitignore` (licencja treści źródła do potwierdzenia).
 
+**Interreg 2021–2027 – wykaz projektów** ([`radar/sources/interreg.py`](radar/sources/interreg.py)):
+
+```bash
+python -X utf8 -m radar.sources.interreg --out data/normalized/interreg.jsonl --csv data/normalized/interreg.csv
+python -X utf8 -m radar.sources.interreg --offline   # z zapisanego pliku, bez sieci
+```
+
+- Pobiera stronę `interreg.gov.pl/lista-projektow/`, odczytuje z niej aktualny link do pliku XLSX (nazwa zawiera datę publikacji), pobiera plik i zapisuje oba do `data/raw/interreg/`. XLSX czytany biblioteką standardową ([`radar/xlsx.py`](radar/xlsx.py)).
+- Kolumny rozpoznawane po nagłówkach, nie po pozycji; brak wymaganej kolumny przerywa pobieranie z komunikatem (zmiana formatu pliku), brak pozostałych jest wypisywany w podsumowaniu.
+- Jeden wiersz = jeden rekord `radar.record/v1`: tytuł, opis, partner wiodący z lokalizacją (kod, miejscowość, gmina, powiat, region, kraj), partnerzy, program, numer projektu, fundusz, cel szczegółowy, zakres interwencji, wartość w EUR, stopa i wyliczone dofinansowanie, okres ze statusem, województwo (dla partnerów z Polski), w `provenance` adres pliku i numer wiersza.
+- Źródło nie ma strony per projekt, więc `url` jest pusty; opisy dłuższe niż 4000 znaków są w pliku ucięte (ostrzeżenie `description_truncated_in_source`).
+
 Testy: `python -X utf8 -m unittest discover -s tests -t .`
 
 ## Karta innowacji (ekstrakcja → dojrzałość → ocena → odbiorcy)
@@ -53,11 +65,11 @@ Dla każdego rekordu powstaje karta `radar.card/v1` (`data/cards/cards.jsonl`) i
 ## GUI: podgląd wczytanych danych
 
 ```bash
-python -X utf8 -m radar.gui                    # http://127.0.0.1:8765
-python -X utf8 -m radar.gui --data data/normalized/ncbr.jsonl --raw-dir data/raw/ncbr
+python -X utf8 -m radar.gui                    # wszystkie data/normalized/*.jsonl, http://127.0.0.1:8765
+python -X utf8 -m radar.gui --data data/normalized/interreg.jsonl
 ```
 
-- Pokazuje wyłącznie to, co konektor zapisał w pliku JSONL: listę rekordów (wyszukiwarka, filtr jakości i województwa) i każdy rekord bez zmian.
-- **Źródło wczytania** przy każdym rekordzie: nazwa źródła, strona projektu i strona listy (linki), czas pobrania listy i strony projektu, wersja konektora, schemat, ID rekordu, hash treści, plik danych i ścieżka do zapisanej surowej strony.
-- Dane rekordu z wartością odczytaną obok wartości ze źródła (kwoty, okres, województwo), treść ze strony według sekcji, jakość wczytania (powody `needs_review`) i surowy JSON rekordu.
+- Pokazuje wyłącznie to, co konektory zapisały w plikach JSONL: listę rekordów ze wszystkich źródeł (wyszukiwarka, filtr źródła, jakości i województwa) i każdy rekord bez zmian.
+- **Źródło wczytania** przy każdym rekordzie: nazwa źródła, strona projektu albo plik źródłowy z numerem wiersza, strona listy, czasy pobrania, wersja konektora, schemat, ID rekordu, hash treści, plik danych i ścieżki do zapisanych surowych stron lub pliku.
+- Dane rekordu z wartością odczytaną obok wartości ze źródła (kwoty, okres, województwo), treść według sekcji, jakość wczytania (powody `needs_review`) i surowy JSON rekordu.
 - Tylko odczyt; serwer na `127.0.0.1`, biblioteka standardowa Pythona.
