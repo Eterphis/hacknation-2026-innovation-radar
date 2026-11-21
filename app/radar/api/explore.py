@@ -54,7 +54,7 @@ def idea_dict(r: Record) -> dict:
         "maturity": c.maturity, "score": c.score, "priority": r.priority, "likes": c.likes, "decision": c.decision,
         "path": ((c.assessment or {}).get("paths") or [{}])[0].get("path"),
         # plate data for components (location, budget, institution)
-        "city": city(*(r.affiliations or []), r.abstract), "voivodeship": r.voivodeship, "sector": r.sector,
+        "city": city(*(r.affiliations or []), r.abstract, voivodeship=r.voivodeship), "voivodeship": r.voivodeship, "sector": r.sector,
         "tech_area": r.tech_area, "institution_type": r.institution_type, "cost_level": r.cost_level,
         "cost_range": T.COST_RANGE.get(r.cost_level or ""),
         "amount": max([v for v in (r.amounts or {}).values() if isinstance(v, (int, float))] or [0]) or None,
