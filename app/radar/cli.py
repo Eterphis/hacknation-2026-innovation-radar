@@ -8,6 +8,8 @@
   reassess                  re-index the graph and re-score all ready cards (also daily via beat)
   demo                      eager run of all demo sources into the local DB (no broker, no keys)
   basal-eval [--log CSV]    accuracy of Basal on the hand-labelled real test set (eval/basal_gold.jsonl)
+  orgs load                 load the organisation registry (radon_institutions.jsonl from the harvester)
+  orgs match <name>...      show how affiliations match the registry (method, confidence, type, region)
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     e = sub.add_parser("basal-eval")
     e.add_argument("--data"); e.add_argument("--gold"); e.add_argument("--log"); e.add_argument("--note", default="")
     e.add_argument("--errors", action="store_true", help="print misclassified records")
+    o = sub.add_parser("orgs"); o.add_argument("action", choices=["load", "match"]); o.add_argument("names", nargs="*")
     a = p.parse_args(argv)
 
     if a.cmd == "demo":
@@ -100,6 +103,19 @@ def main(argv: list[str] | None = None) -> int:
         from radar.pipeline.tasks import reassess
 
         print("reassessed", reassess.apply().get())
+    elif a.cmd == "orgs":
+        create_all()
+        from radar import orgs
+        from radar.db import session
+
+        with session() as s:
+            m = orgs.ensure_registry(s)
+            if m is None:
+                print(f"no registry: {orgs.registry_path()} missing (run `python -X utf8 -m radar.refresh --sources radon`)")
+                return 1
+            print(f"registry: {len(m.orgs)} organisations from {orgs.registry_path()}")
+            for name in a.names if a.action == "match" else []:
+                print(json.dumps(m.match(name), ensure_ascii=False))
     return 0
 
 

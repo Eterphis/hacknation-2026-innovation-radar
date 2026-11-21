@@ -150,3 +150,32 @@ def norm_title(t: str | None) -> str:
     t = unicodedata.normalize("NFKD", t.replace("ł", "l").replace("Ł", "L"))
     t = "".join(c for c in t if not unicodedata.combining(c)).lower()
     return re.sub(r"[^a-z0-9]+", " ", t).strip()
+
+
+_ROMAN = r"(?:i{1,3}|iv|vi{0,3}|ix|x)"
+_PHASE = re.compile(rf"\b(?:etap|czesc|faza|edycja|transza|odcinek|cz)\s*(?:{_ROMAN}|\d+)\b"
+                    rf"|\b(?:{_ROMAN}|\d+)\s*(?:etap|edycja|czesc)\b")
+_PLACE = re.compile(r"\b(?:w|we|na terenie|dla|z terenu)\s+(?:gmin\w*|powiat\w*|miast\w*|miescie|wsi|wojewodztw\w*|obszar\w*)\b.*$"
+                    r"|\b(?:gminy|gmin|powiatu|miasta)\s+\w+.*$")
+_TRAILING_NO = re.compile(rf"(?:\s+{_ROMAN}|\s+\d+)+$")
+
+
+def programme_key(t: str | None) -> str:
+    """Title of the programme behind a project, for grouping (Kohesio): without the parenthesised scope, phase
+    markers ("etap II", "część 2", "(I)") and a trailing place ("w Gminie Knurów", "na terenie gmin ..."), so
+    "Czyste powietrze w Gminie Żytno" and "Czyste powietrze w gminie Młodzieszyn" share "czyste powietrze"."""
+    k = norm_title(re.sub(r"\([^)]*\)", " ", t or ""))
+    k = _PLACE.sub(" ", _PHASE.sub(" ", k))
+    return _TRAILING_NO.sub("", re.sub(r"\s+", " ", k).strip()).strip()
+
+
+def same_programme(a: str, b: str) -> bool:
+    """Equal programme keys of 2+ words, or near-equal long ones (spelling, an extra word); short generic keys
+    ("budowa budynku urzedu") must match exactly."""
+    if not a or not b or len(a.split()) < 2:
+        return False
+    if a == b:
+        return True
+    from difflib import SequenceMatcher
+
+    return min(len(a), len(b)) >= 25 and SequenceMatcher(None, a, b).ratio() >= 0.9

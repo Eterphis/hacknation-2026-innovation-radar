@@ -38,7 +38,7 @@ sources:
     demo: true
     kind: project
     description: "Przykładowe projekty spójności (dane syntetyczne w kształcie odpowiedzi Kohesio)"
-    options: { path: samples/kohesio.json, min_abstract_chars: 120 }
+    options: { path: samples/kohesio.json, min_abstract_chars: 120, group_by_title: true }
     record_path: list
     id_path: item
     mapping:
@@ -89,8 +89,12 @@ sources:
       institution_type: institution_type
 
   # ------------------------------------------------------------------ LIVE: pull
+  # Biblioteka Nauki i RAD-on: jedna droga = harvester (harvester-bibliotekanauki, harvester-radon niżej). Jego konektory
+  # mają więcej pól (oai_openaire: słowa kluczowe, afiliacje, DOI; RAD-on: filtr NCN/NCBR, organizacje z REGON/typem/
+  # województwem i rejestr instytucji dla resolve_org). Te wpisy zostają jako wzór konfiguracji, wyłączone.
   - id: bibliotekanauki
     type: oaipmh
+    enabled: false   # zastąpione przez harvester-bibliotekanauki
     kind: publication
     schedule_s: 21600
     description: "Biblioteka Nauki, OAI-PMH, przyrostowo po datestamp"
@@ -139,6 +143,7 @@ sources:
 
   - id: radon-projekty
     type: rest
+    enabled: false   # zastąpione przez harvester-radon
     kind: project
     schedule_s: 604800
     description: "RAD-on projekty krajowe (NCN, NCBR), ok. 49 tys., stronicowanie tokenem (sprawdzone 2026-11-21)"
@@ -170,6 +175,7 @@ sources:
       max_pages: 5
       timeout: 60
       min_abstract_chars: 150
+      group_by_title: true   # jeden program (np. „Czyste powietrze”), wielu beneficjentów: jedna grupa, kanoniczny = najpełniejszy
     record_path: list
     id_path: item
     mapping:
@@ -241,6 +247,7 @@ sources:
       record_type: record_type
       harvester_source: source
       quality_status: quality.status
+      organizations: organizations   # ids (RAD-on uuid, REGON, NIP, KRS) for resolve_org
 
   - id: harvester-interreg
     type: snapshot
@@ -248,6 +255,24 @@ sources:
     schedule_s: 3600
     description: "Interreg 2021–2027, projekty z partnerami z Polski (harvester)"
     options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/interreg.jsonl", optional: true, min_abstract_chars: 150 }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-bibliotekanauki
+    type: snapshot
+    kind: publication
+    schedule_s: 3600
+    description: "Biblioteka Nauki: artykuły z polskich czasopism, OAI-PMH oai_openaire, okno 10 dni (harvester; zamiennik Google Scholar i PAN dLibra)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/bibliotekanauki.jsonl", optional: true, min_abstract_chars: 200 }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-radon
+    type: snapshot
+    kind: project
+    schedule_s: 3600
+    description: "RAD-on: projekty krajowe finansowane przez NCN i NCBR, z instytucjami z rejestru POL-on (harvester)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/radon.jsonl", optional: true, min_abstract_chars: 150 }
     id_path: record_id
     mapping: *record_v1
 
@@ -293,6 +318,15 @@ sources:
     schedule_s: 3600
     description: "UPRP: import ręcznego eksportu e-Wyszukiwarki (bez zapytań do UPRP; harvester)"
     options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/uprp_import.jsonl", optional: true, min_abstract_chars: 60 }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-web
+    type: snapshot
+    kind: solution
+    schedule_s: 3600
+    description: "Crawler stron z config/sites.json (uczelnie, CTT, klastry, samorządy; robots.txt, 1 zapytanie / 2 s na host); eksport z bazy harvestera"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/web.jsonl", optional: true, min_abstract_chars: 300 }
     id_path: record_id
     mapping: *record_v1
 

@@ -126,7 +126,7 @@ docker compose --profile observability up -d   # Grafana :3000 (dashboard „Rad
 
 ## Harvester danych (`radar/`, `config/`, z gałęzi `feature/pobieranie-danych`)
 
-Osobny pakiet w katalogu głównym: konektory NCBR, Interreg, crawler stron, baza SQLite z historią. W compose działa w profilu `harvester` (`docker compose --profile harvester up`), port `HARVESTER_PORT` (domyślnie 8765). Podłączenie jego wyników do potoku `app/` to zadanie T037.
+Osobny pakiet w katalogu głównym: konektory NCBR, Interreg, Biblioteka Nauki, OpenAlex, RAD-on, EPO, CORDIS, FE, UPRP, crawler stron, baza SQLite z historią. W compose działa w profilu `harvester` (`docker compose --profile harvester up`), port `HARVESTER_PORT` (domyślnie 8765). Wyniki (`data/normalized/<id>.jsonl`, w tym `web.jsonl` z crawlera) wchodzą do potoku `app/` przez źródła `harvester-*`; Biblioteka Nauki i RAD-on tylko tą drogą. Rejestr instytucji z RAD-on (`radon_institutions.jsonl`) zasila etap `resolve_org`.
 
 ## Pobieranie danych
 
@@ -219,7 +219,11 @@ python -X utf8 -m radar.gui --data data/normalized/interreg.jsonl
 - Tylko odczyt; serwer na `127.0.0.1`, biblioteka standardowa Pythona.
 
 ### Prawdziwe dane (domyślnie)
-`docker compose up` pobiera z baz publicznych przez kolejkę i workery (bez syntetyków): **Biblioteka Nauki** (OAI-PMH), **OpenAIRE** `/projects` z polskim partnerem, **RAD-on** projekty krajowe (NCN, NCBR), **Kohesio** projekty spójności UE w Polsce. Każde źródło ma harmonogram w `app/sources.yaml`, a przycisk „Pobierz” w zakładce Źródła. `RADAR_DEMO_MODE=1` przełącza na same dane syntetyczne (fallback dla jury bez sieci). EPO czeka na szybsze zapytanie, konektory z `radar/` (NCBR, Interreg, CORDIS, FE, OpenAlex, crawler) — issue „[Dane]”.
+`docker compose up` pobiera z baz publicznych przez kolejkę i workery (bez syntetyków): **OpenAIRE** `/projects` z polskim partnerem i **Kohesio** projekty spójności UE w Polsce bezpośrednio, a pliki harvestera (`docker compose --profile harvester up` albo `python -X utf8 -m radar.refresh`) przez źródła `harvester-*`: **NCBR**, **Interreg**, **Biblioteka Nauki**, **OpenAlex**, **RAD-on** (NCN, NCBR), **EPO**, **CORDIS**, **FE 2021–2027**, **UPRP** (import) i **crawler stron**. Każde źródło ma harmonogram w `app/sources.yaml`, a przycisk „Pobierz” w zakładce Źródła. `RADAR_DEMO_MODE=1` przełącza na same dane syntetyczne (fallback dla jury bez sieci).
+
+**Dedup** (`dedup`): rekordem kanonicznym klastra jest najpełniejszy (opis, DOI, organizacje, kwoty), a nie pierwszy przetworzony; pełniejszy rekord, który przyjdzie później, przejmuje klaster. Źródła z `group_by_title` (Kohesio) łączą projekty jednego programu o tym samym tytule (np. „Czyste powietrze” w wielu gminach) w jedną grupę z `cluster_size`.
+
+**Rejestr organizacji** (`resolve_org`, T023): instytucje z RAD-on; afiliacje dopasowywane kaskadowo (identyfikator → nazwa i nazwy dawne → skrót → zawieranie → podobieństwo, progi 0,90/0,70). Pewne dopasowanie daje Basalowi typ instytucji, publiczna/prywatna i województwo. `radar orgs match "Wydział Chemiczny Politechniki Rzeszowskiej"` pokazuje dopasowanie.
 
 ### Obserwowalność
 - `GET /metrics` (Prometheus): etapy potoku, statusy rekordów, źródła (wiek ostatniego pobrania, błędy), decyzje, LLM per dostawca, fallbacki, głębokość kolejek RabbitMQ i DLQ.
