@@ -17,11 +17,11 @@ def _fresh(tmp_path, monkeypatch, name):
 
 def test_head_matches_models(tmp_path, monkeypatch):
     _fresh(tmp_path, monkeypatch, "m.db")
-    assert migrate() == "0002"
+    assert migrate() == "0003"
     with engine().connect() as c:
         diff = compare_metadata(MigrationContext.configure(c, opts={"compare_type": True}), Base.metadata)
     assert diff == [], diff
-    assert migrate() == "0002"  # idempotent
+    assert migrate() == "0003"  # idempotent
 
 
 def test_legacy_create_all_database_is_stamped_and_upgraded(tmp_path, monkeypatch):
@@ -30,7 +30,7 @@ def test_legacy_create_all_database_is_stamped_and_upgraded(tmp_path, monkeypatc
     with engine().begin() as c:  # what the old `create_all` left behind: tables, no alembic_version
         c.execute(text("DROP TABLE alembic_version"))
         c.execute(text("INSERT INTO settings (key, value, updated_at) VALUES ('keep', '{}', '2026-01-01')"))
-    assert migrate() == "0002"
+    assert migrate() == "0003"
     with engine().connect() as c:
         assert "llm_calls" in inspect(c).get_table_names()
         assert "duration_ms" in {col["name"] for col in inspect(c).get_columns("stage_runs")}
