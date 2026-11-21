@@ -43,3 +43,55 @@ Format wpisu: nagłówek drugiego poziomu `Q-<kolejny numer, 3 cyfry> [open] <ty
 - **Termin:** —
 - **Domyślnie:** —
 - **Odpowiedź:** —
+
+## Q-003 [open] Wybór pomysłu (runda ideacji 1)
+- **Kontekst:** 5 pomysłów z kartami prior-art i oceną wg rubryki etapu I (`reports/ideation-1.md`). Ranking: I-004 Paszport transferu 21/25, I-003 Giełda problem ↔ rozwiązanie 19, I-001 Radar z jawną oceną 18, I-002 Zwiadowca źródeł publicznych 16, I-005 Wywiad + mapa 15. Największe ryzyko oryginalności: EU Innovation Radar (ta sama nazwa i cel, ale tylko projekty UE) i OECD OPSI.
+- **Opcje:** A) I-001 jako szkielet (scenariusz a-e) + I-004 jako wyróżnik; potem I-003, potem I-002 na jednym źródle B) I-001 + I-003 (giełda problemów jako wyróżnik) C) sam I-001 (najmniejsze ryzyko wykonania) D) inny wybór (opisz)
+- **Rekomendacja:** A, bo daje szacunkowo 22/25 i odpowiada wprost na §9 treści („co dzieje się z innowacją po jej zidentyfikowaniu”), a scenariusz a-e i tak wymaga I-001.
+- **Blokuje:** plan (tasks/T###), golden path na 18:00
+- **Poziom:** krytyczny
+- **Termin:** 2026-11-21 13:00
+- **Domyślnie:** A
+- **Odpowiedź:** zastąpione przez Q-004 po ustaleniu z mentorami (D-002), 2026-11-21 12:05
+
+## Q-004 [answered 2026-11-21] Wybór pomysłu (runda ideacji 2, po ustaleniu z mentorami)
+- **Kontekst:** Mentorzy: radar sam wyszukuje pomysły w bazach (np. z §7) i dalej je przetwarza (D-002). 5 nowych pomysłów z kartami prior-art i oceną (`reports/ideation-2.md`), dostęp do baz w `reports/data-access.md`. Ranking: I-009 Sprawdzone gdzie indziej 21/25, I-006 Lejek radaru 20, I-010 Zapytaj radar 20, I-007 Łańcuch dowodów 19, I-008 Uśpione patenty 17.
+- **Opcje:** A) I-006 lejek jako szkielet + I-007 „lekki” (dojrzałość z dowodów) + paszport transferu (I-004/I-009) na wyjściu B) sam I-009 (tylko bazy projektów, transfer) C) I-006 + I-010 (lejek + pole „zapytaj radar”) D) inny wybór (opisz)
+- **Rekomendacja:** A, bo szacunkowo 22/25, a ekran „dojrzałość z linkami do publikacji, patentu i brakującego wdrożenia” odpowiada na zarzut „to już istnieje” (EU Innovation Radar opiera się na ankietach).
+- **Blokuje:** plan (tasks/T###), golden path na 18:00
+- **Poziom:** krytyczny
+- **Termin:** 2026-11-21 13:30
+- **Domyślnie:** A
+- **Odpowiedź:** — (korekta 13:28: wpis „domyślnie A” z 13:27 był przedwczesny, termin 13:30 jeszcze nie minął; D-004 nie obowiązuje). 13:36: zastąpione przez Q-007 (runda 3, D-006)
+
+## Q-005 [open] Dostęp do baz: konta i licencje danych
+- **Kontekst:** Z `reports/data-access.md`: EPO OPS wymaga darmowej rejestracji (konto zakłada człowiek, nie agent); UPRP API ma token albo listę IP, niejasne; PBN API wymaga klucza od OPI (nierealne w 24 h); keep.eu API wymaga klucza mailem, ale eksport CSV działa bez niego. Regulamin §4 ust. 8: dane z baz nie mogą blokować publikacji na EUPL.
+- **Opcje:** A) zakładamy konto EPO OPS teraz; UPRP próbujemy jednym wywołaniem; Interreg/NCBR jako snapshot; w repo tylko mała próbka danych z podaniem źródła B) wszystko jako snapshot, bez kluczy C) inaczej (opisz)
+- **Rekomendacja:** A, bo jedno źródło patentowe na żywo wzmacnia demo, a tryb snapshot i tak chroni przed awarią klucza u jury. Przy okazji zapytać mentorów, czy dane z tych baz wolno trzymać w repo na EUPL.
+- **Blokuje:** zadania konektorów EPO i UPRP
+- **Poziom:** zawsze człowiek
+- **Termin:** —
+- **Domyślnie:** —
+- **Odpowiedź:** —
+
+## Q-006 [answered 2026-11-21] Architektura (D-003): dwa doprecyzowania
+- **Kontekst:** D-003: Helm/Kubernetes, workery z zabezpieczeniem przed pominięciem, RabbitMQ + Celery, podmienialne LLM z fallbackiem. Projekt w `reports/ideation-2.md`, sekcja „Architecture”.
+  1. „Zabezpieczenie przed pominięciem sensu” rozumiem podwójnie: (a) żaden rekord nie ginie w kolejce (acks_late, idempotencja, retry, dead-letter, uzgadnianie liczników) oraz (b) wynik LLM jest sprawdzany, czy nie zgubił treści (schemat, cytat ze źródła dla każdego pola, inaczej `needs_review`).
+  2. Gdzie działa Kubernetes na demo: lokalnie (k3d/kind) czy w chmurze z publicznym URL-em?
+- **Opcje:** A) 1 = (a) + (b); 2 = docker compose jako ścieżka dla jury + Helm chart testowany na k3d, publiczny URL tylko jeśli starczy czasu B) 1 = tylko (a); 2 jak w A C) inaczej (opisz)
+- **Rekomendacja:** A, bo (b) to jawność i kontrola jakości, o które pyta §5 treści, a compose daje jury działanie bez klastra.
+- **Blokuje:** zadania workerów i wdrożenia
+- **Poziom:** krytyczny
+- **Termin:** 2026-11-21 13:30
+- **Domyślnie:** A
+- **Odpowiedź:** — (korekta 13:28: wpis „domyślnie A” z 13:27 był przedwczesny, termin 13:30 jeszcze nie minął; D-005 nie obowiązuje). 13:36: termin minął, obowiązuje domyślne A (D-005)
+
+## Q-007 [answered 2026-11-21] Wybór pomysłu (runda ideacji 3: aplikacja webowa + agent AI, D-006)
+- **Kontekst:** 5 pomysłów na to, co robi agent i jak tok rozumowania trafia do urzędnika (`reports/ideation-3.md`, karty prior-art I-011..I-015). Ranking: I-011 Agent-analityk z uzasadnieniem urzędowym 22/25, I-012 Agent na zlecenie urzędnika 20, I-014 Adwokat i recenzent 20, I-013 Radar ciągły 19, I-015 Karta-checklista 19. Wspólny szkielet: konektory → parsowanie → rejestry → łączenie → ocena → klasyfikacja „do czego i dla kogo” → wynik.
+- **Opcje:** A) I-011 jako rdzeń + I-012 jako wejście („opisz potrzebę”) + jedno przejście recenzenta z I-014 + wynik w układzie karty z I-015 B) sam I-011 C) I-012 + I-011 bez recenzenta D) inny wybór (opisz)
+- **Rekomendacja:** A, bo szacunkowo 23/25: uzasadnienie w układzie znanym urzędnikowi (ustalenia z dowodami → kryteria → ocena → co przemawia przeciw → rozstrzygnięcie → ograniczenia) jest wyróżnikiem i odpowiada na wszystkie cztery pytania z §2.
+- **Blokuje:** plan (tasks/T###), golden path na 18:00
+- **Poziom:** krytyczny
+- **Termin:** 2026-11-21 14:15
+- **Domyślnie:** A
+- **Odpowiedź:** A z zawężeniami po przepytaniu (człowiek, 13:55), zob. D-008
