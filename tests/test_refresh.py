@@ -91,6 +91,29 @@ class RefreshInterregTest(unittest.TestCase):
         saved = (self.root / "raw" / "interreg" / "file.meta.json").read_text("utf-8")
         self.assertIn("20261116", saved)
 
+    def test_unreachable_page_rebuilds_from_saved_file_with_warning(self):
+        self.run_refresh()
+        (self.root / "norm" / "interreg.jsonl").unlink()  # e.g. a fresh checkout with the raw cache copied in
+
+        def down(url):
+            raise refresh.FetchError(f"giving up on {url}: timed out")
+
+        with mock.patch.object(refresh, "fetch", down):
+            self.assertEqual(self.run_refresh(), 1)  # warning -> exit code 1, but the source is not failed
+        run = self.runs()[0]
+        self.assertTrue(run["ok"])
+        self.assertEqual((run["download"], run["rebuild"], run["records"]), ("unreachable_using_saved", "rebuilt", 2))
+        self.assertIn("niedostępna", run["warning"])
+        self.assertEqual(self.downloads, 1)
+
+    def test_unreachable_page_without_saved_file_fails(self):
+        def down(url):
+            raise refresh.FetchError(f"giving up on {url}: timed out")
+
+        with mock.patch.object(refresh, "fetch", down):
+            self.assertEqual(self.run_refresh(), 1)
+        self.assertFalse(self.runs()[0]["ok"])
+
     def test_dry_run_writes_nothing(self):
         self.assertEqual(self.run_refresh("--dry-run"), 0)
         self.assertEqual(self.downloads, 0)
