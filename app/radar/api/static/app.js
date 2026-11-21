@@ -249,7 +249,9 @@ async function loadExplore() {
 
 // ------------------------------------------------------------------ GRAF
 async function pageGraph(v) {
-  const g = await api("/api/graph?" + qs({sector: F.sector, tech_area: F.tech_area, voivodeship: F.voivodeship, innovation_type: F.innovation_type, maturity: F.maturity}));
+  // 120 best ideas: enough to read the structure, small enough to stay calm and fast on a phone
+  const g = await api("/api/graph?" + qs({sector: F.sector, tech_area: F.tech_area, voivodeship: F.voivodeship, innovation_type: F.innovation_type, maturity: F.maturity, limit: 120,
+    hubs: F.voivodeship ? "sector,tech_area" : "sector,tech_area"}));  // 16 voivodeship hubs crowd the picture; the Map covers regions
   const active = ["sector", "tech_area", "voivodeship", "innovation_type", "maturity"].filter(k => F[k]);
   v.innerHTML = header("Graf wiedzy", "network", "Jak pomysły łączą się ze sobą", "Kropki to pomysły (kolor = sektor). Białe węzły z ikoną to huby: sektor, obszar technologii, województwo. Czerwone linie = podobna treść.",
     active.length ? `<button class="btn-soft" id="clearf">${icon("x")}Wyczyść filtry</button>` : "") +
@@ -263,7 +265,12 @@ function drawGraph(g) {
   cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
   const css = getComputedStyle(document.documentElement), C = n => css.getPropertyValue(n).trim();
   const idx = new Map(g.nodes.map((n, i) => [n.id, i]));
-  const N = g.nodes.map((n, i) => ({...n, x: W / 2 + Math.cos(i * 2.399) * 12 * Math.sqrt(i + 1), y: H / 2 + Math.sin(i * 2.399) * 12 * Math.sqrt(i + 1), vx: 0, vy: 0, deg: 0}));
+  // Seeded layout: hubs on a circle, each idea starts next to its sector hub (no random explosion from the centre).
+  const hubs = g.nodes.filter(n => n.type !== "idea"), R0 = Math.min(W, H) * .38;
+  const hubPos = new Map(hubs.map((h, i) => [h.id, {x: W / 2 + Math.cos(i / hubs.length * 2 * Math.PI) * R0, y: H / 2 + Math.sin(i / hubs.length * 2 * Math.PI) * R0}]));
+  const N = g.nodes.map((n, i) => { let p = hubPos.get(n.id);
+    if (!p) { const h = hubPos.get("sector:" + n.sector) || {x: W / 2, y: H / 2}; p = {x: h.x * .6 + W / 2 * .4 + Math.cos(i * 2.399) * 30, y: h.y * .6 + H / 2 * .4 + Math.sin(i * 2.399) * 30}; }
+    return {...n, x: p.x, y: p.y, vx: 0, vy: 0, deg: 0}; });
   const Lk = g.links.filter(l => idx.has(l.source) && idx.has(l.target)).map(l => ({...l, s: N[idx.get(l.source)], t: N[idx.get(l.target)]}));
   Lk.forEach(l => { l.s.deg++; l.t.deg++; });
   const sim = l => l.kind === "similar" || l.kind === "possible_duplicate";
@@ -274,40 +281,58 @@ function drawGraph(g) {
   N.filter(n => n.type !== "idea").forEach(n => { const name = hubIcon(n); if (!imgs[name]) { const img = new Image(); fetch("/static/icons.svg").then(r => r.text()).then(t => {
     const m = t.match(new RegExp(`<symbol id="i-${name}" viewBox="0 0 24 24">([\\s\\S]*?)</symbol>`)); if (!m) return;
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${C("--ink-3")}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m[1]}</svg>`); }); imgs[name] = img; } });
-  let alpha = 1, drag = null, hover = null, ox = 0, oy = 0, sc = 1, fitted = false, pan = null, moved = false;
+  let alpha = 1, drag = null, hover = null, ox = 0, oy = 0, sc = 1, pan = null, moved = false, dirty = true;
+  const VMAX = 6, FMAX = 4;  // bounded forces and speed: the layout can never blow up to Infinity/NaN
   function tick() {
-    for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) { const a = N[i], b = N[j]; let dx = b.x - a.x, dy = b.y - a.y; const d2 = dx * dx + dy * dy + .01; if (d2 > 90000) continue;
-      const f = 1300 / d2 * alpha; dx *= f; dy *= f; a.vx -= dx; a.vy -= dy; b.vx += dx; b.vy += dy; }
-    for (const l of Lk) { const dx = l.t.x - l.s.x, dy = l.t.y - l.s.y, d = Math.hypot(dx, dy) || 1, k = (d - (sim(l) ? 60 : 110)) / d * .045 * alpha * (sim(l) ? 1.5 : 1);
+    for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) { const a = N[i], b = N[j]; let dx = b.x - a.x, dy = b.y - a.y; const d2 = dx * dx + dy * dy;
+      if (d2 > 62500) continue; const d = Math.sqrt(d2) || .5, f = Math.min(FMAX, 900 / Math.max(d2, 25)) * alpha;
+      dx = dx / d * f; dy = dy / d * f; a.vx -= dx; a.vy -= dy; b.vx += dx; b.vy += dy; }
+    for (const l of Lk) { const dx = l.t.x - l.s.x, dy = l.t.y - l.s.y, d = Math.hypot(dx, dy) || 1;
+      const k = (d - (sim(l) ? 50 : 120)) / d * (sim(l) ? .05 : .012) * alpha;  // hub springs are weak: hubs have hundreds of links
       l.s.vx += dx * k; l.s.vy += dy * k; l.t.vx -= dx * k; l.t.vy -= dy * k; }
-    for (const n of N) { if (n === drag) continue; n.vx += (W / 2 - n.x) * .006 * alpha; n.vy += (H / 2 - n.y) * .006 * alpha; n.x += n.vx; n.y += n.vy; n.vx *= .6; n.vy *= .6; }
-    alpha = Math.max(alpha * .985, .02); if (!fitted && alpha < .15) { fit(); fitted = true; }
+    for (const n of N) { if (n === drag) continue; n.vx += (W / 2 - n.x) * .004 * alpha; n.vy += (H / 2 - n.y) * .004 * alpha;
+      const v = Math.hypot(n.vx, n.vy); if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
+      n.x += n.vx; n.y += n.vy; n.vx *= .55; n.vy *= .55;
+      if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) { n.x = W / 2; n.y = H / 2; n.vx = n.vy = 0; } }
+    alpha = Math.max(alpha * .97, .02); dirty = true;
   }
   function fit() { const xs = N.map(n => n.x), ys = N.map(n => n.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    sc = Math.min((W - 240) / Math.max(x1 - x0, 1), (H - 70) / Math.max(y1 - y0, 1), 2.4); ox = (W - 160) / 2 - (x0 + x1) / 2 * sc; oy = H / 2 - (y0 + y1) / 2 * sc; }
+    const mx = W < 600 ? 24 : 200, lab = W < 600 ? 0 : 140;  // room for labels on the right only where there is space
+    sc = Math.max(.2, Math.min((W - mx) / Math.max(x1 - x0, 1), (H - 60) / Math.max(y1 - y0, 1), 2.2));
+    ox = (W - lab) / 2 - (x0 + x1) / 2 * sc; oy = H / 2 - (y0 + y1) / 2 * sc; dirty = true; }
+  for (let i = 0; i < 260; i++) tick();  // settle before the first frame: the user sees a calm graph, not the simulation
+  alpha = .02; fit();
   const near = n => hover && (n === hover || Lk.some(l => (l.s === hover && l.t === n) || (l.t === hover && l.s === n)));
   function paint() {
     ctx.clearRect(0, 0, W, H); ctx.save(); ctx.translate(ox, oy); ctx.scale(sc, sc);
     for (const l of Lk) { const hot = hover && (l.s === hover || l.t === hover);
       ctx.strokeStyle = hot ? C("--ink") : sim(l) ? C("--red") : C("--line"); ctx.globalAlpha = hot ? .9 : sim(l) ? .55 : 1; ctx.lineWidth = (sim(l) ? 1 + l.weight * 3 : 1) / Math.sqrt(sc);
       ctx.beginPath(); ctx.moveTo(l.s.x, l.s.y); ctx.lineTo(l.t.x, l.t.y); ctx.stroke(); }
+    const placed = [];  // label boxes already drawn: skip a label that would overlap (hover always wins)
+    const free = (x, y, w, h) => !placed.some(b => x < b[0] + b[2] && b[0] < x + w && y < b[1] + b[3] && b[1] < y + h);
     for (const n of N) { ctx.globalAlpha = hover && !near(n) ? .28 : 1; const rr = rad(n);
       if (n.type === "idea") { ctx.beginPath(); ctx.arc(n.x, n.y, rr, 0, 7); ctx.fillStyle = C(SECTOR_SLOT[n.sector] ? `--s${SECTOR_SLOT[n.sector]}` : "--other"); ctx.fill(); ctx.lineWidth = 2 / sc; ctx.strokeStyle = C("--bg"); ctx.stroke(); }
       else { ctx.save(); ctx.shadowColor = C("--dk"); ctx.shadowBlur = 8; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2; ctx.beginPath(); ctx.arc(n.x, n.y, rr, 0, 7); ctx.fillStyle = C("--white"); ctx.fill(); ctx.restore();
         ctx.lineWidth = 1.5 / sc; ctx.strokeStyle = C("--ink"); ctx.stroke(); const img = imgs[hubIcon(n)]; if (img && img.complete && img.naturalWidth) ctx.drawImage(img, n.x - rr * .55, n.y - rr * .55, rr * 1.1, rr * 1.1); }
-      if (n.type !== "idea" || n === hover || sc > 1.4) { ctx.fillStyle = n.type === "idea" ? C("--ink") : C("--ink-2"); ctx.font = `${n.type === "idea" ? 500 : 700} ${12 / Math.sqrt(sc)}px system-ui`; ctx.fillText(n.label.slice(0, 46), n.x + rr + 5, n.y + 4); } }
+      if (n.type !== "idea" || n === hover || sc > 1.4) { const fs = 12 / Math.sqrt(sc), txt = n.label.slice(0, 46);
+        ctx.font = `${n.type === "idea" ? 500 : 700} ${fs}px system-ui`; const tw = ctx.measureText(txt).width, lx = n.x + rr + 5, ly = n.y - fs * .7;
+        if (n === hover || free(lx, ly, tw, fs * 1.3)) { placed.push([lx, ly, tw, fs * 1.3]);
+          ctx.lineJoin = "round"; ctx.lineWidth = 4 / sc; ctx.strokeStyle = C("--bg"); ctx.strokeText(txt, lx, n.y + 4);  // halo keeps labels readable over dots
+          ctx.fillStyle = n.type === "idea" ? C("--ink") : C("--ink-2"); ctx.fillText(txt, lx, n.y + 4); } } }
     ctx.restore(); ctx.globalAlpha = 1;
   }
-  (function loop() { if (alpha > .021 || drag) tick(); paint(); if (document.body.contains(cv)) requestAnimationFrame(loop); })();
+  // repaint only when something changed (drag, pan, zoom, hover, icon load): no busy loop
+  (function loop() { if (drag) tick(); else if (alpha > .021) tick(); if (dirty) { paint(); dirty = false; } if (document.body.contains(cv)) requestAnimationFrame(loop); })();
+  Object.values(imgs).forEach(img => img.addEventListener("load", () => dirty = true));
   const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / sc, (e.clientY - r.top - oy) / sc]; };
   const hit = (x, y) => N.find(n => (n.x - x) ** 2 + (n.y - y) ** 2 < (rad(n) + 4) ** 2);
   cv.onpointerdown = e => { const [x, y] = pt(e); drag = hit(x, y); moved = false; if (!drag) pan = [e.clientX - ox, e.clientY - oy]; cv.setPointerCapture(e.pointerId); };
   cv.onpointermove = e => { const [x, y] = pt(e);
-    if (drag) { drag.x = x; drag.y = y; alpha = Math.max(alpha, .3); moved = true; } else if (pan) { ox = e.clientX - pan[0]; oy = e.clientY - pan[1]; moved = true; }
-    else { hover = hit(x, y) || null; cv.style.cursor = hover ? "pointer" : "grab"; tip(hover ? `<b>${esc(hover.label)}</b>${hover.type === "idea" ? `<br>${esc(lp("sector", hover.sector))} · ${esc(hover.voivodeship || "—")}${hover.score ? " · wynik " + Math.round(hover.score) : ""}` : `<br>${hover.deg} powiązań · kliknij, by filtrować`}` : "", e); } };
-  cv.onpointerleave = () => { hover = null; tip(); };
+    if (drag) { drag.x = x; drag.y = y; alpha = Math.max(alpha, .15); moved = true; } else if (pan) { ox = e.clientX - pan[0]; oy = e.clientY - pan[1]; moved = true; dirty = true; }
+    else { const h = hit(x, y) || null; if (h !== hover) dirty = true; hover = h; cv.style.cursor = hover ? "pointer" : "grab"; tip(hover ? `<b>${esc(hover.label)}</b>${hover.type === "idea" ? `<br>${esc(lp("sector", hover.sector))} · ${esc(hover.voivodeship || "—")}${hover.score ? " · wynik " + Math.round(hover.score) : ""}` : `<br>${hover.deg} powiązań · kliknij, by filtrować`}` : "", e); } };
+  cv.onpointerleave = () => { hover = null; dirty = true; tip(); };
   cv.onpointerup = () => { if (drag && !moved) { const n = drag; if (n.type === "idea" && n.card_id) openCard(n.card_id); else if (n.type !== "idea") go("graf", {[n.type]: n.id.split(":").slice(1).join(":")}); } drag = null; pan = null; };
-  cv.onwheel = e => { e.preventDefault(); const k = e.deltaY < 0 ? 1.1 : .9, r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; ox = mx - (mx - ox) * k; oy = my - (my - oy) * k; sc *= k; };
+  cv.onwheel = e => { e.preventDefault(); const k = e.deltaY < 0 ? 1.1 : .9, r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; ox = mx - (mx - ox) * k; oy = my - (my - oy) * k; sc = Math.max(.15, Math.min(6, sc * k)); dirty = true; };
   const used = [...new Set(N.filter(n => n.type === "idea").map(n => SECTOR_SLOT[n.sector] ? n.sector : "_"))].sort((a, b) => (SECTOR_SLOT[a] || 9) - (SECTOR_SLOT[b] || 9));
   $("#glegend").innerHTML = used.map(s => `<span><i class="dot" style="background:${s === "_" ? "var(--other)" : secColor(s)}"></i>${esc(s === "_" ? "inne sektory" : lp("sector", s))}</span>`).join("") +
     `<span>${icon("map-pin")}hub (sektor, obszar, województwo)</span><span><i class="dot" style="background:var(--red);width:16px;height:3px;border-radius:2px"></i>podobna treść</span>`;
