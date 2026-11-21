@@ -86,7 +86,7 @@ Format wpisu: nagłówek drugiego poziomu `Q-<kolejny numer, 3 cyfry> [open] <ty
 - **Domyślnie:** A
 - **Odpowiedź:** — (korekta 13:28: wpis „domyślnie A” z 13:27 był przedwczesny, termin 13:30 jeszcze nie minął; D-005 nie obowiązuje). 13:36: termin minął, obowiązuje domyślne A (D-005)
 
-## Q-007 [open] Wybór pomysłu (runda ideacji 3: aplikacja webowa + agent AI, D-006)
+## Q-007 [answered 2026-11-21] Wybór pomysłu (runda ideacji 3: aplikacja webowa + agent AI, D-006)
 - **Kontekst:** 5 pomysłów na to, co robi agent i jak tok rozumowania trafia do urzędnika (`reports/ideation-3.md`, karty prior-art I-011..I-015). Ranking: I-011 Agent-analityk z uzasadnieniem urzędowym 22/25, I-012 Agent na zlecenie urzędnika 20, I-014 Adwokat i recenzent 20, I-013 Radar ciągły 19, I-015 Karta-checklista 19. Wspólny szkielet: konektory → parsowanie → rejestry → łączenie → ocena → klasyfikacja „do czego i dla kogo” → wynik.
 - **Opcje:** A) I-011 jako rdzeń + I-012 jako wejście („opisz potrzebę”) + jedno przejście recenzenta z I-014 + wynik w układzie karty z I-015 B) sam I-011 C) I-012 + I-011 bez recenzenta D) inny wybór (opisz)
 - **Rekomendacja:** A, bo szacunkowo 23/25: uzasadnienie w układzie znanym urzędnikowi (ustalenia z dowodami → kryteria → ocena → co przemawia przeciw → rozstrzygnięcie → ograniczenia) jest wyróżnikiem i odpowiada na wszystkie cztery pytania z §2.
@@ -94,4 +94,4 @@ Format wpisu: nagłówek drugiego poziomu `Q-<kolejny numer, 3 cyfry> [open] <ty
 - **Poziom:** krytyczny
 - **Termin:** 2026-11-21 14:15
 - **Domyślnie:** A
-- **Odpowiedź:** —
+- **Odpowiedź:** A z zawężeniami po przepytaniu (człowiek, 13:55), zob. D-008

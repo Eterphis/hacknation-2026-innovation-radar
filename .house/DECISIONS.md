@@ -59,3 +59,18 @@ Format wpisu: nagłówek drugiego poziomu `D-<kolejny numer, 3 cyfry> <krótki t
 - **Dlaczego:** Wymaganie człowieka 2026-11-21. Duplikaty zawyżają liczbę „znalezionych innowacji”, psują ocenę (ten sam pomysł oceniony kilka razy inaczej) i podnoszą koszt LLM.
 - **Kto:** człowiek
 - **Data:** 2026-11-21 13:43
+
+## D-008 Wybór z Q-007 po przepytaniu (wariant A z zawężeniami)
+- **Decyzja:**
+  1. Rdzeń: I-011 (agent-analityk z uzasadnieniem w układzie decyzji urzędowej). Główny bohater demo: **operator PCI**, pierwszy ekran to kolejka innowacji znalezionych przez radar.
+  2. I-012 („opisz potrzebę”) i recenzent z I-014 („Co przemawia przeciw”): **po golden path**, nie w MVP na 18:00.
+  3. Źródła golden path: te, które wystarczą do kryteriów zadania i dalszego przetwarzania, czyli **RAD-on** (rejestr uczelni i instytutów, status publiczny, projekty NCN/NCBR), **Biblioteka Nauki** (kandydaci z opisem), **EPO Linked Data** (patenty EP, dowód gotowej technologii), **Kohesio** (samorządy, innowacje nietechnologiczne, ślad wdrożenia, beneficjenci jako katalog odbiorców). OpenAIRE wieczorem. Szkoły (RSPO) zostają luką.
+  4. Dwa przypadki demo: **technologia z uczelni** (artykuł + patent EP, brak wdrożenia) i **rozwiązanie gminy** z Kohesio do przeniesienia do innych gmin.
+  5. Akcja operatora: **zatwierdź / odrzuć** kartę; bez szkicu pisma i bez wysyłki.
+  6. Zakres danych: **cała Polska**.
+  7. Dostawca LLM: do ustalenia później; teraz priorytet to pozyskanie danych dobrej jakości.
+  8. Zbiór testowy: do ustalenia po uruchomieniu pozyskiwania danych.
+- **Konsekwencje (coordinator):** przy całej Polsce pobieranie musi być przyrostowe i stronicowane (Biblioteka Nauki ma całe archiwum w OAI-PMH, RAD-on ok. 49 tys. projektów), z filtrem regionu w interfejsie zamiast przy pobieraniu; do golden path wystarczy pierwsza partia z każdego źródła, a pełne pobranie działa w tle.
+- **Dlaczego:** Odpowiedzi człowieka w przepytaniu Q-007, 2026-11-21.
+- **Kto:** człowiek
+- **Data:** 2026-11-21 13:55
