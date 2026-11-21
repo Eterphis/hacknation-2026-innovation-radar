@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "files": {
+    ".claude/agents/coder.md": "8eddc82ab96ac03e2aeaef8743b0ffa51eee777b477e065a72772c5f8c304153",
+    ".claude/agents/ideator.md": "307bbac1c42de308a71ac98bf0bfb19a00a3a0eb747bc0659ebc1dd549d0874b",
+    ".claude/agents/judge.md": "c2ff321f192bfd9c4a39d7c337cc3964e669b046a8af1420e6b55975e7a16afe",
+    ".claude/agents/pitch.md": "8d19cc804048d10d0e1b62f658ce5dd5639ecee2ee1dc3c025dfcd266411fe6a",
+    ".claude/agents/researcher.md": "4a9dd1cf95946df31dbed089ab236a7f41533156645369e3cfefe89ea4900854",
+    ".claude/agents/summarizer.md": "db283a48f361fe34e27d244062e85490b064f2c152f7282b3be66c3470910764",
+    ".claude/skills/house-ideate/SKILL.md": "34e8e2f7dba2d14d40dd5e55d01e84928a85d629c0738d746c5a7c6ffbc2a53f",
+    ".claude/skills/house-judge/SKILL.md": "bf8a96bf5da41f631a15c0a5bb9376737f77de2aa154b25ec4ba0300f07c61fc",
+    ".claude/skills/house-plan/SKILL.md": "cfaffdc44d0c6eb77885bc88fdce051bd6f9f46084d2a19fd21fc14b7d383151",
+    ".claude/skills/house-retro/SKILL.md": "f46710dcb2454a0f4121b3ccadb6e1279f2c666ca5f985da7242d0e6a2929c7e",
+    ".claude/skills/house-run/SKILL.md": "e2ed797c60b29d36a0a7d8d89fa59a364f11b81d9955d32c64def2fc0356406f",
+    ".claude/skills/house-ship/SKILL.md": "699d2c746226f1ba32df0f09384a0902eb87afde346144545f95087a59df858d",
+    ".claude/skills/house-start/SKILL.md": "612ff16fe85ed1c95fe162a1ffdd5ddea5d59d064979917f4c8f6316fa6facfe",
+    ".claude/skills/house-status/SKILL.md": "8d773ddc31491d119844c9ebcfd1a4e9480bea1b3a0d295cf5e0d8f683a10e3e",
+    ".claude/skills/house-submit/SKILL.md": "a56c864c5387332997a4846141c6345a832584ae8f700946b14637e1a07e9716",
+    "AGENTS.md": "066d18ff849f1d983064f447547da1782194f8eb70ed8de835549b82bd89ed8c",
+    "CLAUDE.md": "a844627b0edc1bb29b278919b65112a2adc67af20d3a7bde4f57fa2350fb8257"
+  }
+}
