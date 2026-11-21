@@ -8,7 +8,11 @@ imagePullSecrets: []
 config:
   demoMode: true
   llmProviders: "local,anthropic,openai,mock"
-  embedder: hashing      # or fastembed:intfloat/multilingual-e5-small (ONNX on CPU, image built with [embed])
+  # hashing (default: better on the 60-record eval, E-003) or fastembed (multilingual-e5-small, ONNX on CPU,
+  # baked into the image; E-004). Thresholds per embedder: radar/basal/embed.py CALIBRATION.
+  embedder: hashing
+  # USD per 1M tokens for the radar_llm_cost_usd_total metric, e.g. { anthropic: [3, 15] }; empty = cost 0
+  llmPrices: {}
   anthropicModel: claude-sonnet-5-5
   openaiBaseUrl: https://api.openai.com/v1
   openaiModel: gpt-4o-mini
@@ -99,12 +103,13 @@ localLLM:
   alias: bielik-1.5b-v3.0-instruct
   contextSize: 4096
   threads: 4
+  timeoutSeconds: 300    # per call; ~60 s per agent step on 4 vCPU for 1.5B Q8_0
   replicas: 1
   cacheSize: 5Gi
   resources: { requests: { cpu: "2", memory: 3Gi }, limits: { memory: 4Gi } }
 
 migrations:
-  enabled: true          # pre-install/pre-upgrade Job: radar initdb (T030: Alembic)
+  enabled: true          # post-install/pre-upgrade Job: radar migrate (Alembic, T030); API pods also migrate under an advisory lock
 
 podSecurityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
 securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false, capabilities: { drop: [ALL] } }

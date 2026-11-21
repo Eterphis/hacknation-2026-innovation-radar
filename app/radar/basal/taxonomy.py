@@ -27,7 +27,8 @@ SECTORS: dict[str, dict] = {
                     "kw": [r"transport", r"logisty", r"dowoz", r"komunikac\w* (?:publiczn|zbiorow)", r"kolej", r"autobus", r"mobilnos", r"przewoz"],
                     "proto": "transport publiczny logistyka przewozy mobilność dowóz komunikacja kolej autobusy"},
     "J_ict": {"pl": "Informacja i komunikacja (ICT)",
-              "kw": [r"oprogramow", r"aplikac", r"platform\w* (?:cyfrow|internet|onlin)", r"system\w* informatycz", r"\bonline\b", r"cyfrow", r"internet", r"dane\b|danych", r"chmur", r"cyberbezpiecz", r"sztuczn\w* inteligenc", r"\bai\b"],
+              "kw": [r"oprogramow", r"aplikac", r"platform\w* (?:cyfrow|internet|onlin)", r"system\w* informatycz", r"\bonline\b", r"cyfrow", r"internet",
+                     r"(?:analiz|baz|przetwarzani|zbior)\w* danych|danych osobowych", r"chmur", r"cyberbezpiecz", r"sztuczn\w* inteligenc", r"\bai\b"],
               "proto": "oprogramowanie aplikacje platformy cyfrowe systemy informatyczne dane internet sztuczna inteligencja cyberbezpieczeństwo"},
     "M_nauka": {"pl": "Działalność naukowa i techniczna",
                 "kw": [r"badan", r"laborator", r"naukow", r"metod\w* (?:badaw|pomiar)", r"pomiar", r"analiz\w* (?:chemicz|laborator)", r"b\+r"],
@@ -95,12 +96,25 @@ INNOVATION_TYPES: dict[str, dict] = {
 # --------------------------------------------------------------------------- institution type
 INSTITUTION_TYPES: dict[str, dict] = {
     "szkola": {"pl": "szkoła", "kw": [r"szkol\w* (?:podstaw|sredni|zawod)", r"liceum", r"technikum", r"przedszkol", r"zespol szkol"]},
-    "uczelnia": {"pl": "uczelnia", "kw": [r"politechnik", r"uniwersytet", r"akademi", r"uczelni", r"wydzial", r"katedr", r"szkol\w* wyzsz"]},
-    "instytut": {"pl": "instytut badawczy / PAN", "kw": [r"instytut", r"\bpan\b|polsk\w* akademi\w* nauk", r"siec\w* badawcz\w* lukasiewicz|lukasiewicz"]},
-    "jst": {"pl": "JST (gmina, powiat, województwo)", "kw": [r"\bgmin", r"\bmiasto\b|urzad miast", r"powiat", r"marszalk", r"wojewodztw\w* (?:podkarp|samorz)", r"samorzad", r"centrum uslug spoleczn", r"ops\b|osrodek pomocy"]},
-    "inna_publiczna": {"pl": "inna instytucja publiczna", "kw": [r"szpital", r"biblioteka", r"muzeum", r"agencja", r"centrum (?:innowac|kultury)", r"urzad (?!miast)"]},
-    "firma": {"pl": "firma prywatna", "kw": [r"sp\.? ?z ?o\.? ?o", r"\bs\.? ?a\.?\b", r"spolka", r"\bsp\. k\b", r"przedsiebiorstw"]},
+    "uczelnia": {"pl": "uczelnia", "kw": [r"politechnik", r"uniwersytet", r"akademi", r"uczelni", r"wydzial", r"katedr", r"szkol\w* wyzsz",
+                                         r"\buniversit", r"\bhochschule", r"\buniverzit", r"\bvysok\w* skol"]},
+    "instytut": {"pl": "instytut badawczy / PAN", "kw": [r"instytut", r"\bpan\b|polsk\w* akademi\w* nauk", r"siec\w* badawcz\w* lukasiewicz|lukasiewicz",
+                                                        r"\binstitut", r"research cent(?:re|er)"]},
+    "jst": {"pl": "JST (gmina, powiat, województwo)", "kw": [r"\bgmin", r"\bmiasto\b|urzad miast", r"powiat", r"marszalk",
+                                                            r"wojewodztw\w* (?:podkarp|samorz|\w+skie)", r"samorzad", r"centrum uslug spoleczn", r"ops\b|osrodek pomocy",
+                                                            r"\bcommune\b", r"\bmunicipalit", r"\bvoivodeship\b", r"\bcity council", r"\bstadt\b", r"\bgemeinde",
+                                                            r"\bobec\b", r"\bmesto\b", r"euroregion", r"zwiazek (?:gmin|powiat|miast)",
+                                                            r"ugrupowanie wspolpracy terytorialnej|\beuwt\b"]},
+    "inna_publiczna": {"pl": "inna instytucja publiczna", "kw": [r"szpital", r"biblioteka", r"muzeum", r"agencja", r"centrum (?:innowac|kultury)", r"urzad (?!miast)",
+                                                                 r"\bhospital", r"public health care|\bzoz\b|zaklad opieki zdrowotnej",
+                                                                 r"komend\w* (?:wojewodzk|powiatow|miejsk|glown)", r"\bpolicj", r"straz\w* (?:pozarn|granicz)",
+                                                                 r"fire service|border guard", r"\bmuseum", r"centrum kliniczn",
+                                                                 r"port authority|urzad morsk", r"doradztwa rolniczego|advisory cent"]},
+    "firma": {"pl": "firma prywatna", "kw": [r"sp\.? ?z ?o\.? ?o", r"\bs\.a\.?(?=[\s,;)]|$)", r"spolka", r"\bsp\. k\b", r"\bsp\. ?j\b", r"przedsiebiorstw",
+                                             r"\bgmbh\b", r"\bb\.v\.", r"\ba\.s\.(?=[\s,;)]|$)"]},
 }
+# Associations and foundations: not a public institution and not a company -> the operator decides (hold).
+NGO_KW = [r"fundacj", r"stowarzysz", r"\bassociation\b", r"\bfoundation\b", r"\be\.v\.", r"\bverein\b", r"\bzdruzenie\b"]
 INSTITUTION_FIELD_MAP = {  # values typed in the submission form
     "szkoła": "szkola", "szkola": "szkola", "uczelnia": "uczelnia", "instytut": "instytut", "jst": "jst", "JST": "jst",
     "gmina": "jst", "inna instytucja publiczna": "inna_publiczna", "firma": "firma",

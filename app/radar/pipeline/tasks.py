@@ -13,7 +13,11 @@ is not terminal and re-enqueues them. Nothing is lost silently; counters come fr
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from datetime import datetime, timezone
+
+from celery import signals
 
 from sqlalchemy import select
 
@@ -21,7 +25,7 @@ from radar.db import session
 from radar.models import Card, RawRecord, Record, SourceState, StageRun
 from radar.pipeline import extract as ex
 from radar.pipeline.celery_app import app
-from radar.pipeline.normalize import apply_mapping, norm_title, quality_gate
+from radar.pipeline.normalize import apply_mapping, norm_title, programme_key, quality_gate, same_programme
 from radar.sources.registry import connector, get_source
 
 log = logging.getLogger(__name__)
@@ -34,8 +38,31 @@ def _done(s, raw_id: int, stage: str, h: str) -> bool:
                                               StageRun.content_hash == h)) is not None
 
 
+# Stage wall time: a stack per thread, because eager mode (tests, `radar demo`) runs the next stage inside this one.
+_clock = threading.local()
+
+
+@signals.task_prerun.connect
+def _start_clock(task_id=None, **_):
+    _clock.__dict__.setdefault("stack", []).append(time.perf_counter())
+
+
+@signals.task_postrun.connect
+def _stop_clock(task_id=None, **_):
+    st = _clock.__dict__.get("stack")
+    if st:
+        st.pop()
+
+
+def _elapsed_ms() -> float | None:
+    st = _clock.__dict__.get("stack")
+    return round((time.perf_counter() - st[-1]) * 1000, 1) if st else None
+
+
 def _mark(s, raw_id: int, stage: str, h: str, outcome: str = "ok", detail: str | None = None) -> None:
-    s.add(StageRun(raw_id=raw_id, stage=stage, content_hash=h, outcome=outcome, detail=detail))
+    ms = _elapsed_ms()
+    s.add(StageRun(raw_id=raw_id, stage=stage, content_hash=h, outcome=outcome, detail=detail, duration_ms=ms))
+    log.info("stage %s %s", stage, outcome, extra={"raw_id": raw_id, "stage": stage, "outcome": outcome, "duration_ms": ms})
 
 
 def _next(stage: str, raw_id: int, h: str, priority: int | None = None) -> None:
@@ -86,7 +113,7 @@ def harvest(self, source_id: str) -> dict:
             st = s.get(SourceState, source_id)
             st.last_run_at, st.last_status, st.last_error = datetime.now(timezone.utc), status, err
             st.counters = totals
-    log.info("harvest %s: %s", source_id, totals)
+    log.info("harvest %s: %s", source_id, totals, extra={"source_id": source_id, "stage": "harvest"})
     return totals
 
 
@@ -122,47 +149,127 @@ def normalize(self, raw_id: int, h: str) -> str:
 # ---------------------------------------------------------------- resolve_org
 @app.task(**RETRY)
 def resolve_org(self, raw_id: int, h: str) -> str:
-    """TODO(T023): split affiliations, match against the org registry (RAD-on, ROR, Wikidata), set is_public,
-    region, org_id with confidence. For now affiliations pass through unchanged."""
+    """T023: match affiliations against the organisation registry (RAD-on institutions; radar.orgs), cascade
+    id -> alias -> acronym -> contains -> fuzzy with confidence. A sure match gives Basal the institution type,
+    public/private and the voivodeship (when the record has no region). No registry yet = pass-through."""
+    from radar import orgs
+
     with session() as s:
         if _done(s, raw_id, "resolve_org", h):
             return "duplicate-delivery"
-        _mark(s, raw_id, "resolve_org", h, "ok", "pass-through (rejestr organizacji: T023)")
+        rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        matcher = orgs.ensure_registry(s)
+        if matcher is None or not rec.affiliations:
+            _mark(s, raw_id, "resolve_org", h, "ok", "brak rejestru organizacji" if matcher is None else "brak afiliacji")
+            outcome = "pass-through"
+        else:
+            results = orgs.resolve(matcher, rec.affiliations, (rec.extra or {}).get("organizations"))
+            facts = orgs.summary(results)
+            extra = {**(rec.extra or {}), "orgs": results}
+            if facts:
+                extra["org_id"] = facts.get("org_id")
+                extra["is_public"] = facts.get("is_public")
+                # a type declared in a submission form stays; otherwise the registry is the sure source
+                if facts.get("institution_type") and not extra.get("institution_type"):
+                    extra["institution_type"] = facts["institution_type"]
+                if facts.get("voivodeship") and not rec.region:
+                    rec.region = facts["voivodeship"]
+            rec.extra = extra
+            n_ok = sum(1 for r in results if r["accepted"])
+            outcome = f"{n_ok}/{len(results)} dopasowanych"
+            _mark(s, raw_id, "resolve_org", h, "ok", outcome)
     _next("dedup", raw_id, h)
-    return "ok"
+    return outcome
 
 
 # ---------------------------------------------------------------- dedup
+def completeness(rec: Record) -> float:
+    """How much a record tells about the idea. Within a cluster the fullest record is canonical (T025), so a
+    richer copy that arrives later (DOI, abstract, organisations, amounts) replaces a thin first one."""
+    text = min(len(rec.abstract or ""), 2000) / 200          # up to 10 points for the description
+    return (text + (3 if rec.doi else 0) + min(len(rec.affiliations or []), 5) + min(len(rec.authors or []), 3) * 0.5
+            + min(len(rec.keywords or []), 6) * 0.5 + (1 if rec.year else 0) + (1 if rec.url else 0)
+            + (1 if rec.region else 0) + (2 if any(v for v in (rec.amounts or {}).values()) else 0))
+
+
+def _fuller(a: Record, b: Record) -> bool:
+    """a should be canonical instead of b: more complete, ties go to the older record (stable result)."""
+    ca, cb = completeness(a), completeness(b)
+    return ca > cb or (ca == cb and a.id < b.id)
+
+
+def _find_match(s, rec: Record, group_by_title: bool) -> tuple[Record | None, str | None]:
+    """Canonical record (not a duplicate) this one duplicates. Layers 2-3 of §16: same DOI, or same normalized
+    title + year; sources with `group_by_title` (Kohesio: one programme, many beneficiaries) group projects of
+    the same programme (normalize.programme_key: phases, places, scope removed) whatever the year.
+    Layers 4-5 (embeddings) stay in the graph as possible_duplicate."""
+    live = (Record.id != rec.id, Record.status.notin_(("duplicate", "deleted")))
+    if rec.doi:
+        m = s.scalar(select(Record).where(Record.doi == rec.doi, *live).order_by(Record.id))
+        if m is not None:
+            return m, f"ten sam DOI {rec.doi}"
+    nt = norm_title(rec.title)
+    if not nt:
+        return None, None
+    if group_by_title:
+        pk = programme_key(rec.title)
+        prefix = (rec.title or "")[:6].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        for other in s.scalars(select(Record).where(Record.source_id == rec.source_id, *live,
+                                                    Record.title.ilike(prefix + "%", escape="\\")).order_by(Record.id)):
+            if norm_title(other.title) == nt or same_programme(pk, programme_key(other.title)):
+                return other, f"ten sam program „{pk}” w {rec.source_id} (grupa projektów)"
+    if rec.year:
+        for other in s.scalars(select(Record).where(Record.year.between(rec.year - 1, rec.year + 1), *live,
+                                                    Record.kind == rec.kind).order_by(Record.id)):
+            if norm_title(other.title) == nt:
+                return other, f"ten sam tytuł i rok ({other.source_id})"
+    return None, None
+
+
+def _group_size(s, cluster_id: int) -> int:
+    return len(s.scalars(select(Record.id).where(Record.cluster_id == cluster_id)).all())
+
+
 @app.task(**RETRY)
 def dedup(self, raw_id: int, h: str) -> str:
-    """Layers 2-3 of §16: same DOI, or same normalized title + year. Layers 4-5 (embeddings): T025."""
+    """Cluster duplicates; the fullest record of a cluster is canonical and goes on, the others stop as
+    `duplicate` pointing at it (cluster_id = canonical id). A fuller newcomer takes over: the old canonical is
+    demoted and its cluster repointed, whatever order the sources were harvested in."""
     with session() as s:
         if _done(s, raw_id, "dedup", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
-        match, reason = None, None
-        if rec.doi:
-            match = s.scalar(select(Record).where(Record.doi == rec.doi, Record.id != rec.id,
-                                                  Record.status != "duplicate").order_by(Record.id))
-            reason = f"ten sam DOI {rec.doi}" if match else None
-        if match is None and rec.title and rec.year:
-            nt = norm_title(rec.title)
-            for other in s.scalars(select(Record).where(Record.year.between(rec.year - 1, rec.year + 1),
-                                                        Record.id != rec.id, Record.status != "duplicate",
-                                                        Record.kind == rec.kind)):
-                if nt and norm_title(other.title) == nt:
-                    match, reason = other, f"ten sam tytuł i rok ({other.source_id})"
-                    break
-        if match is not None and match.id < rec.id:
+        group = bool(get_source(rec.source_id).options.get("group_by_title", False))
+        match, reason = _find_match(s, rec, group)
+        if match is not None and not _fuller(rec, match):
             rec.status = "duplicate"
             rec.cluster_id = match.cluster_id or match.id
             rec.review_reasons = [f"duplikat rekordu #{match.id}: {reason}"]
+            s.flush()
+            n = _group_size(s, rec.cluster_id)
+            match.extra = {**(match.extra or {}), "cluster_size": n}
             _mark(s, raw_id, "dedup", h, "skipped", reason)
             return "duplicate"
         rec.cluster_id = rec.id
-        _mark(s, raw_id, "dedup", h)
+        if match is not None:
+            old = match.cluster_id or match.id
+            for member in s.scalars(select(Record).where(Record.cluster_id == old)):
+                member.cluster_id = rec.id
+                member.review_reasons = [r.replace(f"duplikat rekordu #{match.id}", f"duplikat rekordu #{rec.id}")
+                                         for r in member.review_reasons or []]
+            match.cluster_id = rec.id
+            match.status = "duplicate"
+            match.review_reasons = [f"duplikat rekordu #{rec.id} (pełniejszy opis): {reason}"]
+            if match.card is not None:
+                match.card.hidden = True
+            # terminal marker: reconcile does not re-enqueue it and later stages leave it alone
+            _mark(s, match.raw_id, "superseded", match.raw.content_hash, "skipped", f"zastąpiony przez #{rec.id}")
+            s.flush()
+            rec.extra = {**(rec.extra or {}), "cluster_size": _group_size(s, rec.id)}
+            log.info("dedup: #%s replaces #%s as canonical (%s)", rec.id, match.id, reason)
+        _mark(s, raw_id, "dedup", h, "ok", f"zastępuje #{match.id} jako pełniejszy: {reason}" if match else None)
     _next("gate", raw_id, h)
-    return "ok"
+    return "canonical" if match is not None else "ok"
 
 
 # ---------------------------------------------------------------- gate (Basal)
@@ -175,6 +282,8 @@ def gate(self, raw_id: int, h: str) -> str:
         if _done(s, raw_id, "gate", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        if rec.status == "duplicate":  # a fuller record took over the cluster meanwhile
+            return "superseded"
         spec = get_source(rec.source_id)
         b = classify(title=rec.title, abstract=rec.abstract, keywords=rec.keywords, affiliations=rec.affiliations,
                      region=rec.region, kind=rec.kind, amounts=rec.amounts,
@@ -223,6 +332,8 @@ def extract(self, raw_id: int, h: str) -> str:
         if _done(s, raw_id, "extract", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        if rec.status == "duplicate":
+            return "superseded"
         text = ex.source_text(rec.title, rec.abstract, rec.keywords or [])
 
     out, errors, prov = ex.extract(text)  # outside the transaction: the LLM call can take a while
@@ -291,6 +402,8 @@ def maturity(self, raw_id: int, h: str) -> str:
         if _done(s, raw_id, "maturity", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        if rec.status == "duplicate":
+            return "superseded"
         card = rec.card
         level, why = maturity_for(rec)
         card.maturity = level
@@ -333,20 +446,24 @@ def score(self, raw_id: int, h: str) -> str:
     from radar.basal.graph import index_record
     from radar.pipeline.assess import assess, brief
 
+    with session() as s:  # graph index first, committed: edges are rebuilt idempotently on redelivery
+        if _done(s, raw_id, "score", h):
+            return "duplicate-delivery"
+        index_record(s, s.scalar(select(Record).where(Record.raw_id == raw_id)))
+    # The agent may spend minutes on a CPU model: its transaction holds no graph locks of other records.
     with session() as s:
         if _done(s, raw_id, "score", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
         card = rec.card
-        index_record(s, rec)
-        s.flush()
         a = assess(s, rec, card)
         card.assessment, card.score, card.brief = a, a["total"], brief(rec, card, a)
         card.reasoning = (card.reasoning or [])[:3] + [
             {"step": "Ocena wg kryteriów", "items": [f"{k}: {v['score']}/5 — {v['why']}" for k, v in a["scores"].items()]
              + [f"Wynik łączny: {a['total']}/100"]},
             {"step": "Rekomendowana ścieżka", "items": [f"{p['path']}: {p['why']}" for p in a["paths"]]},
-            {"step": "Co przemawia przeciw (ryzyka)", "items": [f"{r['risk']} → {r['mitigation']} ({r['owner']})" for r in a["risks"]] or ["—"]},
+            {"step": "Co przemawia przeciw", "items": [f"{x['point']} ({x['severity']}; {', '.join(x['cite'])})" for x in a.get("against") or []] or ["—"]},
+            {"step": "Ryzyka i mitygacje", "items": [f"{r['risk']} → {r['mitigation']} ({r['owner']})" for r in a["risks"]] or ["—"]},
             {"step": "Mierniki skuteczności", "items": a["metrics"]},
         ] + (card.reasoning or [])[3:]
         _mark(s, raw_id, "score", h, "ok", f"{a['total']} ({a['by']})")

@@ -13,6 +13,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("RADAR_LLM_PROVIDERS", "mock")
     monkeypatch.setenv("RADAR_SOURCES_FILE", str(APP / "sources.yaml"))
     monkeypatch.setenv("RADAR_DEMO_MODE", "1")  # tests run on the synthetic snapshots, never on the network
+    monkeypatch.setenv("RADAR_ORG_REGISTRY", str(tmp_path / "no-registry.jsonl"))  # never the real data/ dir
     from radar.config import get_settings
     from radar.db import create_all, reset_engine
 
@@ -24,6 +25,9 @@ def env(tmp_path, monkeypatch):
     import radar.llm.router as r
 
     r._router = None
+    from radar.basal import classifier
+
+    classifier._head_cache.update(w=None, at=None)  # module cache must not carry a head across test databases
     create_all()
     yield
     reset_engine()

@@ -15,7 +15,7 @@ from functools import lru_cache
 import numpy as np
 
 from radar.basal import taxonomy as T
-from radar.basal.embed import fold, get_embedder
+from radar.basal.embed import calibration, fold, get_embedder, rescale
 
 VERSION = "basal/v1"
 KW_WEIGHT, PROTO_WEIGHT = 0.65, 0.35
@@ -47,6 +47,7 @@ _SECT, _TECH, _ITYPE, _INST = (_compile(t) for t in (T.SECTORS, T.TECH_AREAS, T.
 _RX = {name: [re.compile(p) for p in pats] for name, pats in
        {"negative": T.NEGATIVE, "spam": T.SPAM, "offensive": T.OFFENSIVE, "signal": T.SIGNAL}.items()}
 _MAT = {k: [re.compile(p) for p in v] for k, v in T.MATURITY_KW.items()}
+_NGO = [re.compile(p) for p in T.NGO_KW]
 _COST = {k: [re.compile(p) for p in v] for k, v in T.COST_KW.items()}
 
 
@@ -68,14 +69,15 @@ def _hits(text: str, pats: list[re.Pattern]) -> list[str]:
 
 def _axis(text: str, vec: np.ndarray, compiled: dict, axis: str, min_conf: float = 0.2) -> Label:
     keys, protos = _prototypes(axis)
-    sims = dict(zip(keys, (protos @ vec).tolist()))
+    sims = dict(zip(keys, rescale(protos @ vec).tolist()))  # per-embedder calibration (embed.CALIBRATION)
     hits = {k: _hits(text, pats) for k, pats in compiled.items()}
     max_hits = max((len(h) for h in hits.values()), default=0) or 1
+    pw = calibration().get("proto_weight", PROTO_WEIGHT)  # a semantic embedder earns more weight than hashing
     scores = {}
     for k in keys:
         kw = len(hits[k]) / max_hits if hits[k] else 0.0
         sim = max(0.0, sims[k])
-        scores[k] = KW_WEIGHT * kw + PROTO_WEIGHT * sim
+        scores[k] = (1 - pw) * kw + pw * sim
     ranked = sorted(scores.items(), key=lambda kv: -kv[1])
     best, s = ranked[0]
     margin = s - (ranked[1][1] if len(ranked) > 1 else 0)
@@ -86,22 +88,28 @@ def _axis(text: str, vec: np.ndarray, compiled: dict, axis: str, min_conf: float
     return Label(best, conf, by, hits[best], ranked[1:4])
 
 
-def _institution(text: str, declared: str | None) -> Label:
+def _institution(org_text: str, text: str, declared: str | None) -> Label:
+    """Who runs it: the declared form field, else the organisation names, and only when there are no names the
+    description (a description mentions partners, cities and companies that are not the applicant)."""
     if declared:
         key = T.INSTITUTION_FIELD_MAP.get(declared.strip(), T.INSTITUTION_FIELD_MAP.get(declared.strip().lower()))
         if key:
             return Label(key, 0.95, "pole zgłoszenia", [declared])
-    hits = {k: _hits(text, pats) for k, pats in _INST.items()}
+    src, by = (org_text, "nazwy organizacji") if org_text.strip() else (text, "opis (brak nazw organizacji)")
+    hits = {k: _hits(src, pats) for k, pats in _INST.items()}
     ranked = sorted(((k, len(v)) for k, v in hits.items()), key=lambda kv: -kv[1])
     k, n = ranked[0]
     if not n:
+        ngo = _hits(org_text, _NGO)
+        if ngo:
+            return Label("unknown", 0.5, "organizacja pozarządowa (nie instytucja publiczna)", ngo)
         return Label("unknown", 0.0, "brak sygnałów")
     # a public institution named anywhere beats a company form (consortia: uczelnia + sp. z o.o.)
     if k == "firma":
         public = [kk for kk, nn in ranked if nn and kk != "firma"]
         if public:
             k = public[0]
-    return Label(k, min(0.9, 0.5 + 0.15 * len(hits[k])), "słownik (do potwierdzenia rejestrem: T023)", hits[k])
+    return Label(k, min(0.9, 0.5 + 0.15 * len(hits[k])), f"słownik: {by} (do potwierdzenia rejestrem: T023)", hits[k])
 
 
 def _maturity(text: str, kind: str) -> Label:
@@ -161,7 +169,9 @@ def mask_pii(text: str | None) -> tuple[str | None, list[str]]:
 
 # --------------------------------------------------------------------------- learned head
 HEAD_KEY = "basal.head"
-_head_cache: dict = {"w": None, "at": 0.0}
+# at=None = stale. (Not 0.0: time.monotonic() counts from boot, so on a CI VM up for under `ttl` seconds
+# "now - 0.0 < ttl" kept a stale head after training; test_basal_learns_from_operator_decisions flaked.)
+_head_cache: dict = {"w": None, "at": None}
 
 
 def _features(lbl: dict, text_len: int, n_signal: int) -> np.ndarray:
@@ -190,14 +200,14 @@ def train_head(rows: list[tuple[dict, int]], epochs: int = 400, lr: float = 0.5)
         row = db.get(Setting, HEAD_KEY) or Setting(key=HEAD_KEY)
         row.value = {"w": w.tolist(), "n": len(rows), "train_acc": acc}
         db.add(row)
-    _head_cache["at"] = 0.0
+    _head_cache["at"] = None
     return {"trained": True, "n": len(rows), "train_acc": round(acc, 3)}
 
 
 def _head(ttl: float = 60.0) -> np.ndarray | None:
     import time
 
-    if time.monotonic() - _head_cache["at"] < ttl:
+    if _head_cache["at"] is not None and time.monotonic() - _head_cache["at"] < ttl:
         return _head_cache["w"]
     w = None
     try:
@@ -228,7 +238,7 @@ def classify(*, title: str | None, abstract: str | None, keywords: list[str] | N
         "sector": _axis(text, vec, _SECT, "sector"),
         "tech_area": _axis(text, vec, _TECH, "tech"),
         "innovation_type": _axis(text, vec, _ITYPE, "itype"),
-        "institution_type": _institution(org_text + " " + text, declared_institution),
+        "institution_type": _institution(org_text, text, declared_institution),
         "maturity_hint": _maturity(text, kind),
         "cost_level": _cost(amounts or {}, text),
         "voivodeship": voivodeship(region, " ".join(affiliations or []), abstract),
@@ -254,7 +264,10 @@ def classify(*, title: str | None, abstract: str | None, keywords: list[str] | N
         reasons.append("brak opisu rozwiązania (słowa: opracowano, wdrożenie, prototyp, metoda, usługa…)")
     if labels["institution_type"].value == "firma":
         reasons.append("poza zakresem: tylko firma prywatna, brak instytucji publicznej")
-    if labels["institution_type"].value == "unknown":
+    ngo_only = labels["institution_type"].by.startswith("organizacja pozarządowa")
+    if ngo_only:
+        hold.append("tylko organizacje pozarządowe: operator decyduje, czy to zakres PCI")
+    elif labels["institution_type"].value == "unknown":
         hold.append("typ instytucji nieustalony")
     if labels["sector"].value is None:
         hold.append("sektor nieustalony")
@@ -277,7 +290,7 @@ def classify(*, title: str | None, abstract: str | None, keywords: list[str] | N
 
     if reasons:
         decision = "reject"
-    elif pii or (labels["institution_type"].value == "unknown" and labels["sector"].value is None):
+    elif pii or ngo_only or (labels["institution_type"].value == "unknown" and labels["sector"].value is None):
         decision = "hold"  # operator looks first: personal data, or nothing to route on
     else:
         decision = "accept"

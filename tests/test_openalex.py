@@ -189,17 +189,59 @@ class HarvestTest(unittest.TestCase):
         self.assertEqual(len(lines), 3)
         self.assertIn("Rzeszów University of Technology", csv_path.read_text("utf-8-sig"))
 
-    def test_main_reports_rate_limit(self):
-        def limited(url):
-            raise FetchError(f"HTTP 429 for {url}")
+    def _main(self, fetcher, *argv, env=None):
         from unittest import mock
         out = Path(self.tmp.name) / "oa.jsonl"
-        # main() uses harvest's default fetcher; patch the keyword default
-        with mock.patch.dict(openalex.harvest.__kwdefaults__, {"page_fetcher": limited}), mock.patch("sys.stderr"):
-            rc = openalex.main(["--raw-dir", str(self.root), "--out", str(out), "--limit", "1"])
+        # main() uses harvest's default fetcher and sleep; patch the keyword defaults
+        kw = {"page_fetcher": fetcher, "sleep": lambda s: None}
+        with mock.patch.dict(openalex.harvest.__kwdefaults__, kw), mock.patch.dict("os.environ", env or {}, clear=True),                 mock.patch.object(openalex, "load_env", lambda: []), mock.patch("sys.stderr"):
+            rc = openalex.main(["--raw-dir", str(self.root), "--out", str(out), *argv])
+        return rc, out
+
+    def test_rate_limit_without_records_keeps_previous_output(self):
+        PREVIOUS = '{"previous": true}\n'
+
+        def limited(url):
+            raise FetchError(f"HTTP 429 for {url}")
+        out = Path(self.tmp.name) / "oa.jsonl"
+        out.write_text(PREVIOUS, "utf-8")
+        rc, out = self._main(limited, "--limit", "1")
+        self.assertEqual(rc, 0, "429 is not a failure of the source")
+        self.assertEqual(out.read_text("utf-8"), PREVIOUS)
+        self.assertFalse(out.with_suffix(".jsonl.tmp").exists())
+
+    def test_rate_limit_mid_run_keeps_records_fetched_before(self):
+        api = FakeApi()
+
+        def first_page_then_429(url):
+            if len(api.urls):
+                raise FetchError(f"HTTP 429 for {url}")
+            return api(url)
+        rc, out = self._main(first_page_then_429)
+        self.assertEqual(rc, 0)
+        recs = [json.loads(line) for line in out.read_text("utf-8").splitlines()]
+        self.assertTrue(recs)
+        self.assertTrue(all(r["source"] == openalex.SOURCE for r in recs))
+
+    def test_without_key_takes_a_small_slice(self):
+        api = FakeApi()
+        rc, _ = self._main(api, "--max-pages", "50")
+        self.assertEqual(rc, 0)
+        self.assertLessEqual(len(api.urls), openalex.NO_KEY_MAX_PAGES)
+        self.assertNotIn("api_key", api.urls[0])
+
+    def test_key_from_environment_is_used(self):
+        api = FakeApi()
+        rc, _ = self._main(api, env={"OPENALEX_API_KEY": "test-key"})
+        self.assertEqual(rc, 0)
+        self.assertIn("api_key=test-key", api.urls[0])
+
+    def test_other_http_errors_still_fail(self):
+        def broken(url):
+            raise FetchError(f"HTTP 500 for {url}")
+        rc, out = self._main(broken)
         self.assertEqual(rc, 2)
         self.assertFalse(out.exists())
-
 
 if __name__ == "__main__":
     unittest.main()

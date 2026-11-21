@@ -6,7 +6,7 @@ Jedno polecenie, które pobiera i przebudowuje dane ze wszystkich źródeł z re
 |---|---|---|---|---|
 | `interreg` | api | projekty | 24 h | wykaz projektów Interreg 2021–2027 (plik XLSX ze strony `interreg.gov.pl/lista-projektow/`), [`radar/sources/interreg.py`](../radar/sources/interreg.py) |
 | `ncbr` | api | projekty | 24 h | wyszukiwarka sukcesów beneficjentów NCBR (strona listy i strona szczegółów każdego projektu), [`radar/sources/ncbr.py`](../radar/sources/ncbr.py) |
-| `web` | web | każda | 1 h | crawler stron z [`config/sites.json`](../config/sites.json): przechodzi witryny, którym minął ich własny termin (`interval_hours`, `revisit_days`), [`radar/crawl/`](../radar/crawl/) |
+| `web` | web | każda | 1 h | crawler stron z [`config/sites.json`](../config/sites.json): przechodzi witryny, którym minął ich własny termin (`interval_hours`, `revisit_days`), [`radar/crawl/`](../radar/crawl/); zapisuje do bazy, a po każdym przebiegu eksportuje aktualne rekordy do `data/normalized/web.jsonl` (z `--offline` sam eksport z bazy) |
 | `bibliotekanauki`, `openalex`, `radon`, `epo`, `cordis`, `fe_projects`, `uprp_import` | api / import | nauka, projekty | 7 dni (import: 24 h) | konektory z `radar/sources/`; rejestr dodaje tylko te, które są w repozytorium |
 
 Pełny opis źródeł, ograniczeń i witryn wyłączonych z powodu blokad: [`zrodla.md`](zrodla.md). Aktualny stan rejestru:
@@ -184,12 +184,17 @@ data/
 │   └── ncbr/            list.html, detail/*.html, *.meta.json
 ├── normalized/
 │   ├── interreg.jsonl   rekordy radar.record/v1 (+ interreg.csv, interreg.prev.jsonl)
-│   └── ncbr.jsonl       rekordy radar.record/v1 (+ ncbr.csv, ncbr.prev.jsonl)
+│   ├── ncbr.jsonl       rekordy radar.record/v1 (+ ncbr.csv, ncbr.prev.jsonl)
+│   ├── web.jsonl        eksport rekordów crawlera z bazy (źródła web_*)
+│   ├── radon.jsonl      projekty RAD-on (NCN, NCBR) + radon_institutions.jsonl: rejestr instytucji POL-on
+│   └── <konektor>.jsonl bibliotekanauki, openalex, epo, cordis, fe_projects, uprp_import
 ├── radar.db             baza SQLite: rekordy z historią, wyszukiwanie, karty, tabela refresh_runs
 └── .refresh.lock        istnieje tylko w trakcie działania
 ```
 
 `data/` jest w `.gitignore`, nic z tego nie trafia do repozytorium.
+
+**Do potoku aplikacji** (`app/`) te pliki trafiają przez źródła `harvester-*` w [`app/sources.yaml`](../app/sources.yaml) (wspólne mapowanie `&record_v1`): każdy plik `data/normalized/<id>.jsonl` ma dokładnie jedno takie źródło (test `app/tests/test_harvester_bridge.py`). Biblioteka Nauki i RAD-on wchodzą tylko tą drogą; dawne konektory `bibliotekanauki` i `radon-projekty` w `app/` są wyłączone. `radon_institutions.jsonl` ładuje się do rejestru organizacji aplikacji (etap `resolve_org`, `radar orgs load`).
 
 Podgląd zawartości bazy i wyszukiwanie:
 
@@ -230,6 +235,10 @@ Na Linuksie / macOS wpis w `crontab -e`:
 | `nie ma linku do pliku .xlsx` / `nie jest plikiem XLSX` | strona Interreg zmieniła układ; poprzednie dane zostają, trzeba poprawić konektor |
 | `UWAGA: liczba rekordów spadła z X do Y` | sprawdź źródło; poprzedni wynik jest w `*.prev.jsonl` |
 | `FetchError` | brak sieci albo serwer źródła nie odpowiada; spróbuj później, pozostałe źródła i tak zostały odświeżone |
+| `interreg: strona niedostępna (...); używam zapisanego pliku` | strona Interreg nie odpowiada; wynik zbudowano z ostatniego pobranego pliku XLSX (ostrzeżenie, kod 1), nowy plik pobierze się, gdy strona wróci |
+| `CERTIFICATE_VERIFY_FAILED` (`certificate has expired`, `unable to get local issuer`) | na Windows Python ufa zapamiętanym certyfikatom pośrednim Windows i nie zna nowszych korzeni (Let's Encrypt Root YE, HARICA 2021); `radar/http.py` dokłada korzenie Mozilli z `certifi` albo z Git for Windows. Gdy żadnego nie ma: `pip install certifi` albo zmienna `RADAR_CA_BUNDLE` ze ścieżką do pliku z certyfikatami (np. z dodanym certyfikatem firmowego proxy). Weryfikacji nie wyłączamy |
+| `OpenAlex: brak OPENALEX_API_KEY, tryb oszczędny` | bez klucza pobieramy najwyżej 5 stron (1000 prac) co 2 s; darmowy klucz z https://openalex.org/settings/api wpisz do `.env` (`radar.refresh` czyta `.env` sam) |
+| `OpenAlex: wyczerpany limit zapytań (429)` | to nie błąd źródła: zapisujemy rekordy pobrane przed limitem albo zostaje poprzedni wynik; ustaw `OPENALEX_API_KEY` albo poczekaj do północy UTC |
 | `UWAGA: witryny zablokowane (nie obchodzimy)` | witryna postawiła ochronę antybotową; ustaw w `config/sites.json` `enabled: false` z notatką i opisz ją w [`zrodla.md`](zrodla.md) |
 | `UWAGA: N rekordów zniknęło ze źródła naraz` | z jednego pobrania zniknęła ponad połowa rekordów źródła, więc nic nie oznaczono jako usunięte; sprawdź źródło, a jeśli to prawda, uruchom z `--force` |
 | `web: pomijam, ostatnio ... h temu` | przy `--due-only` termin jeszcze nie minął; bez `--due-only` źródło uruchomi się od razu |

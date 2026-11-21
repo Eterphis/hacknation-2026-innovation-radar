@@ -91,6 +91,29 @@ class RefreshInterregTest(unittest.TestCase):
         saved = (self.root / "raw" / "interreg" / "file.meta.json").read_text("utf-8")
         self.assertIn("20261116", saved)
 
+    def test_unreachable_page_rebuilds_from_saved_file_with_warning(self):
+        self.run_refresh()
+        (self.root / "norm" / "interreg.jsonl").unlink()  # e.g. a fresh checkout with the raw cache copied in
+
+        def down(url):
+            raise refresh.FetchError(f"giving up on {url}: timed out")
+
+        with mock.patch.object(refresh, "fetch", down):
+            self.assertEqual(self.run_refresh(), 1)  # warning -> exit code 1, but the source is not failed
+        run = self.runs()[0]
+        self.assertTrue(run["ok"])
+        self.assertEqual((run["download"], run["rebuild"], run["records"]), ("unreachable_using_saved", "rebuilt", 2))
+        self.assertIn("niedostępna", run["warning"])
+        self.assertEqual(self.downloads, 1)
+
+    def test_unreachable_page_without_saved_file_fails(self):
+        def down(url):
+            raise refresh.FetchError(f"giving up on {url}: timed out")
+
+        with mock.patch.object(refresh, "fetch", down):
+            self.assertEqual(self.run_refresh(), 1)
+        self.assertFalse(self.runs()[0]["ok"])
+
     def test_dry_run_writes_nothing(self):
         self.assertEqual(self.run_refresh("--dry-run"), 0)
         self.assertEqual(self.downloads, 0)
@@ -205,6 +228,23 @@ class WebSourceTest(unittest.TestCase):
         conn = store.connect(self.root / "radar.db")
         self.assertEqual(len(store.refresh_runs(conn)), 1)
         conn.close()
+
+    def test_web_records_are_exported_for_the_app_pipeline(self):
+        rc, _ = self.run_refresh("--category", "nauka")
+        self.assertEqual(rc, 0)
+        out = self.root / "norm" / "web.jsonl"
+        recs = [json.loads(line) for line in out.read_text("utf-8").splitlines()]
+        self.assertEqual(len(recs), 1)
+        self.assertEqual(recs[0]["schema"], "radar.record/v1")
+        self.assertTrue(recs[0]["source"].startswith("web_"))
+        self.assertTrue(recs[0]["text_for_llm"])
+        conn = store.connect(self.root / "radar.db")
+        self.assertEqual(store.refresh_runs(conn)[0]["records"], 1)
+        conn.close()
+        out.unlink()
+        rc, _ = self.run_refresh("--offline")  # rebuilt from the database, no network
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(out.read_text("utf-8").splitlines()), 1)
 
 
 if __name__ == "__main__":

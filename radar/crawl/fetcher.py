@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Callable
 from urllib.parse import urlsplit
 
-from ..http import USER_AGENT
+from ..http import USER_AGENT, ascii_url
 
 MAX_BYTES = 15 * 1024 * 1024
 CHALLENGE_MARKERS = ("incapsula", "_incapsula_resource", "cf-chl", "cf_chl", "challenge-platform",
@@ -138,7 +138,7 @@ class Fetcher:
             headers["If-None-Match"] = etag
         if last_modified:
             headers["If-Modified-Since"] = last_modified
-        req = urllib.request.Request(url, headers=headers)
+        req = urllib.request.Request(ascii_url(url), headers=headers)
         try:
             resp = self.open(req, self.timeout)
             with resp:

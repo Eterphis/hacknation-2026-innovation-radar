@@ -471,9 +471,296 @@
      "placement": "bottom"
     }
    }
+  },
+  {
+   "id": 13,
+   "type": "row",
+   "title": "Czasy etapów i LLM",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 45,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 14,
+   "type": "timeseries",
+   "title": "Czas etapu p95 (s)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 46,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(radar_stage_duration_seconds_bucket[5m])))",
+     "legendFormat": "{{stage}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 15,
+   "type": "timeseries",
+   "title": "Przepustowość etapów (rekordy/min)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 46,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (stage) (rate(radar_stage_duration_seconds_count[5m])) * 60",
+     "legendFormat": "{{stage}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 16,
+   "type": "timeseries",
+   "title": "Wywołania LLM wg dostawcy i celu (/min)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 54,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (provider, purpose, outcome) (rate(radar_llm_requests_total[5m])) * 60",
+     "legendFormat": "{{provider}} {{purpose}} {{outcome}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 17,
+   "type": "timeseries",
+   "title": "Opóźnienie LLM p50 / p95 (s)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 54,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.5, sum by (le, provider) (rate(radar_llm_latency_seconds_bucket[15m])))",
+     "legendFormat": "p50 {{provider}}"
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.95, sum by (le, provider) (rate(radar_llm_latency_seconds_bucket[15m])))",
+     "legendFormat": "p95 {{provider}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 18,
+   "type": "stat",
+   "title": "Błędy LLM (15 min)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 62,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(increase(radar_llm_requests_total{outcome=\"error\"}[15m]))"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 19,
+   "type": "stat",
+   "title": "Koszt LLM (USD, narastająco)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 62,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(radar_llm_cost_usd_total)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 20,
+   "type": "stat",
+   "title": "Tokeny LLM (narastająco)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 62,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(radar_llm_tokens_total)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 21,
+   "type": "stat",
+   "title": "Workery Celery online (Flower)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 62,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(flower_worker_online)"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 22,
+   "type": "timeseries",
+   "title": "Zadania Celery (Flower, /min)",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prom"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 66,
+    "w": 24,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (type) (rate(flower_events_total[5m])) * 60",
+     "legendFormat": "{{type}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
   }
  ],
  "tags": [
   "radar"
- ]
+ ],
+ "version": 2
 }

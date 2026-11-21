@@ -24,7 +24,7 @@ spec:
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           command: ["celery", "-A", "radar.pipeline.celery_app", "worker",
                     "-Q", {{ join "," .queues | quote }}, "-c", "{{ .concurrency | default 2 }}",
-                    "-n", "{{ .name }}@%h", "--loglevel=INFO"]
+                    "-n", "{{ .name }}@%h", "-E", "--loglevel=INFO"]
           env: {{- include "radar.env" $ | nindent 12 }}
           envFrom: {{- include "radar.envFrom" $ | nindent 12 }}
           volumeMounts: {{- include "radar.volumeMounts" $ | nindent 12 }}

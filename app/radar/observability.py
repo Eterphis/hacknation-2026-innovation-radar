@@ -15,11 +15,14 @@ from urllib.parse import urlparse
 import httpx
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 
 from radar.config import get_settings
 from radar.db import session
-from radar.models import Card, RawRecord, Record, SourceState, StageRun
+from radar.models import Card, LlmCall, RawRecord, Record, SourceState, StageRun
+
+STAGE_BUCKETS_S = (0.01, 0.05, 0.1, 0.5, 1, 5, 15, 60, 300)
+LLM_BUCKETS_S = (0.5, 1, 2, 5, 10, 30, 60, 120, 300)
 
 router = APIRouter()
 _STARTED = time.time()
@@ -44,6 +47,30 @@ def _rabbit_queues() -> list[dict]:
         return []
 
 
+def _histogram(s, out: list[str], name: str, help_: str, col_ms, group_cols: list, where, buckets: tuple) -> None:
+    """Prometheus histogram computed in one SQL query: cumulative bucket counts, sum and count per label set."""
+    q = select(*group_cols, func.count(), func.coalesce(func.sum(col_ms), 0),
+               *[func.sum(case((col_ms <= b * 1000, 1), else_=0)) for b in buckets]).where(where).group_by(*group_cols)
+    out.append(f"# HELP {name} {help_}")
+    out.append(f"# TYPE {name} histogram")
+    keys = [c.key for c in group_cols]
+    for row in s.execute(q):
+        labels = dict(zip(keys, row[:len(keys)]))
+        n, total = row[len(keys)], row[len(keys) + 1]
+        for b, c in zip(buckets, row[len(keys) + 2:]):
+            out.append(f"{name}_bucket{_lbl(**labels, le=b)} {c or 0}")
+        out.append(f"{name}_bucket{_lbl(**labels, le='+Inf')} {n}")
+        out.append(f"{name}_sum{_lbl(**labels)} {round((total or 0) / 1000, 3)}")
+        out.append(f"{name}_count{_lbl(**labels)} {n}")
+
+
+def _prices() -> dict:
+    try:
+        return json.loads(get_settings().llm_prices or "{}")
+    except ValueError:
+        return {}
+
+
 @router.get("/metrics", response_class=PlainTextResponse)
 def metrics() -> str:
     out: list[str] = []
@@ -58,6 +85,8 @@ def metrics() -> str:
         emit("radar_stage_runs_total", "Pipeline stage executions by outcome", "counter",
              [({"stage": st, "outcome": oc}, n) for st, oc, n in
               s.execute(select(StageRun.stage, StageRun.outcome, func.count()).group_by(StageRun.stage, StageRun.outcome))])
+        _histogram(s, out, "radar_stage_duration_seconds", "Wall time of a pipeline stage (incl. LLM calls in extract/score)",
+                   StageRun.duration_ms, [StageRun.stage], StageRun.duration_ms.is_not(None), STAGE_BUCKETS_S)
         emit("radar_records", "Normalized records by status", "gauge",
              [({"status": st}, n) for st, n in s.execute(select(Record.status, func.count()).group_by(Record.status))])
         emit("radar_raw_records", "Raw records by source and transport", "gauge",
@@ -79,6 +108,25 @@ def metrics() -> str:
         emit("radar_llm_extractions_total", "Extractions by LLM provider/model", "counter",
              [({"provider": p, "model": m}, n) for (p, m), n in providers.items()])
         emit("radar_llm_fallbacks_total", "Provider fallbacks during extraction", "counter", [({}, fallbacks)])
+        # every LLM call (extract, agent steps, reviewer), written by the workers' router
+        calls = s.execute(select(LlmCall.provider, LlmCall.model, LlmCall.purpose, LlmCall.ok, func.count(),
+                                 func.coalesce(func.sum(LlmCall.tokens_in), 0), func.coalesce(func.sum(LlmCall.tokens_out), 0))
+                          .group_by(LlmCall.provider, LlmCall.model, LlmCall.purpose, LlmCall.ok)).all()
+        emit("radar_llm_requests_total", "LLM calls by provider, purpose and outcome", "counter",
+             [({"provider": p, "model": m or "", "purpose": pu, "outcome": "ok" if ok else "error"}, n) for p, m, pu, ok, n, _, _ in calls])
+        tok: dict[tuple, list] = {}
+        for p, m, pu, ok, n, ti, to in calls:
+            t = tok.setdefault((p, m or ""), [0, 0])
+            t[0] += ti or 0
+            t[1] += to or 0
+        emit("radar_llm_tokens_total", "Tokens reported by the LLM API", "counter",
+             [({"provider": p, "model": m, "direction": d}, v) for (p, m), (ti, to) in tok.items() for d, v in (("in", ti), ("out", to))])
+        prices = _prices()
+        emit("radar_llm_cost_usd_total", "Estimated LLM cost (RADAR_LLM_PRICES, USD per 1M tokens; local model = 0)", "counter",
+             [({"provider": p, "model": m}, round((ti * prices.get(p, [0, 0])[0] + to * prices.get(p, [0, 0])[1]) / 1e6, 6))
+              for (p, m), (ti, to) in tok.items()])
+        _histogram(s, out, "radar_llm_latency_seconds", "Latency of successful LLM calls", LlmCall.latency_ms,
+                   [LlmCall.provider, LlmCall.purpose], LlmCall.ok.is_(True), LLM_BUCKETS_S)
         now = time.time()
         src_rows, age_rows, fail_rows = [], [], []
         for st in s.scalars(select(SourceState)):
@@ -90,6 +138,13 @@ def metrics() -> str:
         emit("radar_source_last_accepted", "Records accepted in the last harvest", "gauge", src_rows)
         emit("radar_source_last_run_age_seconds", "Seconds since the last harvest of a source", "gauge", age_rows)
         emit("radar_source_failed", "1 if the last harvest failed", "gauge", fail_rows)
+    try:  # schedule per source, so the alert "no harvest for 2x the schedule" needs no hard-coded interval
+        from radar.sources.registry import active_sources
+
+        sched = [({"source": sid}, float(sp.schedule_s)) for sid, sp in active_sources().items() if sp.mode == "pull" and sp.schedule_s]
+    except Exception:
+        sched = []
+    emit("radar_source_schedule_seconds", "Configured harvest interval (schedule_s)", "gauge", sched)
 
     q = _rabbit_queues()
     emit("radar_queue_messages", "Messages ready in RabbitMQ queues", "gauge",
@@ -106,7 +161,7 @@ def metrics() -> str:
 class JsonFormatter(logging.Formatter):
     """One JSON object per line; extra fields (raw_id, stage, source_id, task_id) are kept."""
 
-    KEEP = ("raw_id", "stage", "source_id", "task_id", "provider")
+    KEEP = ("raw_id", "stage", "source_id", "task_id", "provider", "outcome", "duration_ms")
 
     def format(self, record: logging.LogRecord) -> str:
         d = {"ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"), "level": record.levelname, "logger": record.name, "msg": record.getMessage()}

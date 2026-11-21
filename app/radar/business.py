@@ -1,13 +1,17 @@
 """Business case for an idea, computed by transparent rules (no LLM, microseconds per record, zero infra cost).
 
 Every number carries its assumption so investors, municipalities, universities, schools, startups and individual
-inventors see the same logic. Counts are orders of magnitude from public statistics (GUS, RSPO, POL-on) and are
-labelled "szacunek"; calibration with PCI data is a follow-up (see .github/handoffs).
+inventors see the same logic. Adopter counts come from GUS BDL, for Poland and per voivodeship, via
+app/radar/data/adopters.json (written once by scripts/fetch_gus_adopters.py; nothing calls GUS at runtime). Keys the
+file does not have fall back to orders of magnitude from public statistics, labelled "szacunek".
 """
 
 from __future__ import annotations
 
+import json
 import re
+from functools import lru_cache
+from pathlib import Path
 
 from radar.basal.classifier import label_pl
 from radar.basal.embed import fold
@@ -17,7 +21,7 @@ LEVELS = ["exploring", "tech_ready", "business_ready", "market_ready"]
 SUCCESS_P = {"exploring": .10, "tech_ready": .30, "business_ready": .60, "market_ready": .85}
 # one deployment's value for the adopter (PLN), mid-points of the cost bands used by Basal
 UNIT_PLN = {"niski": 60_000, "sredni": 600_000, "wysoki": 6_000_000, "bardzo_wysoki": 30_000_000}
-# potential adopters in Poland (orders of magnitude; sources: GUS 2024, RSPO, POL-on)
+# Fallback when app/radar/data/adopters.json has no such key: orders of magnitude (GUS 2024, RSPO, POL-on), "szacunek"
 ADOPTERS = {
     "gminy": (2_477, "gmin (GUS)"),
     "powiaty": (380, "powiatów i miast na prawach powiatu"),
@@ -30,11 +34,15 @@ ADOPTERS = {
     "msp_sektor": (40_000, "firm w sektorze (MŚP, szacunek z REGON)"),
     "przemysl": (8_000, "zakładów przemysłowych w branży"),
     "energetyka": (1_200, "przedsiębiorstw energetycznych i ciepłowni"),
+    "firmy_ict": (40_000, "firm ICT (MŚP, szacunek z REGON)"),
+    "firmy_rolnictwo": (40_000, "gospodarstw i firm rolnych (szacunek z REGON)"),
+    "firmy_budownictwo": (40_000, "firm budowlanych (MŚP, szacunek z REGON)"),
 }
+ADOPTERS_FILE = Path(__file__).parent / "data" / "adopters.json"
 BY_INNOVATION = {"edukacyjna": "szkoly", "spoleczna": "gminy", "organizacyjna": "gminy", "uslugowa": "gminy", "procesowa": "gminy"}
 BY_SECTOR = {"Q_zdrowie": "szpitale", "P_edukacja": "szkoly", "O_administracja": "gminy", "H_transport": "gminy",
              "E_srodowisko": "gminy", "D_energetyka": "energetyka", "C_przemysl": "przemysl", "M_nauka": "uczelnie",
-             "R_kultura": "biblioteki", "J_ict": "msp_sektor", "A_rolnictwo": "msp_sektor", "F_budownictwo": "msp_sektor"}
+             "R_kultura": "biblioteki", "J_ict": "firmy_ict", "A_rolnictwo": "firmy_rolnictwo", "F_budownictwo": "firmy_budownictwo"}
 ADOPTION_3Y = {"niski": .05, "sredni": .02, "wysoki": .008, "bardzo_wysoki": .003}  # realistic 3-year uptake
 REVENUE_MULTIPLE = 3.0  # licence / spin-off value ≈ 3x expected yearly revenue (conservative early-stage multiple)
 ROYALTY = .05  # typical university licence royalty on adopter spend
@@ -59,6 +67,39 @@ FUNDING = [  # (programme, who, when it fits)
 INFRA = re.compile(r"\b(budow\w* (?:drogi|odcink|obwodnic|gazociag|linii|mostu|wezla|trasy|tunelu)|droga ekspresow|autostrad|obwodnic|gazociag|"
                    r"modernizacj\w* linii kolejow|linii kolejow|rozbudow\w* (?:drogi|portu|lotniska)|przebudow\w* drogi|sieci\w* przesyl|terminal\w* (?:lng|kontener))")
 PROGRAMME = re.compile(r"^(program priorytetowy|program operacyjny|regionalny program)")
+
+
+@lru_cache(maxsize=4)
+def load_adopters(path: Path | None = None) -> dict:
+    """The GUS file, or {} when it is missing or unreadable (the estimates above are used then)."""
+    p = Path(path or ADOPTERS_FILE)
+    try:
+        doc = json.loads(p.read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return doc if isinstance(doc.get("adopters"), dict) else {}
+
+
+def adopters_for(key: str, voivodeship: str | None = None) -> dict:
+    """Potential adopters of one kind: in Poland and, when the record has a voivodeship, in that region.
+
+    From GUS BDL when adopters.json has the key (with year, variable ids and fetch date), else the estimate."""
+    doc = load_adopters(ADOPTERS_FILE)
+    g = (doc.get("adopters") or {}).get(key)
+    woj = fold(voivodeship or "").strip() or None
+    if g and g.get("poland"):
+        by_woj = {fold(k): v for k, v in (g.get("by_voivodeship") or {}).items()}
+        regional = by_woj.get(woj) if woj else None
+        fetched = (g.get("fetched_at") or doc.get("fetched_at") or "")[:10]
+        return {"count": int(g["poland"]), "who": f"{g['label']} (GUS BDL, {g['year']})", "key": key,
+                "regional": regional if regional is not None else (round(g["poland"] / 16) if woj else None),
+                "regional_exact": regional is not None, "voivodeship": voivodeship if woj else None,
+                "source": "GUS BDL", "year": g.get("year"), "fetched_at": fetched,
+                "variable_ids": g.get("variable_ids") or [g.get("variable_id")]}
+    n, label = ADOPTERS[key]
+    return {"count": n, "who": label, "key": key, "regional": round(n / 16) if woj else None, "regional_exact": False,
+            "voivodeship": voivodeship if woj else None, "source": "szacunek", "year": None, "fetched_at": None,
+            "variable_ids": []}
 
 
 def is_infrastructure(rec) -> bool:
@@ -91,9 +132,11 @@ def business_case(rec, card) -> dict:
     # a recorded project budget is the cost of the original build, not of a copy: a copy costs ~30% of it
     deploy_cost = min(COPY_CAP_PLN, min(unit, max(amounts) * .3) if amounts else unit)
     key = adopter_key(rec)
-    n, n_label = ADOPTERS[key]
+    a = adopters_for(key, rec.voivodeship)
+    n = a["count"]
     tam = n * deploy_cost
-    sam = tam / 16 if rec.voivodeship else tam  # one region first
+    # one region first: the region's own GUS count, or 1/16 of the country when only an estimate is known
+    sam = a["regional"] * deploy_cost if a["regional"] is not None else tam
     som_3y = n * ADOPTION_3Y.get(cost, .02) * deploy_cost
     p = SUCCESS_P[lvl_name]
     yearly_rev = som_3y / 3
@@ -104,7 +147,7 @@ def business_case(rec, card) -> dict:
     model = ("licencja / sprzedaż" if rec.innovation_type == "technologiczna" else "transfer modelu działania + szkolenie")
     return {
         "version": "business/v1",
-        "adopters": {"count": n, "who": n_label, "key": key},
+        "adopters": a,
         "deploy_cost_pln": round(deploy_cost),
         "market": {"tam_pln": round(tam), "sam_pln": round(sam), "som_3y_pln": round(som_3y),
                    "adoption_3y": ADOPTION_3Y.get(cost, .02)},
@@ -115,7 +158,7 @@ def business_case(rec, card) -> dict:
         "model": model,
         "funding": funding,
         "assumptions": [
-            f"odbiorcy: {n:,} {n_label} (szacunek)".replace(",", " "),
+            _adopters_line(a),
             f"koszt wdrożenia u odbiorcy: {round(deploy_cost):,} zł ({'30% budżetu projektu' if amounts else 'środek przedziału kosztu ' + label_pl('cost_level', cost)})".replace(",", " "),
             f"realna adopcja w 3 lata: {ADOPTION_3Y.get(cost, .02):.1%} odbiorców",
             f"szansa wdrożenia przy dojrzałości „{lvl_name}”: {p:.0%}",
@@ -124,6 +167,20 @@ def business_case(rec, card) -> dict:
             "własne opracowanie od zera ≈ 3× koszt wdrożenia gotowego rozwiązania",
         ],
     }
+
+
+def _adopters_line(a: dict) -> str:
+    n = f"{a['count']:,}".replace(",", " ")
+    if a["source"] == "szacunek":
+        line = f"odbiorcy: {n} {a['who']} (szacunek)"
+    else:
+        ids = ", ".join(str(i) for i in a["variable_ids"] if i)
+        line = f"odbiorcy: {n} {a['who']}; zmienne BDL {ids}, pobrano {a['fetched_at']}"
+    if a["voivodeship"]:
+        r = f"{a['regional']:,}".replace(",", " ")
+        line += (f"; w województwie {a['voivodeship']}: {r}" if a["regional_exact"]
+                 else f"; region ≈ 1/16 kraju ({r})")
+    return line
 
 
 # -------------------------------------------------------------------- audiences (one page, six lenses)

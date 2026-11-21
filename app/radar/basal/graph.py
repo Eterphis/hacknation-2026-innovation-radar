@@ -10,11 +10,10 @@ from __future__ import annotations
 import numpy as np
 from sqlalchemy import delete, or_, select
 
-from radar.basal.embed import get_embedder
+from radar.basal.embed import calibration, closeness, get_embedder
 from radar.models import Edge, Record
 
-SIMILAR_MIN = 0.2  # calibrated on demo data for hashing-stem6+char4 (median pair 0.08, p95 0.24)
-DUP_MIN = 0.9
+# Thresholds come from embed.CALIBRATION (per embedder, measured on the real test set).
 TOP_K = 6
 INDEXED = ("extracted", "ready")
 
@@ -37,16 +36,17 @@ def index_record(s, rec: Record) -> list[dict]:
     if M.shape[1] != vec.shape[0]:  # embedder changed: skip until re-index
         return []
     sims = M @ vec
+    cal = calibration()
     order = np.argsort(-sims)[:TOP_K]
     found = []
     for i in order:
         sim = float(sims[i])
-        if sim < SIMILAR_MIN:
+        if sim < cal["similar_min"]:
             break
-        kind = "possible_duplicate" if sim >= DUP_MIN else "similar"
+        kind = "possible_duplicate" if sim >= cal["dup_min"] else "similar"
         a, b = sorted((rec.id, ids[i]))
         s.add(Edge(src_id=a, dst_id=b, kind=kind, weight=round(sim, 4)))
-        found.append({"record_id": ids[i], "similarity": round(sim, 3), "kind": kind,
+        found.append({"record_id": ids[i], "similarity": round(sim, 3), "closeness": round(closeness(sim), 3), "kind": kind,
                       "voivodeship": others[i].voivodeship, "institution_type": others[i].institution_type})
     return found
 
@@ -58,7 +58,8 @@ def similar(s, rec: Record, k: int = 5) -> list[dict]:
     for e in rows:
         other = s.get(Record, e.dst_id if e.src_id == rec.id else e.src_id)
         if other is not None:
-            out.append({"record_id": other.id, "title": other.title, "similarity": e.weight, "kind": e.kind,
+            out.append({"record_id": other.id, "title": other.title, "similarity": e.weight,
+                        "closeness": round(closeness(e.weight), 3), "kind": e.kind,
                         "voivodeship": other.voivodeship, "institution_type": other.institution_type,
                         "card_id": other.card.id if other.card else None})
     return out

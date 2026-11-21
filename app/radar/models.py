@@ -89,7 +89,27 @@ class StageRun(Base):
     # ok | needs_review | skipped | failed
     outcome: Mapped[str] = mapped_column(String(20))
     detail: Mapped[str | None] = mapped_column(Text)
+    # wall time of the stage body (ms), for the stage latency metrics
+    duration_ms: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class LlmCall(Base):
+    """One call to an LLM provider (extract, agent step, reviewer). Workers write it, /metrics on the API reads it,
+    so latency and errors per provider are visible without a multiprocess metrics registry."""
+
+    __tablename__ = "llm_calls"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    provider: Mapped[str] = mapped_column(String(30), index=True)
+    model: Mapped[str | None] = mapped_column(String(120))
+    purpose: Mapped[str] = mapped_column(String(30), index=True)  # extract | agent | review | other
+    ok: Mapped[bool] = mapped_column(Boolean, default=True)
+    latency_ms: Mapped[float] = mapped_column(Float)
+    error: Mapped[str | None] = mapped_column(String(300))
+    tokens_in: Mapped[int | None] = mapped_column(Integer)
+    tokens_out: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
 
 class Card(Base):
@@ -169,3 +189,28 @@ class SourceState(Base):
     last_status: Mapped[str | None] = mapped_column(String(20))
     last_error: Mapped[str | None] = mapped_column(Text)
     counters: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class Organization(Base):
+    """Organisation registry (T023): RAD-on/POL-on institutions now; ROR and Wikidata ids fit in `ids` later.
+    resolve_org matches record affiliations against it (id -> alias -> fuzzy) to give Basal a sure institution
+    type, public/private and voivodeship."""
+
+    __tablename__ = "organizations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # stable external key of the registry entry, e.g. "radon:<institutionUuid>"
+    key: Mapped[str] = mapped_column(String(120), unique=True)
+    name: Mapped[str] = mapped_column(Text)
+    # radon, regon, nip, krs (ror, wikidata, teryt later)
+    ids: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Basal vocabulary: uczelnia | instytut | jst | inna_publiczna | firma | szkola
+    institution_type: Mapped[str | None] = mapped_column(String(30))
+    is_public: Mapped[bool | None] = mapped_column(Boolean)
+    voivodeship: Mapped[str | None] = mapped_column(String(40))
+    city: Mapped[str | None] = mapped_column(String(100))
+    status: Mapped[str | None] = mapped_column(String(40))
+    aliases: Mapped[list] = mapped_column(JSON, default=list)
+    source: Mapped[str] = mapped_column(String(40), default="radon")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+

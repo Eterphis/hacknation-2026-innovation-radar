@@ -9,6 +9,7 @@ dependencies = [
   "uvicorn[standard]>=0.30",
   "celery>=5.4",
   "sqlalchemy>=2.0",
+  "alembic>=1.13",
   "psycopg[binary]>=3.2",
   "pydantic>=2.7",
   "pydantic-settings>=2.3",
@@ -37,7 +38,7 @@ build-backend = "setuptools.build_meta"
 include = ["radar*"]
 
 [tool.setuptools.package-data]
-radar = ["api/static/*"]
+radar = ["api/static/*", "migrations/script.py.mako", "migrations/versions/*.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
