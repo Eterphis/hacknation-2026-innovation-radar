@@ -1,0 +1,8 @@
+apiVersion: v2
+name: innovation-radar
+description: Radar Innowacji — pobieranie danych z wielu źródeł (pull i push), potok Celery/RabbitMQ, ocena i kolejka operatora
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords: [innovation, celery, rabbitmq, etl, llm]
+sources: [https://github.com/Eterphis/hacknation-2026-innovation-radar]

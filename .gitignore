@@ -15,3 +15,6 @@ CLAUDE.md
 .house/tmp/
 *.orig
 *.orig-*
+*.egg-info/
+*.db
+.pytest_cache/

@@ -1,0 +1,228 @@
+# Źródła danych radaru. Nowe źródło REST / GraphQL / webhook / pub-sub = nowy wpis tutaj, bez kodu.
+# Nowy protokół = jedna klasa w radar/sources + radar.sources.registry.register().
+#
+# Wspólne pola:
+#   id, type (rest | graphql | oaipmh | sparql | snapshot | webhook | amqp | gcp_pubsub | kafka)
+#   enabled, demo (działa bez sieci i kluczy; w RADAR_DEMO_MODE=1 tylko te), schedule_s (co ile sekund pobierać)
+#   kind: publication | project | patent | beneficiary | solution
+#   record_path / id_path: JMESPath do listy rekordów i ich identyfikatora
+#   mapping: pole_rekordu -> JMESPath albo {expr, transform: [first|pl_decimal|year|doi|strip_html|join|list]}
+#   options: zależne od typu; ${ZMIENNA} bierze wartość ze środowiska (sekrety z Helm Secret)
+#
+# W Helm ten plik jest w values.yaml (`sources:`) i trafia do ConfigMap.
+
+sources:
+  # ------------------------------------------------------------------ DEMO (snapshoty, dane syntetyczne)
+  - id: demo-publikacje
+    type: snapshot
+    demo: true
+    kind: publication
+    description: "Przykładowe publikacje (dane syntetyczne, format Biblioteki Nauki po parsowaniu OAI)"
+    options: { path: samples/publikacje.jsonl, min_abstract_chars: 120 }
+    id_path: oai_identifier
+    mapping:
+      title: { expr: title, transform: first }
+      abstract: { expr: description, transform: first }
+      authors: creator
+      affiliations: affiliation
+      keywords: subject
+      year: { expr: date, transform: year }
+      doi: { expr: identifier, transform: doi }
+      url: { expr: relation, transform: first }
+      licence: { expr: rights, transform: first }
+      language: { expr: language, transform: first }
+
+  - id: demo-kohesio
+    type: snapshot
+    demo: true
+    kind: project
+    description: "Przykładowe projekty spójności (dane syntetyczne w kształcie odpowiedzi Kohesio)"
+    options: { path: samples/kohesio.json, min_abstract_chars: 120 }
+    record_path: list
+    id_path: item
+    mapping:
+      title: { expr: label, transform: first }
+      abstract: { expr: description, transform: first }
+      affiliations: beneficiaries
+      region: { expr: regionText, transform: first }
+      year: { expr: startTime, transform: year }
+      amount_eu: { expr: euBudgets, transform: pl_decimal }
+      amount_total: { expr: totalBudgets, transform: pl_decimal }
+      start: { expr: startTime, transform: first }
+      end: { expr: endTime, transform: first }
+      objective: { expr: objectiveIds, transform: first }
+      implementation: { const: true }
+
+  # ------------------------------------------------------------------ PUSH: zgłoszenia ręczne / webhook
+  - id: zgloszenia
+    type: webhook
+    demo: true
+    kind: solution
+    description: "Zgłoszenia innowacji (formularz /api/ingest/zgloszenia/manual albo webhook z systemów instytucji)"
+    options: { min_abstract_chars: 80 }
+    id_path: id
+    mapping:
+      title: title
+      abstract: description
+      affiliations: "[institution]"
+      region: region
+      keywords: keywords
+      url: url
+      institution_type: institution_type
+
+  # ------------------------------------------------------------------ LIVE: pull
+  - id: bibliotekanauki
+    type: oaipmh
+    kind: publication
+    schedule_s: 21600
+    description: "Biblioteka Nauki, OAI-PMH, przyrostowo po datestamp"
+    options:
+      base_url: https://bibliotekanauki.pl/api/oai/articles
+      metadata_prefix: oai_dc
+      from: "2026-10-01"
+      max_pages: 20
+    mapping:
+      title: { expr: title, transform: first }
+      abstract: { expr: description, transform: first }
+      authors: creator
+      keywords: subject
+      year: { expr: date, transform: year }
+      doi: { expr: identifier, transform: doi }
+      url: { expr: identifier, transform: first }
+      licence: { expr: rights, transform: first }
+      language: { expr: language, transform: first }
+      publisher: { expr: publisher, transform: first }
+
+  - id: openaire-projekty-pl
+    type: rest
+    kind: project
+    schedule_s: 86400
+    description: "OpenAIRE Graph /projects, kraj PL (token: OPENAIRE_TOKEN, 7200 zapytań/h) [sprawdzić nazwy parametrów]"
+    options:
+      url: https://api.openaire.eu/graph/v1/projects
+      params: { countryCode: PL, pageSize: 50, cursor: "*" }
+      headers: { Authorization: "Bearer ${OPENAIRE_TOKEN:-}" }
+      pagination: { type: cursor, cursor_param: cursor, cursor_path: header.nextCursor }
+      max_pages: 20
+    record_path: results
+    id_path: id
+    mapping:
+      title: title
+      abstract: summary
+      keywords: keywords
+      year: { expr: startDate, transform: year }
+      url: websiteUrl
+      amount_total: { expr: totalCost, transform: pl_decimal }
+      amount_funded: { expr: fundedAmount, transform: pl_decimal }
+      code: code
+      funder: { expr: "fundings[0].shortName" }
+
+  - id: radon-projekty
+    type: rest
+    enabled: false
+    kind: project
+    schedule_s: 604800
+    description: "RAD-on projekty krajowe (NCN, NCBR), ok. 49 tys., stronicowanie tokenem [sprawdzić kształt odpowiedzi]"
+    options:
+      url: https://radon.nauka.gov.pl/opendata/polon/projects
+      params: { resultNumbers: 100 }
+      pagination: { type: cursor, cursor_param: token, cursor_path: pagination.token }
+      max_pages: 500
+    record_path: results
+    id_path: projectUuid
+    mapping:
+      title: projectTitlePl
+      abstract: projectAbstractPl
+      keywords: keywords
+      affiliations: "implementingInstitutions[].institutionName"
+      year: { expr: projectStartDate, transform: year }
+      amount_total: { expr: totalFunds, transform: pl_decimal }
+
+  - id: kohesio-projekty
+    type: rest
+    enabled: false
+    kind: project
+    schedule_s: 604800
+    description: "Kohesio /api/projects (nieudokumentowany endpoint strony; preferuj eksport CSV jako snapshot)"
+    options:
+      url: https://kohesio.ec.europa.eu/api/projects
+      params: { country: "https://linkedopendata.eu/entity/Q13", language: pl, limit: 100 }
+      pagination: { type: offset, param: offset }
+      max_pages: 50
+    record_path: list
+    id_path: item
+    mapping:
+      title: { expr: label, transform: first }
+      abstract: { expr: description, transform: first }
+      year: { expr: startTime, transform: year }
+      amount_eu: { expr: euBudgets, transform: pl_decimal }
+      amount_total: { expr: totalBudgets, transform: pl_decimal }
+      implementation: { const: true }
+
+  - id: epo-patenty-prz
+    type: sparql
+    kind: patent
+    schedule_s: 604800
+    description: "EPO Linked Data: publikacje EP zgłaszającego (przykład: Politechnika Rzeszowska)"
+    options:
+      endpoint: https://data.epo.org/linked-data/query
+      page_size: 100
+      query: |
+        PREFIX patent: <http://data.epo.org/linked-data/def/patent/>
+        PREFIX vcard: <http://www.w3.org/2006/vcard/ns#>
+        SELECT ?publication ?title ?date ?kind WHERE {
+          ?publication patent:applicantVC ?a ; patent:titleOfInvention ?title ;
+                       patent:publicationDate ?date ; patent:publicationKind ?kind .
+          ?a vcard:fn ?name .
+          FILTER(CONTAINS(LCASE(STR(?name)), "politechnika rzeszowska"))
+        } ORDER BY ?publication LIMIT {limit} OFFSET {offset}
+      min_abstract_chars: 0
+    id_path: publication
+    mapping:
+      title: title
+      abstract: title
+      year: { expr: date, transform: year }
+      url: publication
+      patent_kind: kind
+
+  # ------------------------------------------------------------------ SZABLONY (wyłączone): GraphQL i pub/sub
+  - id: przyklad-graphql
+    type: graphql
+    enabled: false
+    kind: solution
+    description: "Szablon: dowolne API GraphQL ze stronicowaniem kursorem"
+    options:
+      url: https://example.org/graphql
+      headers: { Authorization: "Bearer ${EXAMPLE_GRAPHQL_TOKEN:-}" }
+      query: |
+        query($after: String) { solutions(first: 50, after: $after) {
+          pageInfo { endCursor hasNextPage } edges { node { id name description organization { name } } } } }
+      cursor_var: after
+      end_cursor_path: data.solutions.pageInfo.endCursor
+      has_next_path: data.solutions.pageInfo.hasNextPage
+    record_path: "data.solutions.edges[].node"
+    mapping: { title: name, abstract: description, affiliations: "[organization.name]" }
+
+  - id: przyklad-amqp
+    type: amqp
+    enabled: false
+    kind: solution
+    description: "Szablon: kolejka RabbitMQ/AMQP z systemu partnera (DLQ: ingest.<id>.dlq)"
+    options: { url: "${PARTNER_AMQP_URL:-}", exchange: partner.innovations, routing_key: "innovation.#" }
+    mapping: { title: title, abstract: description, affiliations: "[institution]" }
+
+  - id: przyklad-gcp-pubsub
+    type: gcp_pubsub
+    enabled: false
+    kind: solution
+    description: "Szablon: Google Cloud Pub/Sub (GOOGLE_APPLICATION_CREDENTIALS z Secret)"
+    options: { subscription: "projects/${GCP_PROJECT:-x}/subscriptions/radar-innovations" }
+    mapping: { title: title, abstract: description }
+
+  - id: przyklad-kafka
+    type: kafka
+    enabled: false
+    kind: solution
+    description: "Szablon: temat Kafka"
+    options: { bootstrap_servers: "${KAFKA_BOOTSTRAP:-kafka:9092}", topic: innovations }
+    mapping: { title: title, abstract: description }

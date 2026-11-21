@@ -1,0 +1,108 @@
+{{- range .Values.workers }}
+{{- $c := dict "root" $ "component" (printf "worker-%s" .name) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "radar.fullname" $ }}-worker-{{ .name }}
+  labels: {{- include "radar.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: worker-{{ .name }}
+spec:
+  replicas: {{ .replicas | default 1 }}
+  selector:
+    matchLabels: {{- include "radar.selector" $c | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "radar.selector" $c | nindent 8 }}
+      annotations: {{- include "radar.checksums" $ | nindent 8 }}
+    spec:
+      {{- include "radar.podCommon" $ | nindent 6 }}
+      # Long grace period: acks_late means an interrupted task is redelivered, but let running ones finish.
+      terminationGracePeriodSeconds: 600
+      containers:
+        - name: worker
+          image: {{ include "radar.image" $ }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["celery", "-A", "radar.pipeline.celery_app", "worker",
+                    "-Q", {{ join "," .queues | quote }}, "-c", "{{ .concurrency | default 2 }}",
+                    "-n", "{{ .name }}@%h", "--loglevel=INFO"]
+          env: {{- include "radar.env" $ | nindent 12 }}
+          envFrom: {{- include "radar.envFrom" $ | nindent 12 }}
+          volumeMounts: {{- include "radar.volumeMounts" $ | nindent 12 }}
+          livenessProbe:
+            exec: { command: ["sh", "-c", "celery -A radar.pipeline.celery_app inspect ping -d {{ .name }}@$HOSTNAME -t 10"] }
+            periodSeconds: 60
+            timeoutSeconds: 20
+            failureThreshold: 3
+          securityContext: {{- toYaml $.Values.securityContext | nindent 12 }}
+          resources: {{- toYaml .resources | nindent 12 }}
+      volumes: {{- include "radar.volumes" $ | nindent 8 }}
+---
+{{- end }}
+{{- if .Values.beat.enabled }}
+{{- $c := dict "root" . "component" "beat" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "radar.fullname" . }}-beat
+  labels: {{- include "radar.labels" . | nindent 4 }}
+    app.kubernetes.io/component: beat
+spec:
+  replicas: 1   # exactly one scheduler
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: {{- include "radar.selector" $c | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "radar.selector" $c | nindent 8 }}
+      annotations: {{- include "radar.checksums" . | nindent 8 }}
+    spec:
+      {{- include "radar.podCommon" . | nindent 6 }}
+      containers:
+        - name: beat
+          image: {{ include "radar.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["celery", "-A", "radar.pipeline.celery_app", "beat", "--loglevel=INFO", "-s", "/tmp/celerybeat-schedule"]
+          env: {{- include "radar.env" . | nindent 12 }}
+          envFrom: {{- include "radar.envFrom" . | nindent 12 }}
+          volumeMounts: {{- include "radar.volumeMounts" . | nindent 12 }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          resources: {{- toYaml .Values.beat.resources | nindent 12 }}
+      volumes: {{- include "radar.volumes" . | nindent 8 }}
+---
+{{- end }}
+{{- /* One consumer Deployment per enabled push source with a broker transport. */}}
+{{- if .Values.sources }}
+{{- range .Values.sources.sources }}
+{{- if and (has .type (list "amqp" "gcp_pubsub" "kafka")) (ne (toString .enabled) "false") }}
+{{- $c := dict "root" $ "component" (printf "consumer-%s" .id) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "radar.fullname" $ }}-consumer-{{ .id }}
+  labels: {{- include "radar.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: consumer-{{ .id }}
+spec:
+  replicas: {{ $.Values.consumers.replicas }}
+  selector:
+    matchLabels: {{- include "radar.selector" $c | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "radar.selector" $c | nindent 8 }}
+      annotations: {{- include "radar.checksums" $ | nindent 8 }}
+    spec:
+      {{- include "radar.podCommon" $ | nindent 6 }}
+      containers:
+        - name: consumer
+          image: {{ include "radar.image" $ }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["radar", "consume", {{ .id | quote }}]
+          env: {{- include "radar.env" $ | nindent 12 }}
+          envFrom: {{- include "radar.envFrom" $ | nindent 12 }}
+          volumeMounts: {{- include "radar.volumeMounts" $ | nindent 12 }}
+          securityContext: {{- toYaml $.Values.securityContext | nindent 12 }}
+          resources: {{- toYaml $.Values.consumers.resources | nindent 12 }}
+      volumes: {{- include "radar.volumes" $ | nindent 8 }}
+---
+{{- end }}
+{{- end }}
+{{- end }}

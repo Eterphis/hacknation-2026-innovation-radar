@@ -1,0 +1,47 @@
+# Ścieżka dla jury (D-005): `docker compose up --build`, potem http://localhost:8000
+# Bez kluczy działa w trybie demo (snapshoty + heurystyczny "mock" LLM). Klucze: skopiuj .env.example do .env.
+x-radar: &radar
+  build: ./app
+  image: innovation-radar:dev
+  env_file: [{ path: .env, required: false }]
+  environment:
+    RADAR_DATABASE_URL: postgresql+psycopg://radar:radar@postgres:5432/radar
+    RADAR_BROKER_URL: amqp://radar:radar@rabbitmq:5672//
+    RADAR_DEMO_MODE: ${RADAR_DEMO_MODE:-1}
+    RADAR_LLM_PROVIDERS: ${RADAR_LLM_PROVIDERS:-anthropic,openai,mock}
+  depends_on:
+    postgres: { condition: service_healthy }
+    rabbitmq: { condition: service_healthy }
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: radar, POSTGRES_PASSWORD: radar, POSTGRES_DB: radar }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U radar"], interval: 5s, retries: 20 }
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment: { RABBITMQ_DEFAULT_USER: radar, RABBITMQ_DEFAULT_PASS: radar }
+    ports: ["15672:15672"]
+    healthcheck: { test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"], interval: 10s, retries: 20 }
+
+  api:
+    <<: *radar
+    ports: ["${RADAR_PORT:-8000}:8000"]
+
+  worker-ingest:
+    <<: *radar
+    command: celery -A radar.pipeline.celery_app worker -Q harvest,normalize,resolve_org,dedup,link -c 4 -n ingest@%h --loglevel=INFO
+
+  worker-llm:
+    <<: *radar
+    command: celery -A radar.pipeline.celery_app worker -Q extract,maturity,score -c 2 -n llm@%h --loglevel=INFO
+
+  beat:
+    <<: *radar
+    command: celery -A radar.pipeline.celery_app beat --loglevel=INFO -s /tmp/celerybeat-schedule
+
+volumes:
+  pgdata:

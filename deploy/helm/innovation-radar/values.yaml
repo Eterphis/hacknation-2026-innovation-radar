@@ -1,0 +1,99 @@
+image:
+  repository: ghcr.io/eterphis/innovation-radar
+  tag: ""            # default: .Chart.AppVersion
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# Common env for every role (api, workers, beat, consumers).
+config:
+  demoMode: true
+  llmProviders: "anthropic,openai,mock"
+  anthropicModel: claude-sonnet-5-5
+  openaiBaseUrl: https://api.openai.com/v1
+  openaiModel: gpt-4o-mini
+  logLevel: INFO
+extraEnv: []
+
+# Secret values (LLM keys, source tokens, webhook HMAC secrets RADAR_WEBHOOK_SECRET_<ID>).
+# Leave existingSecret empty to let the chart create one from `secrets`.
+existingSecret: ""
+secrets: {}
+#  RADAR_ANTHROPIC_API_KEY: ""
+#  RADAR_OPENAI_API_KEY: ""
+#  OPENAIRE_TOKEN: ""
+#  RADAR_WEBHOOK_SECRET_ZGLOSZENIA: ""
+
+api:
+  replicas: 2
+  port: 8000
+  resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 512Mi } }
+  autoscaling: { enabled: false, minReplicas: 2, maxReplicas: 6, targetCPU: 70 }
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: radar.local
+  tls: []
+
+# One Deployment per entry; each consumes the listed Celery queues (stages scale independently).
+workers:
+  - name: ingest
+    queues: [harvest, normalize, resolve_org, dedup, link]
+    concurrency: 4
+    replicas: 1
+    resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } }
+  - name: llm
+    queues: [extract, maturity, score]
+    concurrency: 2
+    replicas: 1
+    resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } }
+
+beat:
+  enabled: true
+  resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 256Mi } }
+
+# Push sources of type amqp | gcp_pubsub | kafka get their own consumer Deployment automatically.
+consumers:
+  replicas: 1
+  resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 384Mi } }
+
+# Contents of sources.yaml (ConfigMap). null = use the file baked into the image.
+# Override per environment, e.g. -f values-prod.yaml with your own `sources:` list.
+sources: null
+
+postgresql:
+  enabled: true          # false = use externalDatabase.url (managed Postgres)
+  image: postgres:16-alpine
+  user: radar
+  password: radar        # change, or use externalDatabase with a secret
+  database: radar
+  storage: 5Gi
+  storageClass: ""
+externalDatabase:
+  url: ""                # postgresql+psycopg://user:pass@host:5432/db
+  existingSecret: ""     # secret with key RADAR_DATABASE_URL
+
+rabbitmq:
+  enabled: true          # false = use externalBroker.url
+  image: rabbitmq:3.13-management-alpine
+  user: radar
+  password: radar
+  storage: 2Gi
+  storageClass: ""
+externalBroker:
+  url: ""
+  existingSecret: ""     # secret with key RADAR_BROKER_URL
+
+migrations:
+  enabled: true          # pre-install/pre-upgrade Job: radar initdb (T030: Alembic)
+
+podSecurityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
+securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false, capabilities: { drop: [ALL] } }
+nodeSelector: {}
+tolerations: []
+affinity: {}

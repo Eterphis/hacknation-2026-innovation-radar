@@ -1,0 +1,67 @@
+{
+ "numberResults": 2,
+ "list": [
+  {
+   "item": "demo:kohesio:1",
+   "label": [
+    "[DANE SYNTETYCZNE] Gminny system dowozu seniorów na wezwanie"
+   ],
+   "description": [
+    "Gmina uruchomiła usługę dowozu osób starszych do lekarza i urzędu zamawianą telefonicznie przez centrum usług społecznych. Problem: brak transportu publicznego w małych miejscowościach wyklucza seniorów. Opracowano model działania z jednym koordynatorem, harmonogramem kursów i współpracą z lokalnymi przewoźnikami. Rozwiązanie mogą przejąć inne gminy wiejskie."
+   ],
+   "beneficiaries": [
+    "Gmina Dukla"
+   ],
+   "regionText": [
+    "Podkarpackie, Krośnieński"
+   ],
+   "euBudgets": [
+    "1250000,00"
+   ],
+   "totalBudgets": [
+    "1470588,24"
+   ],
+   "startTime": [
+    "2024-03-01"
+   ],
+   "endTime": [
+    "2027-12-31"
+   ],
+   "objectiveIds": [
+    "PO04"
+   ],
+   "synthetic": true
+  },
+  {
+   "item": "demo:kohesio:2",
+   "label": [
+    "[DANE SYNTETYCZNE] Laboratorium wodorowe dla przemysłu regionu"
+   ],
+   "description": [
+    "Projekt tworzy laboratorium badań elektrolizerów i magazynów wodoru dostępne dla firm z regionu. Opracowano stanowiska testowe do sprawdzania prototypów ogniw. Wyzwaniem jest brak w regionie infrastruktury do certyfikacji urządzeń wodorowych."
+   ],
+   "beneficiaries": [
+    "Politechnika Rzeszowska im. Ignacego Łukasiewicza"
+   ],
+   "regionText": [
+    "Podkarpackie, Rzeszowski"
+   ],
+   "euBudgets": [
+    "336000000,00"
+   ],
+   "totalBudgets": [
+    "421500000,00"
+   ],
+   "startTime": [
+    "2023-01-01"
+   ],
+   "endTime": [
+    "2029-06-30"
+   ],
+   "objectiveIds": [
+    "PO02"
+   ],
+   "synthetic": true
+  }
+ ]
+}
