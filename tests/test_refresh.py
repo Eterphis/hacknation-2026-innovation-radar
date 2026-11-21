@@ -229,6 +229,23 @@ class WebSourceTest(unittest.TestCase):
         self.assertEqual(len(store.refresh_runs(conn)), 1)
         conn.close()
 
+    def test_web_records_are_exported_for_the_app_pipeline(self):
+        rc, _ = self.run_refresh("--category", "nauka")
+        self.assertEqual(rc, 0)
+        out = self.root / "norm" / "web.jsonl"
+        recs = [json.loads(line) for line in out.read_text("utf-8").splitlines()]
+        self.assertEqual(len(recs), 1)
+        self.assertEqual(recs[0]["schema"], "radar.record/v1")
+        self.assertTrue(recs[0]["source"].startswith("web_"))
+        self.assertTrue(recs[0]["text_for_llm"])
+        conn = store.connect(self.root / "radar.db")
+        self.assertEqual(store.refresh_runs(conn)[0]["records"], 1)
+        conn.close()
+        out.unlink()
+        rc, _ = self.run_refresh("--offline")  # rebuilt from the database, no network
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(out.read_text("utf-8").splitlines()), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
