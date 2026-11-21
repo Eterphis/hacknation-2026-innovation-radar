@@ -61,6 +61,16 @@ jobs:
           grep -q "RADAR_LOCAL_LLM_URL" /tmp/full.yaml
           grep -q "name: radar-keys" /tmp/full.yaml
 
+  observability:
+    name: promtool (alert rules, Prometheus config)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker run --rm -v "$PWD/deploy/observability:/etc/prometheus:ro" --entrypoint promtool \
+            prom/prometheus:v2.55.1 check config /etc/prometheus/prometheus.yml
+      - run: python3 -c "import json; d=json.load(open('deploy/observability/grafana/dashboards/radar.json')); assert d['panels']"
+
   image:
     name: docker build (push to GHCR on main)
     runs-on: ubuntu-latest

@@ -13,7 +13,7 @@ groups:
         annotations: { summary: "Ostatnie pobranie źródła {{ $labels.source }} zakończyło się błędem" }
       # no harvest for more than 2x the source's own schedule_s (sources.yaml), not a fixed interval
       - alert: RadarSourceStale
-        expr: radar_source_last_run_age_seconds > 2 * on (source) radar_source_schedule_seconds
+        expr: radar_source_last_run_age_seconds > on (source) (2 * radar_source_schedule_seconds)
         for: 10m
         labels: { severity: warning }
         annotations: { summary: "Źródło {{ $labels.source }} nie było pobierane od ponad 2× harmonogramu" }
