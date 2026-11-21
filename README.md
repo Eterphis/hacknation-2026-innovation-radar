@@ -47,6 +47,19 @@ python -X utf8 -m radar.sources.interreg --offline   # z zapisanego pliku, bez s
 - Jeden wiersz = jeden rekord `radar.record/v1`: tytuł, opis, partner wiodący z lokalizacją (kod, miejscowość, gmina, powiat, region, kraj), partnerzy, program, numer projektu, fundusz, cel szczegółowy, zakres interwencji, wartość w EUR, stopa i wyliczone dofinansowanie, okres ze statusem, województwo (dla partnerów z Polski), w `provenance` adres pliku i numer wiersza.
 - Źródło nie ma strony per projekt, więc `url` jest pusty; opisy dłuższe niż 4000 znaków są w pliku ucięte (ostrzeżenie `description_truncated_in_source`).
 
+**Odświeżenie obu źródeł jednym poleceniem** ([`radar/refresh.py`](radar/refresh.py), pełna instrukcja: [`docs/odswiezanie-danych.md`](docs/odswiezanie-danych.md)):
+
+```bash
+python -X utf8 -m radar.refresh              # Interreg + NCBR, pobiera tylko to, co nowe
+python -X utf8 -m radar.refresh --dry-run    # pokaż, co by zrobił
+python -X utf8 -m radar.refresh --force      # wszystko od nowa
+```
+
+- Interreg: XLSX pobierany tylko, gdy link na stronie wskazuje inny plik albo zapisany jest uszkodzony (SHA-256); pobrany plik musi być poprawnym XLSX.
+- NCBR: lista pobierana ponownie po `--max-age` godzinach (domyślnie 24), strony szczegółów już na dysku nie są pobierane drugi raz.
+- Przebudowa pomijana, gdy wejście się nie zmieniło; poprzedni wynik zostaje w `*.prev.jsonl`, spadek liczby rekordów o ponad połowę daje ostrzeżenie i kod 1.
+- Blokada `data/.refresh.lock` przed równoległym uruchomieniem, błąd jednego źródła nie zatrzymuje drugiego, stan i historia w `data/refresh_state.json`.
+
 Testy: `python -X utf8 -m unittest discover -s tests -t .`
 
 ## Karta innowacji (ekstrakcja → dojrzałość → ocena → odbiorcy)
