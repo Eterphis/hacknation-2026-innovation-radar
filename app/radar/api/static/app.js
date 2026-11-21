@@ -70,12 +70,13 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => THEM
 applyTheme(THEME);
 
 // ------------------------------------------------------------------ router
-const ROUTES = {"": pageHome, mapa: pageMap, odkrywaj: pageExplore, graf: pageGraph, rolki: pageReels, zrodla: pageSources};
+const ROUTES = {"": pageHome, dla: pageAudience, mapa: pageMap, odkrywaj: pageExplore, graf: pageGraph, rolki: pageReels, zrodla: pageSources};
 $$("#nav a").forEach(a => a.innerHTML = icon(a.dataset.i) + `<span>${a.textContent}</span>`);
 $("#cmdbtn").innerHTML = icon("search"); $("#cmdicon").innerHTML = icon("search", "faint");
 async function route() {
-  const [path, query] = location.hash.replace(/^#\/?/, "").split("?");
-  F = Object.fromEntries(new URLSearchParams(query || ""));
+  const [full, query] = location.hash.replace(/^#\/?/, "").split("?");
+  const [path, sub] = full.split("/");  // #/dla/samorzady -> path "dla", sub "samorzady"
+  F = {...Object.fromEntries(new URLSearchParams(query || "")), ...(sub ? {_sub: sub} : {})};
   $$("#nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#/" + path));
   document.body.classList.toggle("reels-on", path === "rolki");
   const v = $("#view");
@@ -102,7 +103,8 @@ async function pageHome(v) {
   const section = (ic, title, sub, key, body, red) => `<div class="card reveal">${cardH(ic, title, sub, info(key), red)}<div class="card-b"><p class="info-pop" id="pop-${key}">${esc(d.rules[key])}</p>${body}</div></div>`;
   v.innerHTML = header(`Radar sam przeszukuje ${live.length} źródeł · ${records.toLocaleString("pl-PL")} rekordów`, "radar", "Ukryte innowacje z instytucji publicznych",
     "Pomysły z publikacji, projektów, patentów i inwestycji: odsiane przez Basala, ocenione przez agenta wdrożeniowego według jawnych kryteriów i skierowane do odbiorców.",
-    `<a class="btn" href="#/mapa">${icon("map")}Zobacz mapę</a>`) + `
+    `<a class="btn" href="#/dla">${icon("users")}Pokaż dla mnie</a>`) + `
+  <div id="who"></div>
   <div class="grid g-4">${[
     ["copy", k.ready_to_copy, "gotowych do powielenia w innej instytucji", true],
     ["piggy-bank", k.cheap_wins, "szybkich wdrożeń przy małym budżecie"],
@@ -129,6 +131,7 @@ async function pageHome(v) {
     <div class="card-b"><div class="grid g-2">${d.gaps.map(g => `<a class="item reveal" href="#/mapa?sector=${esc(g.sector)}&mode=gap">${avatar(SECTOR_ICON[g.sector] || "layers")}<h3>${esc(g.pl)}</h3>
       <span class="plate sm red"><span class="pi">${icon("map-pin")}</span>${g.missing.length}/16 bez podaży</span><div class="plates">${plate("trending-up", g.source_regions.join(", "), "", "sm")}${plate("lightbulb", g.ideas + " pomysłów", "", "sm")}</div></a>`).join("")}</div></div></section>`;
   drawPortfolio($("#portfolio"), d.portfolio);
+  $("#who").innerHTML = await audienceTiles();
   const reg = await api("/api/regions");
   await drawPoland($("#minimap"), reg, {compact: true});
   $$("[data-info]", v).forEach(b => b.onclick = () => { const open = b.getAttribute("aria-expanded") !== "true";
@@ -446,6 +449,48 @@ async function pageSources(v) {
   bindCards(op); stagger(op);
 }
 
+// ------------------------------------------------------------------ AUDIENCES ("Dla mnie")
+let PERSONAS = null;
+const heroImg = key => `/static/hero/${key}.webp`;  // Higgsfield-generated backgrounds; the page works without them
+async function audienceTiles() {
+  PERSONAS = PERSONAS || await api("/api/personas");
+  return `<section class="who reveal"><p class="pretitle">${icon("users")}Kim jesteś?</p><div class="who-grid">${PERSONAS.map(p =>
+    `<a class="who-tile" href="#/dla/${p.key}" style="--hero:url('${heroImg(p.key)}')">${avatar(p.icon, "red")}<b>${esc(p.name)}</b><span>${esc(p.promise.split(":")[0].split(",")[0])}</span>${icon("arrow-right", "go")}</a>`).join("")}</div></section>`;
+}
+const METRIC_PL = {licence_or_spinoff_pln: "wartość licencji / spin-off", savings_per_adopter_pln: "oszczędność na odbiorcę", royalty_3y_pln: "tantiemy w 3 lata",
+  som_3y_pln: "rynek osiągalny w 3 lata", deploy_cost_pln: "koszt wdrożenia"};
+const money = n => n == null ? "—" : n >= 1e9 ? (n / 1e9).toLocaleString("pl-PL", {maximumFractionDigits: 1}) + " mld zł" : pln(n);
+async function pageAudience(v) {
+  const key = F._sub;
+  if (!key) { v.innerHTML = header("Dla mnie", "users", "Radar dopasowany do Ciebie", "Wybierz, kim jesteś. Pokażemy pomysły, które mają dla Ciebie sens biznesowy, z wyceną i pierwszym krokiem.") + await audienceTiles(); return; }
+  const d = await api("/api/personas/" + key + (F.voivodeship ? "?voivodeship=" + encodeURIComponent(F.voivodeship) : ""));
+  const s = d.summary;
+  v.innerHTML = `<section class="aud-hero reveal" style="--hero:url('${heroImg(key)}')"><div class="aud-in"><p class="pretitle">${icon(d.icon)}${esc(d.name)}</p>
+      <h1>${esc(d.promise.split(":")[0])}</h1><p class="lead">${esc(d.promise.split(":").slice(1).join(":") || d.promise)}</p>
+      <div class="plates">${plate("lightbulb", s.ideas + " pomysłów")}${plate("banknote", money(s.metric_sum_pln), METRIC_PL[d.metric])}${plate("trending-up", money(s.som_3y_sum_pln), "rynek w 3 lata")}${plate("map-pin", s.regions + " województw", "", "red")}</div></div></section>
+    <div class="chips reveal" style="margin:1.5rem 0">${(PERSONAS || await api("/api/personas")).map(p => `<a class="chip ${p.key === key ? "on" : ""}" href="#/dla/${p.key}">${icon(p.icon)}${esc(p.name.split(" ")[0])}</a>`).join("")}</div>
+    <div class="grid g-2">${d.items.map(i => bizCard(i, d)).join("") || empty("Brak dopasowanych pomysłów.")}</div>`;
+  bindCards(v);
+}
+function bizCard(i, d) {
+  const b = i.business, lvl = LVLK[i.maturity] ?? 0;
+  return `<article class="card biz reveal" data-card="${i.card_id}" tabindex="0"><div class="card-h">${avatar(SECTOR_ICON[i.sector] || "lightbulb")}<div><h3>${esc(i.title)}</h3><div class="faint">${esc(i.institution || "")}</div></div>${ring(i.score, "sm")}</div>
+    <div class="card-b"><div class="biz-value"><small>${esc(METRIC_PL[d.metric] || "wartość")}</small><b>${money(b.metric)}</b></div>
+      <div class="plates">${locPlate(i, "sm")}${plate("banknote", money(b.deploy_cost_pln), "", "sm")}${plate("users", b.adopters.count.toLocaleString("pl-PL") + " odbiorców", "", "sm")}${plate("clock", b.payback, "", "sm")}<span class="plate sm"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}</span></div>
+      ${b.funding.length ? `<div class="plates" style="margin-top:.5rem">${b.funding.map(f => plate("piggy-bank", f, "", "sm")).join("")}</div>` : ""}
+      <div class="biz-cta">${icon("arrow-right")}${esc(d.cta)}</div></div></article>`;
+}
+function bizSection(b) {
+  if (!b) return "";
+  const m = b.market, max = Math.max(m.tam_pln, 1), bar = (lab, val, cls) => `<div class="mk"><span>${lab}</span><div class="mini"><i style="width:${Math.max(2, val / max * 100)}%"></i></div><b class="mono">${money(val)}</b></div>`;
+  return `<div class="sec"><p class="pretitle">${icon("briefcase")}Model biznesowy i wycena</p>
+    <div class="biz-kpis">${[["banknote", money(b.deploy_cost_pln), "koszt wdrożenia u odbiorcy"], ["trending-up", money(b.valuation.licence_or_spinoff_pln), "wartość licencji / spin-off"],
+      ["piggy-bank", money(b.savings_per_adopter_pln), "oszczędność vs budowa od zera"], ["clock", b.payback, "zwrot"]].map(([ic, v, t]) => `<div class="tile">${icon(ic)}<div><small>${t}</small><b>${v}</b></div></div>`).join("")}</div>
+    <div class="market">${bar("TAM (cały rynek)", m.tam_pln)}${bar("SAM (region)", m.sam_pln)}${bar("SOM (3 lata)", m.som_3y_pln)}</div>
+    <div class="plates" style="margin-top:.75rem">${plate("users", b.adopters.count.toLocaleString("pl-PL") + " " + b.adopters.who)}${plate("briefcase", b.model)}${b.funding.map(f => plate("piggy-bank", f.programme, f.for)).join("")}</div>
+    <details class="how"><summary>${icon("filter")}Założenia wyceny (bez AI, jawne reguły)</summary><ul class="steps" style="margin-top:.5rem">${b.assumptions.map(a => `<li>${icon("chevron-right")}<span>${esc(a)}</span></li>`).join("")}</ul></details></div>`;
+}
+
 // ------------------------------------------------------------------ CARD drawer
 async function openCard(id) {
   $("#scrim").classList.add("on"); $("#drawer").classList.add("on"); $("#drawer-in").innerHTML = '<div class="skel" style="height:2rem;width:60%"></div><div class="skel"></div>';
@@ -456,6 +501,7 @@ async function openCard(id) {
     <div class="plates" style="margin-top:1rem">${locPlate(info)}${moneyPlate(info)}<span class="plate"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}<span>${LVL[lvl]}</span></span>${sectorPlate(r.sector)}${r.tech_area ? plate(TECH_ICON[r.tech_area] || "cpu", lp("tech_area", r.tech_area)) : ""}${instPlate(c.basal?.institution_type?.value)}${demo(c.synthetic)}</div>
     <p class="muted" style="margin-top:1rem">${esc(a.summary || c.summary_pl || "")}</p>
     ${r.affiliations?.length ? `<p class="faint">${icon("building-2")} ${esc(r.affiliations.join("; "))}${r.url ? ` · <a href="${esc(r.url)}" target="_blank" rel="noopener">${icon("external-link")} źródło</a>` : ""}</p>` : ""}
+    ${bizSection(c.business)}
     ${a.scores ? `<div class="sec"><p class="pretitle">${icon("target")}Ocena wg jawnych kryteriów</p><div class="crit">${Object.entries(a.scores).map(([k, x]) => `<span>${esc(CRIT[k] || k)} <span class="faint">${Math.round((a.criteria?.[k]?.weight || 0) * 100)}%</span></span><div class="mini"><i style="width:${x.score * 20}%"></i></div><b class="mono">${x.score}</b><span class="why">${esc(x.why)}</span>`).join("")}</div></div>` : ""}
     ${a.paths ? `<div class="sec"><p class="pretitle">${icon("rocket")}Ścieżki wdrożenia · kto co robi</p>${a.paths.map(p => `<p style="margin:.75rem 0 .5rem;display:flex;gap:.5rem;align-items:center">${icon(PATH_ICON[p.path] || "arrow-right")}<b>${esc(p.path)}</b><span class="faint">${esc(p.why)}</span></p><ul class="steps">${p.steps.map(s => `<li>${icon("chevron-right")}<span>${esc(s.step)}<span class="who">${esc(s.who)}${s.time ? " · " + esc(s.time) : ""}</span></span></li>`).join("")}</ul>`).join("")}</div>` : ""}
     ${a.recipients ? `<div class="sec"><p class="pretitle">${icon("users")}Odbiorcy i partnerzy</p><div class="plates">${a.recipients.map(x => plate(x.kind === "typ odbiorcy" ? "users" : "building-2", x.name, x.kind)).join("")}</div></div>` : ""}
