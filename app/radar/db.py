@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from radar.config import get_settings
@@ -14,12 +14,23 @@ _engine = None
 _Session = None
 
 
+def _sqlite_pragmas(dbapi_conn, _record) -> None:
+    """SQLite (laptop demo, several workers on one file): WAL lets readers run while one writer commits, and
+    busy_timeout makes a second writer wait instead of failing at once with 'database is locked'."""
+    cur = dbapi_conn.cursor()
+    cur.execute("PRAGMA journal_mode=WAL")
+    cur.execute("PRAGMA busy_timeout=30000")
+    cur.close()
+
+
 def engine():
     global _engine, _Session
     if _engine is None:
         url = get_settings().database_url
         kwargs = {"connect_args": {"check_same_thread": False}} if url.startswith("sqlite") else {"pool_pre_ping": True}
         _engine = create_engine(url, **kwargs)
+        if url.startswith("sqlite") and ":memory:" not in url and url.rstrip("/") != "sqlite:":
+            event.listen(_engine, "connect", _sqlite_pragmas)
         _Session = sessionmaker(bind=_engine, expire_on_commit=False)
     return _engine
 

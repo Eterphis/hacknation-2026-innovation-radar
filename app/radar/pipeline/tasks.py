@@ -33,6 +33,18 @@ RETRY = dict(bind=True, autoretry_for=(Exception,), retry_backoff=5, retry_backo
              dont_autoretry_for=(KeyError, ValueError))
 
 
+def _score_limits() -> dict:
+    """`score` limits follow the agent's LLM budget: the budget ends first (rules take over), the soft limit is a
+    safety net the agent also catches, and a task that still hits it is not retried from scratch three times."""
+    from celery.exceptions import SoftTimeLimitExceeded
+
+    from radar.config import get_settings
+
+    budget = get_settings().agent_budget_s
+    return {**RETRY, "soft_time_limit": budget + 60, "time_limit": budget + 120,
+            "dont_autoretry_for": (*RETRY["dont_autoretry_for"], SoftTimeLimitExceeded)}
+
+
 def _done(s, raw_id: int, stage: str, h: str) -> bool:
     return s.scalar(select(StageRun.id).where(StageRun.raw_id == raw_id, StageRun.stage == stage,
                                               StageRun.content_hash == h)) is not None
@@ -353,7 +365,7 @@ def build_reasoning(rec: Record, card: Card, why: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------- score
-@app.task(**RETRY)
+@app.task(**_score_limits())
 def score(self, raw_id: int, h: str) -> str:
     """Graph index (embedding + similarity edges) -> implementation agent with tools -> Basal recheck ->
     weighted criteria score -> one-page brief for the reels feed. Recipient matching from registries: T026."""
@@ -364,14 +376,21 @@ def score(self, raw_id: int, h: str) -> str:
         if _done(s, raw_id, "score", h):
             return "duplicate-delivery"
         index_record(s, s.scalar(select(Record).where(Record.raw_id == raw_id)))
-    # The agent may spend minutes on a CPU model: its transaction holds no graph locks of other records.
+    # The agent may spend minutes on a CPU model: this session only reads (tools), LLM calls are logged in their
+    # own short sessions, so nothing holds a write lock or a write transaction while the model works.
     with session() as s:
         if _done(s, raw_id, "score", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
-        card = rec.card
-        a = assess(s, rec, card)
-        card.assessment, card.score, card.brief = a, a["total"], brief(rec, card, a)
+        a = assess(s, rec, rec.card)
+        b = brief(rec, rec.card, a)
+        s.rollback()  # read-only by contract: drop anything a tool might have touched
+    # Short write transaction; re-check, because a redelivered copy may have finished while the model worked.
+    with session() as s:
+        if _done(s, raw_id, "score", h):
+            return "duplicate-delivery"
+        card = s.scalar(select(Record).where(Record.raw_id == raw_id)).card
+        card.assessment, card.score, card.brief = a, a["total"], b
         card.reasoning = (card.reasoning or [])[:3] + [
             {"step": "Ocena wg kryteriów", "items": [f"{k}: {v['score']}/5 — {v['why']}" for k, v in a["scores"].items()]
              + [f"Wynik łączny: {a['total']}/100"]},
