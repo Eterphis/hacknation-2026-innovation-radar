@@ -88,6 +88,28 @@ def wait_for_db(timeout_s: float = 90.0, every_s: float = 2.0) -> None:
 BASELINE = "0001"  # schema of the releases that used create_all (before T030)
 
 
+def _has_column(insp, table: str, column: str) -> bool:
+    return table in insp.get_table_names() and column in {c["name"] for c in insp.get_columns(table)}
+
+
+# A database made by create_all has tables but no alembic_version. It is stamped at the NEWEST revision whose
+# marker is present, then upgraded. Concrete markers instead of a full metadata comparison: compare_metadata also
+# reports dialect noise (types on SQLite), which used to stamp an up-to-date database at 0001 and make 0002 fail
+# on an existing table. Every new migration adds its marker on top (test_migrations checks the newest is head).
+SCHEMA_MARKERS: tuple[tuple[str, object], ...] = (
+    ("0002", lambda insp: "llm_calls" in insp.get_table_names() and _has_column(insp, "stage_runs", "duration_ms")),
+    (BASELINE, lambda insp: "raw_records" in insp.get_table_names()),
+)
+
+
+def detect_revision(conn) -> str | None:
+    """Revision whose schema a history-less database already has (None: empty database)."""
+    from sqlalchemy import inspect
+
+    insp = inspect(conn)
+    return next((rev for rev, probe in SCHEMA_MARKERS if probe(insp)), None)
+
+
 def _alembic_cfg():
     from alembic.config import Config
 
@@ -101,21 +123,15 @@ def migrate(revision: str = "head") -> str:
     at the baseline first, so existing deployments keep their data. Returns the revision now applied."""
     from alembic import command
     from alembic.runtime.migration import MigrationContext
-    from sqlalchemy import inspect
-
-    from alembic.autogenerate import compare_metadata
 
     from radar import models  # noqa: F401  (register tables)
 
     cfg = _alembic_cfg()
     with engine().connect() as conn:
-        tables = set(inspect(conn).get_table_names())
-        ctx = MigrationContext.configure(conn)
-        current = ctx.get_current_revision()
-        # tables but no history: made by create_all — of the baseline release, or (tests, demo) of these models
-        up_to_date = current is None and "raw_records" in tables and not compare_metadata(ctx, Base.metadata)
-    if current is None and "raw_records" in tables:
-        command.stamp(cfg, "head" if up_to_date else BASELINE)
+        current = MigrationContext.configure(conn).get_current_revision()
+        found = detect_revision(conn) if current is None else None
+    if found:  # tables but no history: made by create_all (baseline release, or tests/demo with these models)
+        command.stamp(cfg, found)
     command.upgrade(cfg, revision)
     with engine().connect() as conn:
         return MigrationContext.configure(conn).get_current_revision()
