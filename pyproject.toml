@@ -6,5 +6,8 @@ requires-python = ">=3.11"
 license = "EUPL-1.2"
 dependencies = []
 
+[project.optional-dependencies]
+llm = ["anthropic"]   # ekstrakcja przez Claude; bez tego działa tryb offline na regułach
+
 [tool.setuptools.packages.find]
 include = ["radar*"]

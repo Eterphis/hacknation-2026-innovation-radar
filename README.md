@@ -36,3 +36,16 @@ python -X utf8 -m radar.sources.ncbr --offline   # przebudowa z zapisanych stron
 - `data/` jest w `.gitignore` (licencja treści źródła do potwierdzenia).
 
 Testy: `python -X utf8 -m unittest discover -s tests -t .`
+
+## Karta innowacji (ekstrakcja → dojrzałość → ocena → odbiorcy)
+
+```bash
+python -X utf8 -m radar.card --in data/normalized/ncbr.jsonl --out data/cards            # wszystkie rekordy ok
+python -X utf8 -m radar.card --ids innowacyjny-czujnik-odksztalcen-na-bazie-specjalnych-swiatlowodow-mikrostrukturalnych
+```
+
+Dla każdego rekordu powstaje karta `radar.card/v1` (`data/cards/cards.jsonl`) i uzasadnienie dla urzędnika w układzie decyzji (`data/cards/<card_id>.md`): 1. co ustalono (z cytatami i linkami), 2. kryteria, 3. ocena, 4. co przemawia przeciw, 5. ścieżka, odbiorcy i mierniki, 6. ograniczenia.
+
+- **Ekstrakcja** ([`radar/extract.py`](radar/extract.py), [`radar/llm.py`](radar/llm.py)): pola karty (rozwiązanie, problem, co nowego, wymagania, typ, odbiorcy, sygnały dojrzałości, dziedziny), każde z cytatem. Kod sprawdza, czy cytat występuje w źródle; przy błędzie ponawia z listą błędów (maks. 2 razy), potem usuwa niepotwierdzone twierdzenia i oznacza kartę.
+- **Dostawca LLM** (`--llm` lub `RADAR_LLM`): `auto` (domyślnie: Claude, gdy jest pakiet `anthropic` i poświadczenia, inaczej reguły), `claude`, `offline`. Claude: `claude-opus-5-5`, structured outputs zgodne ze schematem, włączony serwerowy fallback przy odmowie (`fallbacks: "default"`). Reguły offline są zawsze ostatnim zapasem, więc demo działa bez klucza. Instalacja: `pip install anthropic`.
+- **Dojrzałość, ocena, ścieżka** ([`radar/assess.py`](radar/assess.py)): tylko reguły, bez LLM. Pięć kryteriów (dojrzałość, przenaszalność, skala problemu, koszt i wymagania wdrożenia, siła dowodów), każde z uzasadnieniem; brak danych o koszcie to luka, nie ocena. Światła: ≥ 3,8 zielone, ≥ 2,8 żółte.
