@@ -262,6 +262,8 @@ def classify(*, title: str | None, abstract: str | None, keywords: list[str] | N
         reasons.append(f"nie dotyczy innowacji ({', '.join(h)})")
     if n_signal == 0 and kind in ("publication", "other"):
         reasons.append("brak opisu rozwiązania (słowa: opracowano, wdrożenie, prototyp, metoda, usługa…)")
+    if (infra := T.infrastructure_match(title, abstract)):
+        reasons.append(f"inwestycja infrastrukturalna ({infra})")
     if labels["institution_type"].value == "firma":
         reasons.append("poza zakresem: tylko firma prywatna, brak instytucji publicznej")
     ngo_only = labels["institution_type"].by.startswith("organizacja pozarządowa")
