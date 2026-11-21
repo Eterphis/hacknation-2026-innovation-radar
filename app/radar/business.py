@@ -39,6 +39,17 @@ ADOPTERS = {
     "firmy_budownictwo": (40_000, "firm budowlanych (MŚP, szacunek z REGON)"),
 }
 ADOPTERS_FILE = Path(__file__).parent / "data" / "adopters.json"
+# Population by voivodeship (GUS, mln, 2024, rounded): spreads a national estimate over regions when the GUS file
+# has no regional count, instead of a flat 1/16.
+POPULATION_M = {"mazowieckie": 5.51, "slaskie": 4.33, "wielkopolskie": 3.48, "malopolskie": 3.43, "dolnoslaskie": 2.88,
+                "lodzkie": 2.38, "pomorskie": 2.36, "podkarpackie": 2.07, "lubelskie": 2.03, "kujawsko-pomorskie": 2.0,
+                "zachodniopomorskie": 1.63, "warminsko-mazurskie": 1.37, "swietokrzyskie": 1.18, "podlaskie": 1.15,
+                "lubuskie": 0.98, "opolskie": 0.95}
+
+
+def region_share(voivodeship: str | None) -> float:
+    w = fold(voivodeship or "").strip()
+    return POPULATION_M.get(w, sum(POPULATION_M.values()) / 16) / sum(POPULATION_M.values())
 BY_INNOVATION = {"edukacyjna": "szkoly", "spoleczna": "gminy", "organizacyjna": "gminy", "uslugowa": "gminy", "procesowa": "gminy"}
 BY_SECTOR = {"Q_zdrowie": "szpitale", "P_edukacja": "szkoly", "O_administracja": "gminy", "H_transport": "gminy",
              "E_srodowisko": "gminy", "D_energetyka": "energetyka", "C_przemysl": "przemysl", "M_nauka": "uczelnie",
@@ -92,12 +103,12 @@ def adopters_for(key: str, voivodeship: str | None = None) -> dict:
         regional = by_woj.get(woj) if woj else None
         fetched = (g.get("fetched_at") or doc.get("fetched_at") or "")[:10]
         return {"count": int(g["poland"]), "who": f"{g['label']} (GUS BDL, {g['year']})", "key": key,
-                "regional": regional if regional is not None else (round(g["poland"] / 16) if woj else None),
+                "regional": regional if regional is not None else (round(g["poland"] * region_share(woj)) if woj else None),
                 "regional_exact": regional is not None, "voivodeship": voivodeship if woj else None,
                 "source": "GUS BDL", "year": g.get("year"), "fetched_at": fetched,
                 "variable_ids": g.get("variable_ids") or [g.get("variable_id")]}
     n, label = ADOPTERS[key]
-    return {"count": n, "who": label, "key": key, "regional": round(n / 16) if woj else None, "regional_exact": False,
+    return {"count": n, "who": label, "key": key, "regional": round(n * region_share(woj)) if woj else None, "regional_exact": False,
             "voivodeship": voivodeship if woj else None, "source": "szacunek", "year": None, "fetched_at": None,
             "variable_ids": []}
 
@@ -135,7 +146,7 @@ def business_case(rec, card) -> dict:
     a = adopters_for(key, rec.voivodeship)
     n = a["count"]
     tam = n * deploy_cost
-    # one region first: the region's own GUS count, or 1/16 of the country when only an estimate is known
+    # one region first: the region's own GUS count, or the region's population share when only an estimate is known
     sam = a["regional"] * deploy_cost if a["regional"] is not None else tam
     som_3y = n * ADOPTION_3Y.get(cost, .02) * deploy_cost
     p = SUCCESS_P[lvl_name]
@@ -179,7 +190,7 @@ def _adopters_line(a: dict) -> str:
     if a["voivodeship"]:
         r = f"{a['regional']:,}".replace(",", " ")
         line += (f"; w województwie {a['voivodeship']}: {r}" if a["regional_exact"]
-                 else f"; region ≈ 1/16 kraju ({r})")
+                 else f"; region ≈ udział w ludności kraju ({r})")
     return line
 
 

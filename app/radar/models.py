@@ -214,3 +214,18 @@ class Organization(Base):
     source: Mapped[str] = mapped_column(String(40), default="radon")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
+
+
+class Watchlist(Base):
+    """A saved "Dopasuj radar" profile behind an anonymous token: no login, no e-mail, nothing personal.
+    The token reads an Atom feed of new matches; an optional webhook gets the same items."""
+
+    __tablename__ = "watchlists"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token: Mapped[str] = mapped_column(String(40), unique=True)
+    profile: Mapped[dict] = mapped_column(JSON, default=dict)
+    min_match: Mapped[int] = mapped_column(Integer, default=70)
+    webhook_url: Mapped[str | None] = mapped_column(Text)
+    last_notified_card: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

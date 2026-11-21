@@ -1,0 +1,14 @@
+# Public HTTPS in front of the API (docker compose --profile public up -d).
+# Set RADAR_DOMAIN in .env to a DNS name pointing at this VPS; Caddy gets a Let's Encrypt certificate itself.
+{$RADAR_DOMAIN:localhost} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	# internal endpoints stay private
+	@private path /metrics /api/basal/train
+	respond @private 404
+	reverse_proxy api:8000
+}

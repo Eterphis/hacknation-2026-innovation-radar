@@ -110,6 +110,27 @@ services:
     env_file: [{ path: .env, required: false }]
     restart: unless-stopped
 
+  # Public HTTPS on a VPS: docker compose --profile public up -d  (RADAR_DOMAIN=radar.example.pl in .env)
+  caddy:
+    image: caddy:2.8-alpine
+    profiles: ["public"]
+    depends_on: [api]
+    ports: ["80:80", "443:443"]
+    environment: { RADAR_DOMAIN: "${RADAR_DOMAIN:-localhost}" }
+    volumes: ["./deploy/public/Caddyfile:/etc/caddy/Caddyfile:ro", "caddy-data:/data"]
+    restart: unless-stopped
+
+  # Nightly Postgres dump into ./backups (profile public); rotate old files with the host's own tooling
+  backup:
+    image: postgres:16-alpine
+    profiles: ["public"]
+    depends_on: [postgres]
+    environment: { PGPASSWORD: radar }
+    volumes: ["./backups:/backups"]
+    entrypoint: ["sh", "-c", "while true; do pg_dump -h postgres -U radar radar | gzip > /backups/radar-$$(date +%F).sql.gz; sleep 86400; done"]
+    restart: unless-stopped
+
 volumes:
   pgdata:
   llm-cache:
+  caddy-data:
