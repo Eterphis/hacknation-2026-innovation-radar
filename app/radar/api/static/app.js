@@ -452,10 +452,11 @@ async function pageSources(v) {
 // ------------------------------------------------------------------ AUDIENCES ("Dla mnie")
 let PERSONAS = null;
 const heroImg = key => `/static/hero/${key}.webp`;  // Higgsfield-generated backgrounds; the page works without them
+const short = (t, n) => { t = t.split(":")[0]; return t.length <= n ? t : t.slice(0, t.lastIndexOf(" ", n)) + "…"; };
 async function audienceTiles() {
   PERSONAS = PERSONAS || await api("/api/personas");
   return `<section class="who reveal"><p class="pretitle">${icon("users")}Kim jesteś?</p><div class="who-grid">${PERSONAS.map(p =>
-    `<a class="who-tile" href="#/dla/${p.key}" style="--hero:url('${heroImg(p.key)}')">${avatar(p.icon, "red")}<b>${esc(p.name)}</b><span>${esc(p.promise.split(":")[0].split(",")[0])}</span>${icon("arrow-right", "go")}</a>`).join("")}</div></section>`;
+    `<a class="who-tile" href="#/dla/${p.key}" style="--hero:url('${heroImg(p.key)}')">${avatar(p.icon, "red")}<b>${esc(p.name)}</b><span>${esc(short(p.promise, 72))}</span>${icon("arrow-right", "go")}</a>`).join("")}</div></section>`;
 }
 const METRIC_PL = {licence_or_spinoff_pln: "wartość licencji / spin-off", savings_per_adopter_pln: "oszczędność na odbiorcę", royalty_3y_pln: "tantiemy w 3 lata",
   som_3y_pln: "rynek osiągalny w 3 lata", deploy_cost_pln: "koszt wdrożenia"};
@@ -536,5 +537,5 @@ if (SR) { const mic = $("#mic"); mic.hidden = false; mic.innerHTML = icon("mic")
 // Inline the icon sprite once: <use> on same-document symbols works everywhere (external sprites do not).
 const SPRITE = fetch("/static/icons.svg").then(r => r.text()).then(t => { const d = document.createElement("div"); d.hidden = true; d.innerHTML = t; document.body.prepend(d); }).catch(() => {});
 Promise.all([SPRITE, api("/api/config").then(c => CFG = c).catch(() => {}), api("/api/labels").then(l => LABELS = l).catch(() => {})]).then(() => {
-  $("#foot").innerHTML = `${CFG.demo_mode ? "Tryb demo (dane przykładowe) · " : ""}LLM: ${esc((CFG.llm_providers || []).join(" → "))} · ikony Lucide (ISC) · granice województw: polska-geojson (MIT)`;
+  $("#foot").innerHTML = `${CFG.demo_mode ? "Tryb demo (dane przykładowe) · " : ""}LLM: ${esc((CFG.llm_providers || []).join(" → "))} · ikony Lucide (ISC) · granice województw: polska-geojson (MIT) · ilustracje: Higgsfield (AI, wizualizacje)`;
   route(); });
