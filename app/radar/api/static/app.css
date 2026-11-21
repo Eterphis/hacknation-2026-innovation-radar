@@ -289,3 +289,17 @@ body.reels-on .foot { display:none; }
 :root[data-theme="dark"] .who-tile::before { opacity:.35; }
 .who-tile::before { opacity:.5; }
 .who-tile .avatar { grid-column:1; grid-row:1 / span 2; } .who-tile b { grid-column:2; grid-row:1; } .who-tile span { grid-column:2; grid-row:2; } .who-tile .go { grid-column:3; grid-row:1 / span 2; }
+
+/* ---------- personalization wizard + reel illustration */
+.wiz { max-width:920px; margin:1.5rem auto 0; } .wiz h1 { margin:.5rem 0 1.5rem; }
+.wiz-bar { height:8px; border-radius:4px; box-shadow:var(--sh-in); overflow:hidden; margin-top:.5rem; } .wiz-bar i { display:block; height:100%; background:var(--red); transition:width .3s ease-out; }
+.wiz-opts { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:.9rem; } .wiz-opts.many { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.wiz-opt { display:flex; align-items:center; gap:.85rem; text-align:left; padding:1rem 1.1rem; border:0; border-radius:var(--r-lg); background:var(--bg); color:var(--ink); font:650 .9375rem var(--sans); box-shadow:var(--sh); cursor:pointer; transition:box-shadow .15s ease-out, transform .15s ease-out; }
+.wiz-opt:hover { transform:translateY(-1px); } .wiz-opt.on { box-shadow:var(--sh-in); }
+.ring.match b { color:var(--red); }
+.reel { position:relative; isolation:isolate; }
+.reel::before { content:""; position:absolute; inset:0; z-index:-1; background:var(--reel-bg) center/cover no-repeat; filter:blur(14px) saturate(.9); opacity:.55; transform:scale(1.08); }
+:root[data-theme="dark"] .reel::before { filter:blur(14px) brightness(.35); }
+.reel-ai { position:absolute; left:1rem; bottom:1rem; z-index:2; display:inline-flex; gap:.3rem; align-items:center; font:600 .6875rem var(--sans); color:var(--ink-3); background:color-mix(in srgb, var(--bg) 80%, transparent); padding:.2rem .5rem; border-radius:99px; }
+@media (max-width: 720px) { .wiz-opts, .wiz-opts.many { grid-template-columns:minmax(0, 1fr); } .reel-ai { display:none; } }
+@media (max-width: 720px) { .nav a.desk-only { display:none; } .nav a { min-width:0; flex:1; } }

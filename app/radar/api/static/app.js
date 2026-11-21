@@ -70,7 +70,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => THEM
 applyTheme(THEME);
 
 // ------------------------------------------------------------------ router
-const ROUTES = {"": pageHome, dla: pageAudience, mapa: pageMap, odkrywaj: pageExplore, graf: pageGraph, rolki: pageReels, zrodla: pageSources};
+const ROUTES = {"": pageHome, dla: pageAudience, dopasuj: pageMatch, mapa: pageMap, odkrywaj: pageExplore, graf: pageGraph, rolki: pageReels, zrodla: pageSources};
 $$("#nav a").forEach(a => a.innerHTML = icon(a.dataset.i) + `<span>${a.textContent}</span>`);
 $("#cmdbtn").innerHTML = icon("search"); $("#cmdicon").innerHTML = icon("search", "faint");
 async function route() {
@@ -103,7 +103,7 @@ async function pageHome(v) {
   const section = (ic, title, sub, key, body, red) => `<div class="card reveal">${cardH(ic, title, sub, info(key), red)}<div class="card-b"><p class="info-pop" id="pop-${key}">${esc(d.rules[key])}</p>${body}</div></div>`;
   v.innerHTML = header(`Radar sam przeszukuje ${live.length} źródeł · ${records.toLocaleString("pl-PL")} rekordów`, "radar", "Ukryte innowacje z instytucji publicznych",
     "Pomysły z publikacji, projektów, patentów i inwestycji: odsiane przez Basala, ocenione przez agenta wdrożeniowego według jawnych kryteriów i skierowane do odbiorców.",
-    `<a class="btn" href="#/dla">${icon("users")}Pokaż dla mnie</a>`) + `
+    `<div class="chips"><a class="btn" href="#/dopasuj">${icon("target")}Dopasuj radar do mnie</a><a class="btn-soft" href="#/dla">${icon("users")}Wybierz grupę</a></div>`) + `
   <div id="who"></div>
   <div class="grid g-4">${[
     ["copy", k.ready_to_copy, "gotowych do powielenia w innej instytucji", true],
@@ -354,7 +354,8 @@ const saveLiked = () => { try { localStorage.setItem("radar-liked", JSON.stringi
 async function pageReels(v) {
   const items = await api("/api/feed?limit=50");
   v.innerHTML = `<div class="reels" id="reels">${items.map((i, n) => { const b = i.brief || {}, lvl = LVLK[b.maturity] ?? 0;
-    return `<section class="reel" data-n="${n}" aria-label="Pomysł ${n + 1} z ${items.length}"><article class="reel-card"><div class="reel-progress" aria-hidden="true"><i></i></div>
+    const bgKey = {szkola: "szkoly", uczelnia: "uczelnie", instytut: "inwestorzy", jst: "samorzady", inna_publiczna: "samorzady", firma: "startupy"}[i.institution_type] || "innowatorzy";
+    return `<section class="reel" data-n="${n}" aria-label="Pomysł ${n + 1} z ${items.length}" style="--reel-bg:url('${heroImg(bgKey)}')"><span class="reel-ai">${icon("sparkles")}ilustracja AI</span><article class="reel-card"><div class="reel-progress" aria-hidden="true"><i></i></div>
       <div class="reel-top">${avatar(INST_ICON[i.institution_type] || "building-2")}<div class="who"><b>${esc(i.institution || INST_PL[i.institution_type] || "Instytucja")}</b><small>${esc(INST_PL[i.institution_type] || "")} ${demo(i.synthetic)}</small></div>${ring(b.score)}</div>
       <div class="plates">${locPlate(i)}${sectorPlate(i.sector)}</div>
       <div class="reel-title">${esc(b.solution)}</div>
@@ -490,6 +491,51 @@ function bizSection(b) {
     <div class="market">${bar("TAM (cały rynek)", m.tam_pln)}${bar("SAM (region)", m.sam_pln)}${bar("SOM (3 lata)", m.som_3y_pln)}</div>
     <div class="plates" style="margin-top:.75rem">${plate("users", b.adopters.count.toLocaleString("pl-PL") + " " + b.adopters.who)}${plate("briefcase", b.model)}${b.funding.map(f => plate("piggy-bank", f.programme, f.for)).join("")}</div>
     <details class="how"><summary>${icon("filter")}Założenia wyceny (bez AI, jawne reguły)</summary><ul class="steps" style="margin-top:.5rem">${b.assumptions.map(a => `<li>${icon("chevron-right")}<span>${esc(a)}</span></li>`).join("")}</ul></details></div>`;
+}
+
+// ------------------------------------------------------------------ PERSONALIZATION ("Dopasuj radar")
+const MQ = [
+  {k: "role", q: "Kim jesteś?", opts: () => (PERSONAS || []).map(p => [p.key, p.name, p.icon])},
+  {k: "voivodeship", q: "Gdzie działasz?", opts: () => [["", "Cała Polska", "map"], ...(LABELS.voivodeship || []).map(v => [v, v, "map-pin"])]},
+  {k: "sectors", q: "Jakie obszary Cię interesują?", multi: true, opts: () => Object.entries(LABELS.sector || {}).map(([k, v]) => [k, v.split(",")[0], SECTOR_ICON[k] || "layers"])},
+  {k: "budget", q: "Jaki budżet na wdrożenie?", opts: () => [["niski", "do 100 tys. zł", "piggy-bank"], ["sredni", "do 2 mln zł", "banknote"], ["wysoki", "do 20 mln zł", "wallet"], ["bardzo_wysoki", "bez limitu", "trending-up"]]},
+  {k: "goal", q: "Czego szukasz?", opts: () => [["zysk", "Zwrotu z inwestycji", "trending-up"], ["wdrozenie", "Rozwiązania do wdrożenia u siebie", "circle-check"], ["partner", "Partnera do współpracy", "users"], ["finansowanie", "Finansowania dla pomysłu", "piggy-bank"]]},
+];
+const loadProfile = () => { try { return JSON.parse(localStorage.getItem("radar-profile") || "null"); } catch (e) { return null; } };
+const saveProfile = p => { try { localStorage.setItem("radar-profile", JSON.stringify(p)); } catch (e) {} };
+async function pageMatch(v) {
+  PERSONAS = PERSONAS || await api("/api/personas");
+  let prof = F.edit ? null : loadProfile();
+  if (!prof) { prof = {role: "", voivodeship: "", sectors: [], budget: "", goal: "", step: 0}; return wizard(v, prof); }
+  const r = await api("/api/match?" + qs({role: prof.role, voivodeship: prof.voivodeship, sectors: (prof.sectors || []).join(","), budget: prof.budget, goal: prof.goal, stage: prof.goal === "zysk" ? "tech_ready" : "exploring"}));
+  const who = (PERSONAS.find(p => p.key === prof.role) || {}).name || "";
+  v.innerHTML = header("Dopasowane do Ciebie", "target", `${r.total} pomysłów, od najlepiej dopasowanych`,
+    `${esc(who)}${prof.voivodeship ? " · " + esc(prof.voivodeship) : ""} · budżet: ${esc(COST_RANGE[prof.budget] || "—")} · cel: ${esc({zysk: "zwrot z inwestycji", wdrozenie: "wdrożenie u siebie", partner: "partner", finansowanie: "finansowanie"}[prof.goal] || "")}`,
+    `<a class="btn-soft" href="#/dopasuj?edit=1">${icon("filter")}Zmień odpowiedzi</a>`) +
+    `<div class="grid g-2">${r.items.map(i => matchCard(i, r.metric)).join("") || empty("Nic nie pasuje: poszerz budżet albo sektory.")}</div>`;
+  bindCards(v);
+}
+function wizard(v, prof) {
+  const st = MQ[prof.step], opts = st.opts(), sel = val => st.multi ? (prof[st.k] || []).includes(val) : prof[st.k] === val;
+  v.innerHTML = `<section class="wiz reveal"><div class="wiz-top"><p class="pretitle">${icon("target")}Dopasuj radar · krok ${prof.step + 1} z ${MQ.length}</p>
+      <div class="wiz-bar"><i style="width:${(prof.step + 1) / MQ.length * 100}%"></i></div></div><h1>${esc(st.q)}</h1>
+    <div class="wiz-opts ${opts.length > 8 ? "many" : ""}">${opts.map(([val, lab, ic]) => `<button class="wiz-opt ${sel(val) ? "on" : ""}" data-v="${esc(val)}">${avatar(ic, sel(val) ? "red" : "")}<span>${esc(lab)}</span></button>`).join("")}</div>
+    <div class="chips" style="margin-top:1.5rem">${prof.step ? `<button class="btn-soft" id="wback">${icon("chevron-down", "flip")}Wstecz</button>` : ""}${st.multi ? `<button class="btn" id="wnext">${icon("arrow-right")}${(prof.sectors || []).length ? "Dalej" : "Wszystkie obszary"}</button>` : ""}</div></section>`;
+  const next = () => { if (prof.step < MQ.length - 1) { prof.step++; wizard(v, prof); } else { delete prof.step; saveProfile(prof); go("dopasuj", {}); route(); } };
+  $$(".wiz-opt", v).forEach(b => b.onclick = () => {
+    if (st.multi) { const s = new Set(prof[st.k] || []); s.has(b.dataset.v) ? s.delete(b.dataset.v) : s.add(b.dataset.v); prof[st.k] = [...s]; wizard(v, prof); }
+    else { prof[st.k] = b.dataset.v; next(); } });
+  if ($("#wnext")) $("#wnext").onclick = next;
+  if ($("#wback")) $("#wback").onclick = () => { prof.step--; wizard(v, prof); };
+  stagger(v);
+}
+function matchCard(i, metric) {
+  const b = i.business, lvl = LVLK[i.maturity] ?? 0;
+  return `<article class="card biz reveal" data-card="${i.card_id}" tabindex="0"><div class="card-h">${avatar(SECTOR_ICON[i.sector] || "lightbulb")}<div><h3>${esc(i.title)}</h3><div class="faint">${esc(i.institution || "")}</div></div>
+      ${ring(i.match, "match")}</div>
+    <div class="card-b"><div class="biz-value"><small>dopasowanie ${i.match}% · ${esc(METRIC_PL[metric] || "wartość")}</small><b>${money(b.metric)}</b></div>
+      <div class="plates">${i.why.map(w => plate("circle-check", w, "", "sm")).join("")}</div>
+      <div class="plates" style="margin-top:.5rem">${locPlate(i, "sm")}${plate("users", b.adopters.count.toLocaleString("pl-PL") + " odbiorców", "", "sm")}${plate("clock", b.payback, "", "sm")}<span class="plate sm"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}</span></div></div></article>`;
 }
 
 // ------------------------------------------------------------------ CARD drawer

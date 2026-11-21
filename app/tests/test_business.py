@@ -25,3 +25,16 @@ def test_personas_rank_ideas_with_business_cases():
         assert b["deploy_cost_pln"] > 0 and b["market"]["tam_pln"] >= b["market"]["som_3y_pln"] > 0
         assert 0 < b["valuation"]["success_probability"] < 1 and b["assumptions"] and b["funding"]
         assert c.get("/api/personas/nieznana").status_code == 404
+
+
+def test_match_profile_is_explainable():
+    harvest.apply(("demo-zgloszenia",)).get()
+    from radar.api.main import app
+
+    with TestClient(app) as c:
+        r = c.get("/api/match", params={"role": "samorzady", "voivodeship": "podkarpackie", "sectors": "Q_zdrowie",
+                                        "budget": "sredni", "stage": "tech_ready", "goal": "wdrozenie"}).json()
+        assert r["items"] and r["profile"]["voivodeship"] == "podkarpackie"
+        top = r["items"][0]
+        assert 0 < top["match"] <= 100 and top["why"]
+        assert [i["match"] for i in r["items"]] == sorted((i["match"] for i in r["items"]), reverse=True)
