@@ -169,7 +169,9 @@ def mask_pii(text: str | None) -> tuple[str | None, list[str]]:
 
 # --------------------------------------------------------------------------- learned head
 HEAD_KEY = "basal.head"
-_head_cache: dict = {"w": None, "at": 0.0}
+# at=None = stale. (Not 0.0: time.monotonic() counts from boot, so on a CI VM up for under `ttl` seconds
+# "now - 0.0 < ttl" kept a stale head after training; test_basal_learns_from_operator_decisions flaked.)
+_head_cache: dict = {"w": None, "at": None}
 
 
 def _features(lbl: dict, text_len: int, n_signal: int) -> np.ndarray:
@@ -198,14 +200,14 @@ def train_head(rows: list[tuple[dict, int]], epochs: int = 400, lr: float = 0.5)
         row = db.get(Setting, HEAD_KEY) or Setting(key=HEAD_KEY)
         row.value = {"w": w.tolist(), "n": len(rows), "train_acc": acc}
         db.add(row)
-    _head_cache["at"] = 0.0
+    _head_cache["at"] = None
     return {"trained": True, "n": len(rows), "train_acc": round(acc, 3)}
 
 
 def _head(ttl: float = 60.0) -> np.ndarray | None:
     import time
 
-    if time.monotonic() - _head_cache["at"] < ttl:
+    if _head_cache["at"] is not None and time.monotonic() - _head_cache["at"] < ttl:
         return _head_cache["w"]
     w = None
     try:

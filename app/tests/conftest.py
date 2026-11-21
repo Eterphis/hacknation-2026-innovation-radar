@@ -24,6 +24,9 @@ def env(tmp_path, monkeypatch):
     import radar.llm.router as r
 
     r._router = None
+    from radar.basal import classifier
+
+    classifier._head_cache.update(w=None, at=None)  # module cache must not carry a head across test databases
     create_all()
     yield
     reset_engine()
