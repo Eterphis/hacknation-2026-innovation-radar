@@ -21,3 +21,5 @@ CLAUDE.md
 
 # harvested data (licence of source content unclear, Q-004); raw pages and normalized output stay local
 data/
+# app data shipped with the code (GUS adopter counts, see scripts/fetch_gus_adopters.py)
+!app/radar/data/

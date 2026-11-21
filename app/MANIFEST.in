@@ -1,0 +1,2 @@
+# radar/data/*.json ships in the wheel (setuptools include-package-data reads this file)
+include radar/data/*.json
