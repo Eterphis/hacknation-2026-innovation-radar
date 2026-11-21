@@ -4,6 +4,29 @@ HackNation 2026 (Bydgoszcz, 21–22.11.2026): **Radar Innowacji**, the task from
 
 Shared contest state lives in [`.house/`](.house/): spec, tasks, decisions, questions, progress.
 
+## Szybki start w Dockerze
+
+Wymagany Docker Desktop (Windows / macOS) albo Docker Engine z Compose v2 (Linux). Docker musi być uruchomiony: `docker info` nie może zwracać błędu.
+
+```bash
+git clone https://github.com/Eterphis/hacknation-2026-innovation-radar.git
+cd hacknation-2026-innovation-radar
+docker compose up -d --build
+```
+
+- Przeglądarka danych: **http://localhost:8765**.
+- Kontener `scheduler` od razu pobiera dane z Interreg i NCBR (pierwszy raz około 5 minut), a potem odświeża je co 24 h. Po pobraniu wystarczy odświeżyć stronę.
+- Dane (surowe pliki, JSONL i baza `radar.db`) trafiają do `./data` na Twoim komputerze i nie giną po zatrzymaniu kontenerów.
+
+```bash
+docker compose logs -f scheduler            # postęp pobierania
+docker compose run --rm gui refresh         # odśwież teraz, bez czekania na harmonogram
+docker compose run --rm gui store stats     # co jest w bazie
+docker compose down                         # zatrzymaj (dane zostają w ./data)
+```
+
+Ustawienia (port, częstotliwość odświeżania, klucz Claude dla kart) są w pliku `.env`: skopiuj `.env.example` do `.env` i zmień, co trzeba. Wszystkie polecenia i rozwiązywanie problemów opisuje [`docs/docker.md`](docs/docker.md).
+
 ## Setup
 
 This repo is a contest of the AI Software House toolkit, which is vendored in our main repo
