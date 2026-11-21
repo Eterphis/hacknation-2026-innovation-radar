@@ -25,6 +25,15 @@ INSTITUTIONS = [
     {"uuid": "u-ilot", "name": "Sieć Badawcza Łukasiewicz - Instytut Lotnictwa", "kind": "Instytucja naukowa",
      "subtype": "instytut Sieci Łukasiewicz", "type_hint": "research_institute", "is_public": True,
      "voivodeship": "mazowieckie", "city": "Warszawa", "former_names": ["Instytut Lotnictwa"]},
+    {"uuid": "u-ien", "name": "Instytut Energetyki – Państwowy Instytut Badawczy", "kind": "Instytucja naukowa",
+     "type_hint": "research_institute", "is_public": True, "voivodeship": "mazowieckie", "city": "Warszawa",
+     "former_names": ["Instytut Energetyki - Instytut Badawczy"]},
+    {"uuid": "u-wsp", "name": "Wyższa Praska Szkoła Biznesu - w likwidacji z siedzibą w Warszawie", "kind": "Uczelnia niepubliczna",
+     "type_hint": "university", "is_public": False, "voivodeship": "mazowieckie", "city": "Warszawa", "former_names": []},
+    {"uuid": "u-wss", "name": "Wojewódzki Szpital Specjalistyczny we Wrocławiu", "kind": "Instytucja naukowa",
+     "type_hint": "research_institute", "is_public": True, "voivodeship": "dolnośląskie", "city": "Wrocław", "former_names": []},
+    {"uuid": "u-umcs", "name": "Uniwersytet Marii Curie-Skłodowskiej w Lublinie", "kind": "Uczelnia publiczna",
+     "type_hint": "university", "is_public": True, "voivodeship": "lubelskie", "city": "Lublin", "former_names": []},
     {"uuid": "u-ansb", "name": "Akademia Nauk Stosowanych w Skierniewicach", "kind": "Uczelnia publiczna",
      "type_hint": "university", "is_public": True, "voivodeship": "łódzkie", "city": "Skierniewice",
      "former_names": ["Państwowa Uczelnia Zawodowa w Skierniewicach"]},
@@ -58,6 +67,14 @@ def test_cascade_finds_the_institution(matcher, affiliation, expected, method):
     "Uniwersytet Medyczny",                     # two entries share the short form: identifies neither
     "Państwowa Uczelnia Zawodowa w Tarnowie",   # generic former name of an entry in another city
     "Gmina Krasne",                             # municipalities are not in RAD-on
+    # false matches seen on live RAD-on project data (2026-11-21), now refused:
+    "NASK Państwowy Instytut Badawczy z siedzibą w Warszawie",            # generic tail of another institute
+    "Instytut Badawczy Norwegii Zachodniej",                              # "Instytut Badawczy" alone
+    "KenBIT Spółka z ograniczoną odpowiedzialnością, z siedzibą w Warszawie",  # company, generic "z siedzibą"
+    "Wojewódzki Szpital Specjalistyczny im. J. Gromkowskiego",            # name without city = a class of hospitals
+    "Fundacja Absolwentów UMCS",                                          # acronym of someone else's body
+    "TYMBARK-MWS sp z o.o.",
+    "APS Energia SA",
 ])
 def test_no_guess_when_unsure(matcher, affiliation):
     assert not matcher.match(affiliation)["accepted"]
