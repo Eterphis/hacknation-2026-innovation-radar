@@ -1,0 +1,142 @@
+{
+  "_doc": "Witryny dla crawlera (python -X utf8 -m radar.crawl). Pola: patrz radar/crawl/sites.py. include/exclude/follow to wyrażenia regularne na ścieżce z zapytaniem. follow = listy, z których tylko zbieramy linki. Każdą nową witrynę sprawdź: robots.txt i --dry-run --max-pages 20. Witryn z enabled=false nie obchodzimy: opis w polu note i w docs/zrodla.md.",
+  "sites": [
+    {
+      "id": "prz_aktualnosci",
+      "name": "Politechnika Rzeszowska – aktualności (nauka, współpraca z gospodarką)",
+      "category": "nauka",
+      "start": ["https://w.prz.edu.pl/uczelnia/aktualnosci/filtr,nauka,4.html",
+                "https://w.prz.edu.pl/uczelnia/aktualnosci/filtr,wspolpraca-z-gospodarka,6.html"],
+      "owner": {"name": "Politechnika Rzeszowska im. Ignacego Łukasiewicza", "type": "university", "voivodeship": "podkarpackie"},
+      "use_sitemap": false,
+      "include": ["^/uczelnia/aktualnosci/[a-z0-9-]+-\\d+\\.html$"],
+      "follow": ["^/uczelnia/aktualnosci/filtr,(nauka,4|wspolpraca-z-gospodarka,6)(,page[2-5])?\\.html$"],
+      "max_pages": 120, "max_depth": 2, "interval_hours": 24, "revisit_days": 30
+    },
+    {
+      "id": "ur_aktualnosci",
+      "name": "Uniwersytet Rzeszowski – aktualności",
+      "category": "nauka",
+      "start": ["https://www.ur.edu.pl/pl/uniwersytet/aktualnosci"],
+      "owner": {"name": "Uniwersytet Rzeszowski", "type": "university", "voivodeship": "podkarpackie"},
+      "use_sitemap": false,
+      "include": ["^/pl/uniwersytet/aktualnosci/[^/?]+$"],
+      "follow": ["^/pl/uniwersytet/aktualnosci\\?page_a44653=[2-5]$"],
+      "max_pages": 120, "max_depth": 2, "interval_hours": 24, "revisit_days": 30
+    },
+    {
+      "id": "ur_ctt",
+      "name": "Uniwersyteckie Centrum Transferu Technologii UR",
+      "category": "biznes",
+      "start": ["https://www.ur.edu.pl/pl/uniwersytet/jednostki/administracja/uctt/aktualnosci"],
+      "owner": {"name": "Uniwersytet Rzeszowski", "type": "university", "voivodeship": "podkarpackie"},
+      "use_sitemap": false,
+      "include": ["^/pl/uniwersytet/jednostki/administracja/uctt/"],
+      "follow": ["^/pl/uniwersytet/jednostki/administracja/uctt/aktualnosci(\\?page_\\w+=\\d+)?$"],
+      "max_pages": 80, "max_depth": 3, "interval_hours": 48, "revisit_days": 30, "min_score": 1.5
+    },
+    {
+      "id": "dolina_lotnicza",
+      "name": "Stowarzyszenie Grupa Przedsiębiorców Przemysłu Lotniczego Dolina Lotnicza",
+      "category": "biznes",
+      "start": ["https://www.dolinalotnicza.pl/blog/", "https://www.dolinalotnicza.pl/projekty/"],
+      "owner": {"name": "Stowarzyszenie Grupa Przedsiębiorców Przemysłu Lotniczego Dolina Lotnicza", "type": "association", "voivodeship": "podkarpackie"},
+      "use_sitemap": false,
+      "exclude": ["^/wp-", "^/(en|kontakt|zarzad|intranet[^/]*|galeria|czlonkowie|cz%C5%82onkowie|o-nas)(/|$)", "^/(tag|author)/", "[?&]p="],
+      "follow": ["^/category/[^/]+/(page/[2-4]/)?$", "^/blog/page/[2-4]/$"],
+      "max_pages": 100, "max_depth": 2, "interval_hours": 48, "revisit_days": 30
+    },
+    {
+      "id": "arp_innowacje",
+      "name": "Agencja Rozwoju Przemysłu – innowacje i finansowanie",
+      "category": "biznes",
+      "start": ["https://arp.pl/pl/jak-dzialamy/innowacje/", "https://arp.pl/pl/finansowanie/produkty/"],
+      "owner": {"name": "Agencja Rozwoju Przemysłu S.A.", "type": "public_company", "voivodeship": null},
+      "use_sitemap": false,
+      "include": ["^/pl/jak-dzialamy/innowacje/", "^/pl/jak-dzialamy/projekty-kosmiczne/", "^/pl/finansowanie/[^/]+/$"],
+      "max_pages": 60, "max_depth": 2, "interval_hours": 168, "revisit_days": 60, "min_score": 1.5
+    },
+    {
+      "id": "fe_podkarpacie_projekty",
+      "name": "Fundusze Europejskie dla Podkarpacia 2021–2027 – projekty",
+      "category": "projekty",
+      "start": ["https://funduszeue.podkarpackie.pl/projekty-ue/realizowane-przez-wojewodztwo-podkarpackie",
+                "https://funduszeue.podkarpackie.pl/projekty-ue/strategiczne"],
+      "owner": {"name": "Urząd Marszałkowski Województwa Podkarpackiego", "type": "local_government", "voivodeship": "podkarpackie"},
+      "use_sitemap": false,
+      "include": ["^/projekty-ue/"],
+      "follow": ["^/projekty-ue(/lista)?/?$"],
+      "max_pages": 80, "max_depth": 3, "interval_hours": 72, "revisit_days": 30, "min_score": 1.5
+    },
+    {
+      "id": "umwp",
+      "name": "Samorząd Województwa Podkarpackiego – gospodarka, rozwój regionalny, edukacja",
+      "category": "administracja",
+      "start": ["https://podkarpackie.pl/index.php/aktualnosci"],
+      "owner": {"name": "Urząd Marszałkowski Województwa Podkarpackiego", "type": "local_government", "voivodeship": "podkarpackie"},
+      "use_sitemap": false,
+      "include": ["^/index\\.php/[a-z-]+/aktualnosci/[^/?]+$"],
+      "exclude": ["^/index\\.php/(sport|kultura|promocja)/", "^/index\\.php/aktualnosci/(oswiadczenia|listy|rocznice-i-obchody|transmisja|retransmisje-sesji)"],
+      "follow": ["^/index\\.php/(gospodarka|rozwoj-regionalny|edukacja|spoleczenstwo-informacyjne|wspolpraca-miedzynarodowa|srodowisko|zdrowie|rolnictwo|transport)/aktualnosci(\\?start=(20|40))?$"],
+      "max_pages": 100, "max_depth": 2, "interval_hours": 48, "revisit_days": 30
+    },
+    {
+      "id": "mielec",
+      "name": "Urząd Miejski w Mielcu – fundusze zewnętrzne i rozwój",
+      "category": "administracja",
+      "start": ["https://www.mielec.pl/fundusze-zewnetrzne/", "https://www.mielec.pl/strategia-rozwoju-miasta-mielca/"],
+      "owner": {"name": "Gmina Miejska Mielec", "type": "local_government", "voivodeship": "podkarpackie"},
+      "use_sitemap": false,
+      "exclude": ["^/(kontakt|sprawa-w-urzedzie|godziny-otwarcia[^/]*|rada-miejska|prezydent[^/]*|zastepcy[^/]*|sekretarz[^/]*|skarbnik[^/]*|warto-zwiedzic|miasta-partnerskie|historia[^/]*|polozenie[^/]*|mieleckie-osiedla|magazyn-miejski|informacja-o-urzedzie[^/]*|schemat-organizacyjny[^/]*|patronat[^/]*|mielecka-rada-seniorow|wydarzenia|ochrona-srodowiska|mielecki-budzet-obywatelski)(/|$)"],
+      "max_pages": 60, "max_depth": 2, "interval_hours": 168, "revisit_days": 60, "min_score": 2.0
+    },
+    {
+      "id": "mrit_wiadomosci",
+      "name": "Ministerstwo Rozwoju i Technologii – wiadomości",
+      "category": "administracja",
+      "start": ["https://www.gov.pl/web/rozwoj-technologia/wiadomosci"],
+      "owner": {"name": "Ministerstwo Rozwoju i Technologii", "type": "government", "voivodeship": null},
+      "use_sitemap": false,
+      "include": ["^/web/rozwoj-technologia/[^/?]+$"],
+      "exclude": ["^/web/rozwoj-technologia/(o-ministerstwie|informacje-o-resorcie|kierownictwo-ministerstwa|departamenty-i-biura|kontrol[^/]*|prawo|zamowienia-publiczne|pracuj-z-nami|podmioty[^/]*|organy[^/]*|zobowiazania-umowne|wspolpraca-z-organizacjami[^/]*|majatek|archiwum-ministerstwa|rejestry-i-ewidencje|co-robimy|dzialania-ministerstwa|mapa-strony|kontakt[^/]*|wakacje-skladkowe)$"],
+      "follow": ["^/web/rozwoj-technologia/wiadomosci(\\?page=[2-4].*)?$"],
+      "max_pages": 80, "max_depth": 2, "interval_hours": 24, "revisit_days": 60, "require_date": true
+    },
+
+    {
+      "id": "parp", "name": "Polska Agencja Rozwoju Przedsiębiorczości", "category": "biznes",
+      "start": ["https://www.parp.gov.pl/"], "enabled": false,
+      "note": "2026-11-21: ochrona antybotowa (strona wyzwania). Nie obchodzimy; projekty PARP trafiają przez listę projektów FE i Kohesio."
+    },
+    {
+      "id": "rarr", "name": "Rzeszowska Agencja Rozwoju Regionalnego", "category": "biznes",
+      "start": ["https://rarr.rzeszow.pl/"], "enabled": false,
+      "note": "2026-11-21: robots.txt zabrania automatom dostępu do serwisu."
+    },
+    {
+      "id": "prz_ctt", "name": "Centrum Transferu Technologii Politechniki Rzeszowskiej", "category": "biznes",
+      "start": ["https://ctt.prz.edu.pl/"], "enabled": false,
+      "note": "2026-11-21: HTTP 403 dla automatów. Aktualności PRz z kategorii współpraca z gospodarką są w prz_aktualnosci."
+    },
+    {
+      "id": "aeropolis", "name": "Podkarpacki Park Naukowo-Technologiczny Aeropolis", "category": "biznes",
+      "start": ["https://aeropolis.com.pl/"], "enabled": false,
+      "note": "2026-11-21: HTTP 406 dla automatów (filtr serwera). Do ponownego sprawdzenia."
+    },
+    {
+      "id": "pfr", "name": "Polski Fundusz Rozwoju", "category": "biznes",
+      "start": ["https://pfr.pl/"], "enabled": false,
+      "note": "2026-11-21: ochrona antybotowa (HTTP 403 ze stroną wyzwania)."
+    },
+    {
+      "id": "rzeszow", "name": "Urząd Miasta Rzeszowa", "category": "administracja",
+      "start": ["https://www.erzeszow.pl/"], "enabled": false,
+      "note": "2026-11-21: HTTP 503 dla automatów (erzeszow.pl i rzeszow.pl). Do ponownego sprawdzenia."
+    },
+    {
+      "id": "lukasiewicz", "name": "Sieć Badawcza Łukasiewicz", "category": "nauka",
+      "start": ["https://lukasiewicz.gov.pl/"], "enabled": false,
+      "note": "2026-11-21: przerwa techniczna serwisu. Do ponownego sprawdzenia i konfiguracji."
+    }
+  ]
+}

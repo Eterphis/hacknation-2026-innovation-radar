@@ -1,0 +1,402 @@
+{
+ "results": [
+  {
+   "projectAbstractEn": null,
+   "keywords": "dane osobowe, ochrona danych osobowych, sztuczna inteligencja, uczenie maszynowe",
+   "edition": "Edycja 18",
+   "projectUuid": "61978f6914f9235546114ca8",
+   "projectAbstractPl": "Jeśli Big Data stanowią ropę naftową naszych czasów, utratę prywatności można opisać jako nowy kryzys klimatyczny; w dobie zbierania i przetwarzania danych osobowych na bezprecedensową skalę, osoby prywatne stają wobec rosnącej potęgi wielkich podmiotów gospodarczych oraz nieprzejrzystych systemów podejmowania decyzji z jakich podmioty te korzystają. Projekt, powstały w oparciu o ideę siły przeciwważnej (countervailing power) sformułowaną przez Kena Galbraitha, ma za zadanie dowieść, że sztuczna inteligencja może zostać wykorzystana dla wzmocnienia pozycji współczesnego obywatela poprzez umożliwienie zautomatyzowanej oceny legalności tekstów dokumentów prawnych takich jak umowy użytkownika czy polityki prywatności, dokonywanej w sposób transparentny przez system wyjaśnialnej sztucznej inteligencji (XAI – eXplainable Artificial Intelligence). Elementem dokonywanej w ten sposób analizy byłaby również ocena przejrzystości tekstu, spełniając tym samym wymóg prawny transparentności tekstu jako niezbędnego warunku jego zgodności z prawem. Przedmiotowe badania stanowić mogą istotny krok na drodze do stworzenia powszechnie dostępnej, darmowej technologii, która umożliwi szybką, łatwą i przejrzystą kontrolę przez użytkownika legalności postanowień umowy użytkownika lub polityki prywatności dostawcy usług, dostarczając zarazem prostych i niezawodnych wyjaśnień w zakresie wszelkich zidentyfikowanych problemów ze zgodnością postanowień z prawem",
+   "projectStartDate": "2020-10-19",
+   "implementingInstitutions": [
+    {
+     "institutionUuid": "5c3e8361-f5f3-4fc9-8751-5b1cb44e67a2",
+     "institutionName": "Instytut Języka Polskiego Polskiej Akademii Nauk",
+     "leader": "Nie",
+     "foreignInstitutionLeader": "Nie",
+     "higherEducationAndScience": "Tak",
+     "ownFunds": "0"
+    },
+    {
+     "institutionUuid": "e4059d4a-c713-487c-aeb1-a2f4e0ff4e87",
+     "institutionName": "Instytut Nauk Prawnych Polskiej Akademii Nauk",
+     "leader": "Tak",
+     "foreignInstitutionLeader": "Nie",
+     "higherEducationAndScience": "Tak",
+     "ownFunds": "0"
+    }
+   ],
+   "disseminationOfScience": "Nie",
+   "nationalFunds": "797777",
+   "partnership": "Projekt realizowany przez grupę podmiotów",
+   "projectGrantDate": "2020-05-18",
+   "anotherProjectClassification": null,
+   "acronym": null,
+   "lastRefresh": "1747043454604",
+   "projectNumber": "2019/35/B/HS5/04444",
+   "projectEndDate": "2023-10-18",
+   "projectTitleEn": "Citizen empowerment through online terms of service review: an automated transparency assessment by explainable Al",
+   "financedCompetition": "Tak",
+   "projectManagers": [
+    {
+     "institutionUuid": "5c3e8361-f5f3-4fc9-8751-5b1cb44e67a2",
+     "institutionName": "Instytut Języka Polskiego Polskiej Akademii Nauk",
+     "employeeId": "0BF45B7202053740E7F1FBF7A54F48064D6271D3",
+     "kindManagerCode": "KZ",
+     "kindManager": "Kierownik zespołu badawczego",
+     "firstName": "Dorota",
+     "middleName": null,
+     "lastName": "Kiebzak-Mandera",
+     "ORCID": "0000-0002-0671-0949",
+     "startDate": null,
+     "endDate": null
+    },
+    {
+     "institutionUuid": "e4059d4a-c713-487c-aeb1-a2f4e0ff4e87",
+     "institutionName": "Instytut Nauk Prawnych Polskiej Akademii Nauk",
+     "employeeId": null,
+     "kindManagerCode": "KP",
+     "kindManager": "Kierownik Projektu",
+     "firstName": "Wolfgang",
+     "middleName": null,
+     "lastName": "Micklitz",
+     "ORCID": null,
+     "startDate": "2020-10-19",
+     "endDate": "2023-10-18"
+    }
+   ],
+   "entityShowingAchievementsName": "Instytut Języka Polskiego Polskiej Akademii Nauk",
+   "namePriority": null,
+   "receivedFunds": [
+    {
+     "institutionUuid": "5c3e8361-f5f3-4fc9-8751-5b1cb44e67a2",
+     "institutionName": "Instytut Języka Polskiego Polskiej Akademii Nauk",
+     "nationalFunds": "81480",
+     "foreignFunds": "0",
+     "totalFunds": "81480",
+     "financingInstitutionUuid": "f1244717-78c4-45d5-889f-ea59691bd4ba",
+     "financingInstitutionName": "Narodowe Centrum Nauki"
+    },
+    {
+     "institutionUuid": "e4059d4a-c713-487c-aeb1-a2f4e0ff4e87",
+     "institutionName": "Instytut Nauk Prawnych Polskiej Akademii Nauk",
+     "nationalFunds": "716297",
+     "foreignFunds": "0",
+     "totalFunds": "716297",
+     "financingInstitutionUuid": "f1244717-78c4-45d5-889f-ea59691bd4ba",
+     "financingInstitutionName": "Narodowe Centrum Nauki"
+    }
+   ],
+   "projectClassification": "OPUS",
+   "relatedProjects": [],
+   "foreignFunds": "0",
+   "disciplines": [
+    {
+     "institutionUuid": "5c3e8361-f5f3-4fc9-8751-5b1cb44e67a2",
+     "institutionName": "Instytut Języka Polskiego Polskiej Akademii Nauk",
+     "disciplineCode": "DS010104N",
+     "disciplineName": "językoznawstwo",
+     "percentageShare": "100"
+    },
+    {
+     "institutionUuid": "e4059d4a-c713-487c-aeb1-a2f4e0ff4e87",
+     "institutionName": "Instytut Nauk Prawnych Polskiej Akademii Nauk",
+     "disciplineCode": "DS010507N",
+     "disciplineName": "nauki prawne",
+     "percentageShare": "100"
+    }
+   ],
+   "projectTitlePl": "Wzmacnianie pozycji obywateli przez kontrolę reguł świadczenia usług online: zautomatyzowana ocena transparentności przez wyjaśnialną sztuczną inteligencję",
+   "financingInstitutions": [
+    {
+     "financingInstitutionUuid": "f1244717-78c4-45d5-889f-ea59691bd4ba",
+     "financingInstitutionName": "Narodowe Centrum Nauki",
+     "kindOfFinancingInstitution": "Krajowa",
+     "grantDate": "2020-05-18",
+     "settlementDate": null,
+     "sourceOfFinancing": "Projekt finansowany przez Narodowe Centrum Nauki",
+     "anotherSourceOfFinancing": null,
+     "receivedFunds": "797777",
+     "nationalFunds": "797777",
+     "foreignFunds": "0",
+     "urlAddress": "https://www.ncn.gov.pl/",
+     "country": "Polska",
+     "voivodeship": "małopolskie",
+     "addressCity": "Kraków [woj. małopolskie, pow. Kraków, gm. Kraków,miasto]",
+     "addressPostalCode": "30-312",
+     "addressStreet": "Twardowskiego [Kraków-Podgórze]",
+     "addressBuildingNumber": "16",
+     "addressApartmentNumber": null
+    }
+   ],
+   "dataSource": "POLON",
+   "entityShowingAchievementsUuid": "5c3e8361-f5f3-4fc9-8751-5b1cb44e67a2",
+   "totalFunds": "797777"
+  },
+  {
+   "projectAbstractEn": null,
+   "keywords": "NANOCELULOZA, dostarczenie leków, nanobiocząsteczki, nanobiomateriały, phage display",
+   "edition": null,
+   "projectUuid": "61cdade1cee3612c88ac13d8",
+   "projectAbstractPl": "Celem interdyscyplinarnego projektu jest opracowanie za pomocą metod inżynierii genetycznej, biotechnologii, biologii molekularnej, biochemii i syntezy chemicznej samoorganizujących się uniwersalnych, biodegradowalnych nanobiomateriałów jako nośników ligandów molekuł bioaktywnych o bezprecedensowej gęstości upakowania – nawet kilkaset tysięcy na pojedynczej nanobiocząstce. Konstruowane nanobiostruktury znajdą bardzo szerokie zastosowanie: w medycynie, biotechnologicznych procesach przemysłowych, ochronie i remediacji środowiska oraz badaniach naukowych. W ramach projektu zostaną skonstruowane 3 klasy nanobiostruktur o bardzo wysokiej gęstości eksponowania ligandów. W klasie (1) zostanie sklonowanych, modyfikowanych i eksprymowanych szereg genów bakteriofagów, wykonana inżynieria genomu bakteriofagów, inżynieria białkowa nanobiostruktur bakteriofagowych, skonstruowane rekombinantowe szczepy gospodarzy bakteryjnych, dedykowane do opracowywanego najbardziej zaawansowanego na wiecie, termofilnego systemu ang. phage display. Posłuży on do prowadzenia ewolucji in vitro bioaktywnych ligandów oraz do konstrukcji bioaktywnych nanobiostruktur. Biodegradowalne, innowacyjne nanobiostruktury tego rodzaju, poza zastosowaniami biotechnologicznymi, są szczególnie predestynowane do aplikacji medycznych, m.in. w: (i) konstrukcji szczepionek nowej generacji; (ii) jako nośniki ligandów, wiążących kofaktory niepożądanych enzymów; (iii) nośniki ligandów, wiążących jony metali, leki, narkotyki, toksyny w celu detoksyfikacji organizmu po zatruciach – zarówno w formie leku jak i ex vivo w umieszczone w aparacie do dializy nowej generacji; (iv) dozowników molekularnych, stopniowo uwalniających leki w miejscu docelowym; (v) ‘molekularnej zasłony dymnej’, gdzie nanobiocząski, eksponujące wiele tysięcy kopii epitopów, receptorów lub ich fragmentów, będą stanowiły zaporę np. przeciw chorobom z autoagresji, wychwytując autoprzeciwciała czy też wiążąc się z receptorami wirusów i bakterii, będą blokowały ich dostęp do komórek organizmu; (vi) metodach produkcji farmaceutycznej, gdyż namnażanie termofilnych bakteriofagów charakteryzuje się łatwością i niskimi kosztami produkcji, możliwością dowolnego zwiększenia skali, jednorodnością uzyskiwanych nanobiocząstek, zwiększoną stabilnością. W klasie (2) opracowany zostanie unikatowy, samoorganizujący się ang. „cellulose display” system, również oferujący nadzwyczaj wysoką gęstość upakowania bioaktywnych ligandów na biodegradowalnych nano- i mikrostrukturach celulozy. Wśród wielu potencjalnych zastosowań, w tym biotechnologicznych przemysłowych, jest wykorzystanie w medycynie jako formy płynnych, bioaktywnych opatrunków, niosących stymulujące procesy regeneracyjne peptydy, inżynierowane białka sygnałowe i inne substancje aktywne. Celuloza nie wywołuje zapaleń, alergii ani odpowiedzi immunologicznej, jest powszechnie stosowaną komponentą tradycyjnych opatrunków, stąd jest idealnym nośnikiem substancji aktywnych. Ponadto, system taki pozwoli na stopniowe, kontrolowane uwalnianie substancji aktywnych w obrębie ogniska chorobowego (np. w ranie). W klasie (3) skonstruowane zostaną biodegradowalne, nanostrukturalne hydrożele o programowalnej funkcji, eksponujące bioaktywne peptydy i białka. Nanohydrożele peptydowe, poza szerokim spektrum zastosowań biotechnologicznych, w ramach projektu będą konstruowane jako żelujące bioaktywne preparaty o działaniu pro-regenerującym na chrząstki oraz o działaniu przeciwbakteryjnym i przeciwzapalnym. W projekcie proponujemy nie tylko przełomową technologię konstrukcji nanobiomateriałów, ale również modele ich weryfikacji funkcjonalnej w konkretnych aplikacjach medycznych w postaci konstrukcji kandydatów na leki.",
+   "projectStartDate": "2019-09-01",
+   "implementingInstitutions": [
+    {
+     "institutionUuid": "76e7e103-e39c-48d6-8aa2-8fde70c50563",
+     "institutionName": "Politechnika Gdańska",
+     "leader": "Tak",
+     "foreignInstitutionLeader": "Nie",
+     "higherEducationAndScience": "Tak",
+     "ownFunds": "0"
+    },
+    {
+     "institutionUuid": "d2d5f7a9-7583-4415-a4b9-516367b9efcb",
+     "institutionName": "Gdański Uniwersytet Medyczny",
+     "leader": "Nie",
+     "foreignInstitutionLeader": "Nie",
+     "higherEducationAndScience": "Tak",
+     "ownFunds": "0"
+    },
+    {
+     "institutionUuid": "f3afb96b-3be4-453c-bf67-d5dccba3d1cc",
+     "institutionName": "Uniwersytet Gdański",
+     "leader": "Nie",
+     "foreignInstitutionLeader": "Nie",
+     "higherEducationAndScience": "Tak",
+     "ownFunds": "0"
+    },
+    {
+     "institutionUuid": null,
+     "institutionName": "Innovabion Sp. z o.o.",
+     "leader": "Nie",
+     "foreignInstitutionLeader": "Nie",
+     "higherEducationAndScience": "Nie",
+     "ownFunds": "561235"
+    }
+   ],
+   "disseminationOfScience": "Nie",
+   "nationalFunds": "25184722",
+   "partnership": "Projekt realizowany przez grupę podmiotów",
+   "projectGrantDate": "2019-09-01",
+   "anotherProjectClassification": null,
+   "acronym": "BIONANOVA",
+   "lastRefresh": "1747043454664",
+   "projectNumber": "TECHMATSTRATEG2/410747/11/NCBR/2019",
+   "projectEndDate": "2023-05-31",
+   "projectTitleEn": "(New generation bioactive molecules delivery systems, based on chemically synthesised and obtained through genetic engineering nanobiomaterials",
+   "financedCompetition": "Tak",
+   "projectManagers": [
+    {
+     "institutionUuid": "d2d5f7a9-7583-4415-a4b9-516367b9efcb",
+     "institutionName": "Gdański Uniwersytet Medyczny",
+     "employeeId": "592DC065D95A5C2B1A51EB95558B2B9473AD0B03",
+     "kindManagerCode": "KZ",
+     "kindManager": "Kierownik zespołu badawczego",
+     "firstName": "Arkadiusz",
+     "middleName": null,
+     "lastName": "Piotrowski",
+     "ORCID": "0000-0002-0823-0607",
+     "startDate": null,
+     "endDate": null
+    },
+    {
+     "institutionUuid": "d2d5f7a9-7583-4415-a4b9-516367b9efcb",
+     "institutionName": "Gdański Uniwersytet Medyczny",
+     "employeeId": "EF33D44927D4008C453A10D01F8A94EFC41C740E",
+     "kindManagerCode": "KZ",
+     "kindManager": "Kierownik zespołu badawczego",
+     "firstName": "Michał",
+     "middleName": null,
+     "lastName": "Pikuła",
+     "ORCID": "0000-0001-7751-9781",
+     "startDate": null,
+     "endDate": null
+    }
+   ],
+   "entityShowingAchievementsName": "Gdański Uniwersytet Medyczny",
+   "namePriority": null,
+   "receivedFunds": [
+    {
+     "institutionUuid": "76e7e103-e39c-48d6-8aa2-8fde70c50563",
+     "institutionName": "Politechnika Gdańska",
+     "nationalFunds": "2949375",
+     "foreignFunds": null,
+     "totalFunds": "2949375",
+     "financingInstitutionUuid": "ff801008-38fa-4388-b3df-749f510215d0",
+     "financingInstitutionName": "Narodowe Centrum Badań i Rozwoju"
+    },
+    {
+     "institutionUuid": "d2d5f7a9-7583-4415-a4b9-516367b9efcb",
+     "institutionName": "Gdański Uniwersytet Medyczny",
+     "nationalFunds": "4000503",
+     "foreignFunds": null,
+     "totalFunds": "4000503",
+     "financingInstitutionUuid": "ff801008-38fa-4388-b3df-749f510215d0",
+     "financingInstitutionName": "Narodowe Centrum Badań i Rozwoju"
+    },
+    {
+     "institutionUuid": "f3afb96b-3be4-453c-bf67-d5dccba3d1cc",
+     "institutionName": "Uniwersytet Gdański",
+     "nationalFunds": "16022750",
+     "foreignFunds": null,
+     "totalFunds": "16022750",
+     "financingInstitutionUuid": "ff801008-38fa-4388-b3df-749f510215d0",
+     "financingInstitutionName": "Narodowe Centrum Badań i Rozwoju"
+    },
+    {
+     "institutionUuid": null,
+     "institutionName": "Innovabion Sp. z o.o.",
+     "nationalFunds": "1650859",
+     "foreignFunds": null,
+     "totalFunds": "1650859",
+     "financingInstitutionUuid": "ff801008-38fa-4388-b3df-749f510215d0",
+     "financingInstitutionName": "Narodowe Centrum Badań i Rozwoju"
+    }
+   ],
+   "projectClassification": "TECHMATSTRATEG",
+   "relatedProjects": [],
+   "foreignFunds": "0",
+   "disciplines": [
+    {
+     "institutionUuid": "d2d5f7a9-7583-4415-a4b9-516367b9efcb",
+     "institutionName": "Gdański Uniwersytet Medyczny",
+     "disciplineCode": "DS010301N",
+     "disciplineName": "nauki farmaceutyczne",
+     "percentageShare": "50"
+    },
+    {
+     "institutionUuid": "d2d5f7a9-7583-4415-a4b9-516367b9efcb",
+     "institutionName": "Gdański Uniwersytet Medyczny",
+     "disciplineCode": "DS010304N",
+     "disciplineName": "nauki medyczne",
+     "percentageShare": "50"
+    }
+   ],
+   "projectTitlePl": "Systemy nowej generacji dostarczania molekuł bioaktywnych w syntetyzowanych chemicznie i poddanych inżynierii genetycznej nanobiomateriałach",
+   "financingInstitutions": [
+    {
+     "financingInstitutionUuid": "ff801008-38fa-4388-b3df-749f510215d0",
+     "financingInstitutionName": "Narodowe Centrum Badań i Rozwoju",
+     "kindOfFinancingInstitution": "Krajowa",
+     "grantDate": "2019-09-01",
+     "settlementDate": null,
+     "sourceOfFinancing": "Projekt finansowany przez Narodowe Centrum Badań i Rozwoju",
+     "anotherSourceOfFinancing": null,
+     "receivedFunds": "25184722",
+     "nationalFunds": "25184722",
+     "foreignFunds": "0",
+     "urlAddress": "https://www.gov.pl/web/ncbr",
+     "country": "Polska",
+     "voivodeship": "mazowieckie",
+     "addressCity": "Warszawa [woj. mazowieckie, pow. Warszawa, gm. Warszawa,miasto]",
+     "addressPostalCode": "00-695",
+     "addressStreet": "Nowogrodzka [Śródmieście]",
+     "addressBuildingNumber": "47 A",
+     "addressApartmentNumber": null
+    }
+   ],
+   "dataSource": "POLON",
+   "entityShowingAchievementsUuid": "d2d5f7a9-7583-4415-a4b9-516367b9efcb",
+   "totalFunds": "25184722"
+  },
+  {
+   "projectAbstractEn": null,
+   "keywords": "Europa, cyfryzacja, globalizacja, rodzina i dzietność, rynek pracy",
+   "edition": "Polskie Powroty 2019",
+   "projectUuid": "61b1d89bfb4fdb0ed125a833",
+   "projectAbstractPl": "Celem projektu jest ustanowienie Centrum Badań nad Rynkiem Pracy i Rodziną (LABFAM) na Wydziale Nauk Ekonomicznych Uniwersytetu Warszawskiego (WNE UW). Będzie to pierwszy ośrodek w Europie, które będzie się wszechstronnie zajmować badaniem wpływu dynamicznych zmian zachodzących na rynkach pracy na formowanie, rozwój i rozpad rodzin w krajach rozwiniętych, ze specjalnym uwzględnieniem Europy. Proces formowania i rozwoju rodzin jest niezwykle ważny z punktu widzenia dobrobytu jednostki. Wpływa on także na potencjał rozwojowy kraju. Jednocześnie zmiany zachodzące na rynkach pracy mogą mocno ograniczać możliwości formowania rodzin oraz prowadzić do ich destabilizacji. Naszym celem będzie zbadanie ich wpływu oraz ocena, jakie zmiany instytucjonalne mogą osłabić ich odziaływanie i w efekcie przyczynić się do poprawy jakości życia. W pierwszych latach, skupimy się na zmianach na rynkach pracy wywołanych przez globalizację i digitalizację, ale będziemy także monitorować rynki pracy, by w ramach potrzeby rozszerzyć naszą agendę badawczą (np. o badanie wpływu zmian na rynkach pracy wywołanych potrzebą dostosowania się do zmian klimatu). LABFAM będzie miał także na celu (1) poprawę dostępności danych do badań nad rynkiem pracy i rodziną, (2) kształcenie młodych pokoleń, (3) formułowanie wniosków dla polityki zatrudnienia i społecznej. LABFAM będzie finansowany z grantów badawczych, realizowanych we współpracy z naukowcami z Austrii, Czech, Finlandii, Niemiec, Norwegii, Szwecji, Włoch czy Wielkiej Brytanii. Dzięki koncentracji na ważnych i aktualnych problemach społecznych, które nie zostały jeszcze zbadane, oraz zastosowaniu innowacyjnej metodologii, będzie miał ważny wkład w rozwój badań nad rodziną i zaowocuje publikacjami w wysoko punktowanych czasopismach międzynarodowych. LABFAM będzie także stymulował wymianę myśli i współpracę międzynarodową. W ogólności, LABFAM przyczyni się do rozwoju i promocji nauki w Polsce oraz wzmocnienia międzynarodowej pozycji badawczej WNE UW.",
+   "projectStartDate": "2019-11-05",
+   "implementingInstitutions": [
+    {
+     "institutionUuid": "511d4dfc-574e-4801-af14-e99dc24f8209",
+     "institutionName": "Uniwersytet Warszawski",
+     "leader": "Tak",
+     "foreignInstitutionLeader": "Nie",
+     "higherEducationAndScience": "Tak",
+     "ownFunds": "0"
+    }
+   ],
+   "disseminationOfScience": "Nie",
+   "nationalFunds": "2259232",
+   "partnership": "Projekt realizowany samodzielnie",
+   "projectGrantDate": "2019-10-04",
+   "anotherProjectClassification": "Polskie Powroty NAWA",
+   "acronym": null,
+   "lastRefresh": "1747043454729",
+   "projectNumber": "PPN/PP0/2019/1/ 00043 /U/0001",
+   "projectEndDate": "2024-05-04",
+   "projectTitleEn": null,
+   "financedCompetition": "Tak",
+   "projectManagers": [
+    {
+     "institutionUuid": "511d4dfc-574e-4801-af14-e99dc24f8209",
+     "institutionName": "Uniwersytet Warszawski",
+     "employeeId": "FB570EF5DF0A3E7631E6C42A9844B026CBB5F89D",
+     "kindManagerCode": "KP",
+     "kindManager": "Kierownik Projektu",
+     "firstName": "Anna",
+     "middleName": null,
+     "lastName": "Matysiak",
+     "ORCID": "0000-0002-8883-3925",
+     "startDate": "2019-11-05",
+     "endDate": "2024-05-04"
+    }
+   ],
+   "entityShowingAchievementsName": "Uniwersytet Warszawski",
+   "namePriority": null,
+   "receivedFunds": [
+    {
+     "institutionUuid": "511d4dfc-574e-4801-af14-e99dc24f8209",
+     "institutionName": "Uniwersytet Warszawski",
+     "nationalFunds": "2259232",
+     "foreignFunds": "0",
+     "totalFunds": "2259232",
+     "financingInstitutionUuid": "a65ff6d2-5b81-49bb-86c2-1b26229acc28",
+     "financingInstitutionName": "Narodowa Agencja Wymiany Akademickiej"
+    }
+   ],
+   "projectClassification": "Inna",
+   "relatedProjects": [],
+   "foreignFunds": "0",
+   "disciplines": [
+    {
+     "institutionUuid": "511d4dfc-574e-4801-af14-e99dc24f8209",
+     "institutionName": "Uniwersytet Warszawski",
+     "disciplineCode": "DS010501N",
+     "disciplineName": "ekonomia i finanse",
+     "percentageShare": "100"
+    }
+   ],
+   "projectTitlePl": "Utworzenie i wsparcie działalności naukowej Interdyscyplinarnego Centrum Dynamiki Rynku Pracy i Rodziny",
+   "financingInstitutions": [
+    {
+     "financingInstitutionUuid": "a65ff6d2-5b81-49bb-86c2-1b26229acc28",
+     "financingInstitutionName": "Narodowa Agencja Wymiany Akademickiej",
+     "kindOfFinancingInstitution": "Krajowa",
+     "grantDate": "2019-10-04",
+     "settlementDate": null,
+     "sourceOfFinancing": "Projekt finansowany przez Narodową Agencję Wymiany Akademickiej",
+     "anotherSourceOfFinancing": null,
+     "receivedFunds": "2259232",
+     "nationalFunds": "2259232",
+     "foreignFunds": "0",
+     "urlAddress": "https://nawa.gov.pl/",
+     "country": "Polska",
+     "voivodeship": "mazowieckie",
+     "addressCity": "Warszawa [woj. mazowieckie, pow. Warszawa, gm. Warszawa,miasto]",
+     "addressPostalCode": "00-635",
+     "addressStreet": "Polna [Śródmieście]",
+     "addressBuildingNumber": "40",
+     "addressApartmentNumber": null
+    }
+   ],
+   "dataSource": "POLON",
+   "entityShowingAchievementsUuid": "511d4dfc-574e-4801-af14-e99dc24f8209",
+   "totalFunds": "2259232"
+  }
+ ],
+ "pagination": {
+  "maxCount": 4,
+  "token": "MTc0NzA0MzQ1NDcyOQ=="
+ },
+ "version": "1.13.0"
+}

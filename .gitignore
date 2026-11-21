@@ -18,3 +18,6 @@ CLAUDE.md
 *.egg-info/
 *.db
 .pytest_cache/
+
+# harvested data (licence of source content unclear, Q-004); raw pages and normalized output stay local
+data/

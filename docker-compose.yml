@@ -55,6 +55,33 @@ services:
     volumes: [llm-cache:/root/.cache]
     ports: ["8081:8080"]
 
+  # ---- harvester (radar/ in repo root, from feature/pobieranie-danych): `docker compose --profile harvester up`
+  harvester-gui:
+    profiles: [harvester]
+    build: .
+    image: innovation-radar-harvester:latest
+    init: true
+    command: ["gui"]
+    volumes: ["./data:/app/data", "./config:/app/config:ro"]
+    env_file: [{ path: .env, required: false }]
+    ports: ["${HARVESTER_PORT:-8765}:8765"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/meta', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  harvester-scheduler:
+    profiles: [harvester]
+    build: .
+    image: innovation-radar-harvester:latest
+    init: true
+    command: ["scheduler"]
+    volumes: ["./data:/app/data", "./config:/app/config:ro"]
+    env_file: [{ path: .env, required: false }]
+    restart: unless-stopped
+
 volumes:
   pgdata:
   llm-cache:

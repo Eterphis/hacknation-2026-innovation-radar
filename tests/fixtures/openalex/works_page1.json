@@ -1,0 +1,119 @@
+{
+ "meta": {"count": 3, "db_response_time_ms": 41, "page": null, "per_page": 2, "next_cursor": "IlsxNzMwNDE5MjAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQ0MDAwMDAwMDInXSI=", "groups_count": null},
+ "results": [
+  {
+   "id": "https://openalex.org/W4400000001",
+   "doi": "https://doi.org/10.0000/example.2026.001",
+   "title": "Photovoltaic <i>perovskite</i> modules for agrivoltaic farms in Podkarpackie",
+   "display_name": "Photovoltaic <i>perovskite</i> modules for agrivoltaic farms in Podkarpackie",
+   "publication_date": "2026-10-14",
+   "publication_year": 2026,
+   "type": "article",
+   "language": "en",
+   "abstract_inverted_index": {
+    "We": [0], "present": [1], "low-cost": [3], "perovskite": [4], "module": [5, 22], "designed": [6], "for": [7, 26],
+    "agrivoltaic": [8], "installations": [9], "on": [10], "small": [11], "farms.": [12], "Field": [13], "tests": [14], "over": [15],
+    "two": [16], "seasons": [17], "showed": [18], "that": [19], "such": [20], "a": [2, 21], "is": [23], "suitable": [25],
+    "crops": [27], "sensitive": [28], "to": [29], "shading": [30], "&amp;": [31], "heat": [32], "stress,": [33], "with": [34],
+    "energy": [35], "yield": [36], "of": [37], "182": [38], "kWh/m²": [39], "per": [40], "year": [41], "at": [42], "the": [43],
+    "Rzeszów": [44], "test": [45], "site.": [46]
+   },
+   "authorships": [
+    {
+     "author_position": "first",
+     "author": {"id": "https://openalex.org/A5000000001", "display_name": "Anna Przykładowa", "orcid": null},
+     "institutions": [
+      {"id": "https://openalex.org/I1000000001", "display_name": "Rzeszów University of Technology", "ror": "https://ror.org/00example01", "country_code": "PL", "type": "education", "lineage": ["https://openalex.org/I1000000001"]}
+     ],
+     "countries": ["PL"],
+     "is_corresponding": true,
+     "raw_author_name": "A. Przykładowa",
+     "raw_affiliation_strings": ["Rzeszów University of Technology, Rzeszów, Poland"]
+    },
+    {
+     "author_position": "middle",
+     "author": {"id": "https://openalex.org/A5000000002", "display_name": "Jan Testowy", "orcid": "https://orcid.org/0000-0000-0000-0000"},
+     "institutions": [
+      {"id": "https://openalex.org/I1000000001", "display_name": "Rzeszów University of Technology", "ror": "https://ror.org/00example01", "country_code": "PL", "type": "education", "lineage": ["https://openalex.org/I1000000001"]},
+      {"id": "https://openalex.org/I1000000002", "display_name": "Fraunhofer Institute for Solar Energy Systems", "ror": "https://ror.org/00example02", "country_code": "DE", "type": "facility", "lineage": ["https://openalex.org/I1000000002"]}
+     ],
+     "countries": ["PL", "DE"],
+     "is_corresponding": false,
+     "raw_author_name": "Jan Testowy",
+     "raw_affiliation_strings": ["Fraunhofer ISE, Freiburg, Germany"]
+    },
+    {
+     "author_position": "last",
+     "author": {"id": "https://openalex.org/A5000000003", "display_name": "Ewa Fikcyjna", "orcid": null},
+     "institutions": [
+      {"id": "https://openalex.org/I1000000003", "display_name": "Polish Academy of Sciences", "ror": "https://ror.org/00example03", "country_code": "PL", "type": "government", "lineage": ["https://openalex.org/I1000000003"]}
+     ],
+     "countries": ["PL"],
+     "is_corresponding": false,
+     "raw_author_name": "E. Fikcyjna",
+     "raw_affiliation_strings": ["Polish Academy of Sciences, Warsaw, Poland"]
+    }
+   ],
+   "topics": [
+    {"id": "https://openalex.org/T10000", "display_name": "Perovskite Materials and Applications", "score": 0.9981,
+     "subfield": {"id": "https://openalex.org/subfields/2105", "display_name": "Renewable Energy, Sustainability and the Environment"},
+     "field": {"id": "https://openalex.org/fields/21", "display_name": "Energy"},
+     "domain": {"id": "https://openalex.org/domains/3", "display_name": "Physical Sciences"}},
+    {"id": "https://openalex.org/T10001", "display_name": "Agrivoltaics and Land Use", "score": 0.9512,
+     "subfield": {"id": "https://openalex.org/subfields/2105", "display_name": "Renewable Energy, Sustainability and the Environment"},
+     "field": {"id": "https://openalex.org/fields/21", "display_name": "Energy"},
+     "domain": {"id": "https://openalex.org/domains/3", "display_name": "Physical Sciences"}}
+   ],
+   "keywords": [
+    {"id": "https://openalex.org/keywords/agrivoltaics", "display_name": "Agrivoltaics", "score": 0.71},
+    {"id": "https://openalex.org/keywords/perovskite", "display_name": "Perovskite", "score": 0.55}
+   ],
+   "primary_location": {
+    "is_oa": true,
+    "landing_page_url": "https://doi.org/10.0000/example.2026.001",
+    "pdf_url": null,
+    "source": {"id": "https://openalex.org/S2000000001", "display_name": "Energies", "issn_l": "1996-1073", "type": "journal"},
+    "license": "cc-by",
+    "version": "publishedVersion"
+   },
+   "open_access": {"is_oa": true, "oa_status": "gold", "oa_url": "https://doi.org/10.0000/example.2026.001", "any_repository_has_fulltext": false},
+   "cited_by_count": 2,
+   "updated_date": "2026-11-18T05:12:33.104512",
+   "grants": [
+    {"funder": "https://openalex.org/F4320000001", "funder_display_name": "Narodowe Centrum Badań i Rozwoju", "award_id": "LIDER/00/0000/L-00/00/NCBR/2024"}
+   ]
+  },
+  {
+   "id": "https://openalex.org/W4400000002",
+   "doi": null,
+   "title": "Short note",
+   "display_name": "Short note",
+   "publication_date": "2026-10-02",
+   "publication_year": 2026,
+   "type": "letter",
+   "language": "pl",
+   "abstract_inverted_index": {"Krótka": [0], "notatka": [1], "bez": [2], "streszczenia.": [3]},
+   "authorships": [
+    {
+     "author_position": "first",
+     "author": {"id": "https://openalex.org/A5000000004", "display_name": "Piotr Przykład", "orcid": null},
+     "institutions": [
+      {"id": "https://openalex.org/I1000000004", "display_name": "Uniwersytet Rzeszowski", "ror": null, "country_code": "PL", "type": "education", "lineage": []}
+     ],
+     "countries": ["PL"],
+     "is_corresponding": false,
+     "raw_author_name": "Piotr Przykład",
+     "raw_affiliation_strings": []
+    }
+   ],
+   "topics": [],
+   "keywords": [],
+   "primary_location": {"is_oa": false, "landing_page_url": "https://example.org/notatka", "pdf_url": null, "source": null, "license": null, "version": null},
+   "open_access": {"is_oa": false, "oa_status": "closed", "oa_url": null, "any_repository_has_fulltext": false},
+   "cited_by_count": 0,
+   "updated_date": "2026-11-10T00:00:00",
+   "grants": []
+  }
+ ],
+ "group_by": []
+}

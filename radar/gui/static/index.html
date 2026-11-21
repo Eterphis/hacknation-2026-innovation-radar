@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar innowacji – dane</title>
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #fff; --soft: #f0f2f5; --line: #e3e6ea;
+  --text: #1c2026; --muted: #6a7380; --accent: #1f5fbf; --accent-soft: #e8effb;
+  --ok: #1b7f47; --ok-soft: #e4f3ea; --warn: #9a6200; --warn-soft: #fbf0d9; --code: #f3f4f6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101317; --panel: #171b21; --soft: #1f242b; --line: #2b313a;
+    --text: #e7eaee; --muted: #98a2af; --accent: #7aa7ff; --accent-soft: #1c2a42;
+    --ok: #55c48e; --ok-soft: #15291f; --warn: #e3b450; --warn-soft: #2c2412; --code: #12161b;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+input, select, button { font: inherit; color: inherit; }
+header { padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+header .file { color: var(--muted); font-size: 13px; margin-top: 2px; overflow-wrap: anywhere; }
+main { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); height: calc(100% - 64px); }
+aside { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.filters { padding: 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+input[type=search], select { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.count { padding: 6px 12px; color: var(--muted); font-size: 13px; }
+.fresh { margin: 8px 12px 0; padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; }
+.fresh[hidden] { display: none; }
+.fresh button, .more { border: 1px solid var(--accent); color: var(--accent); background: var(--panel); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+.more { display: block; margin: 12px auto 16px; padding: 6px 14px; }
+#list { overflow-y: auto; flex: 1; }
+.item { padding: 11px 12px; border-top: 1px solid var(--line); cursor: pointer; }
+.item:hover { background: var(--soft); }
+.item.sel { background: var(--accent-soft); }
+.item .t { font-weight: 550; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item .m { color: var(--muted); font-size: 13px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tag { display: inline-block; font-size: 12px; padding: 0 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+.tag.src { background: var(--soft); color: var(--muted); margin-left: 0; margin-right: 6px; }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+#detail { overflow-y: auto; padding: 24px 32px 80px; min-width: 0; }
+.wrap { max-width: 860px; }
+.empty { color: var(--muted); padding: 48px 20px; text-align: center; }
+h2 { font-size: 21px; line-height: 1.3; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 14px; }
+section, details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-top: 14px; }
+section > h3, summary { margin: 0; padding: 12px 16px; font-size: 14px; font-weight: 650; }
+section > h3 { border-bottom: 1px solid var(--line); }
+summary { cursor: pointer; }
+.kv { display: grid; grid-template-columns: 190px minmax(0, 1fr); }
+.kv > div { padding: 8px 16px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.kv > div:nth-child(-n+2) { border-top: 0; }
+.kv .k { color: var(--muted); }
+.raw { color: var(--muted); font-size: 13px; }
+code, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+pre { margin: 0; padding: 14px 16px; background: var(--code); border-top: 1px solid var(--line); overflow: auto; max-height: 520px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.text { padding: 4px 16px 14px; }
+.text h4 { margin: 12px 0 4px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.text p { margin: 0 0 8px; white-space: pre-line; }
+ul { margin: 0; padding-left: 18px; }
+a { color: var(--accent); }
+.status-ok { color: var(--ok); font-weight: 600; }
+.status-warn { color: var(--warn); font-weight: 600; }
+@media (max-width: 860px) {
+  main { grid-template-columns: minmax(0, 1fr); height: auto; }
+  aside { max-height: 50vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  #detail { padding: 16px 16px 60px; }
+  .kv { grid-template-columns: minmax(0, 1fr); }
+  .kv .k { padding-bottom: 0; }
+  .kv .k + div { border-top: 0; padding-top: 2px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Radar innowacji · wczytane dane</h1>
+  <div class="file" id="file">Wczytywanie…</div>
+</header>
+<main>
+  <aside>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Szukaj w tytułach, opisach i organizacjach" autocomplete="off">
+      <div class="row">
+        <select id="f-cat" aria-label="Kategoria źródła"><option value="">Każda kategoria</option></select>
+        <select id="f-source" aria-label="Źródło"><option value="">Wszystkie źródła</option></select>
+      </div>
+      <div class="row">
+        <select id="f-quality" aria-label="Jakość rekordu"><option value="">Każda jakość</option><option value="ok">Kompletne (ok)</option><option value="needs_review">Do przeglądu</option></select>
+        <select id="f-voiv" aria-label="Województwo"><option value="">Każde województwo</option></select>
+      </div>
+    </div>
+    <div class="fresh" id="fresh" role="status" hidden></div>
+    <div class="count" id="count"></div>
+    <div id="list" role="listbox" aria-label="Rekordy"></div>
+  </aside>
+  <div id="detail"><div class="empty">Wybierz rekord z listy.</div></div>
+</main>
+<script>
+const SOURCE_SHORT = {ncbr_sukcesy: "NCBR", interreg_pl: "Interreg"};
+const TEXT_PL = {description: "Opis projektu", problem: "Jaki problem rozwiązuje", result: "Efekt pracy",
+  users: "Kto korzysta / skorzysta", challenges: "Największe wyzwania", advice: "Rada dla wnioskodawców",
+  market_readiness: "Gotowość rynkowa", commercialization: "Ścieżka komercjalizacji",
+  commercialization_barriers: "Trudności w komercjalizacji", ip: "Własność intelektualna", body: "Treść strony"};
+const CATEGORY_PL = {nauka: "Nauka i technologie", projekty: "Projekty badawcze i innowacyjne", biznes: "Startupy i biznes",
+  administracja: "Administracja i edukacja", "(brak)": "Bez kategorii"};
+const PAGE_TYPE_PL = {technology_offer: "oferta technologiczna", project: "opis projektu", event: "wydarzenie",
+  document: "dokument (PDF)", news: "aktualność", other: "inna strona"};
+const SIGNAL_PL = {innovation: "innowacja", project: "projekt", offer: "oferta", event: "wydarzenie", negative: "sygnały negatywne"};
+const STATUS_PL = {finished: "zakończony", running: "w trakcie", planned: "planowany"};
+const ROLE_PL = {beneficiary: "beneficjent", partner: "partner", lead_partner: "partner wiodący"};
+
+// The list is loaded page by page with filters applied on the server, so the browser never holds the
+// whole database; a harvest running in the background only adds rows, it never blocks browsing.
+const PAGE_SIZE = 200, POLL_MS = 20000;
+let VIEW = [], TOTAL = 0, SEL = null, META = {}, LOAD_SEQ = 0, LOADING = false, LAST_STAMP = null;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const safeUrl = (u) => /^https?:\/\//.test(u || "") ? u : null;
+const link = (u) => safeUrl(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>` : null;
+const dt = (s) => s ? esc(s.replace("T", " ").replace("+00:00", " UTC")) : null;
+const or = (v) => (v === null || v === undefined || v === "" || (Array.isArray(v) && !v.length)) ? '<span class="raw">brak</span>' : v;
+const amount = (x, cur) => x == null ? null : x.toLocaleString("pl-PL", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " " + esc(cur || "");
+const yesno = (b) => b === true ? "tak" : b === false ? "nie" : null;
+const kv = (rows) => `<div class="kv">${rows.filter(Boolean).map(([k, v]) => `<div class="k">${esc(k)}</div><div>${or(v)}</div>`).join("")}</div>`;
+const short = (s) => SOURCE_SHORT[s] || (String(s).startsWith("web_") ? "www " + s.slice(4) : s);
+
+function fillSelect(id, entries) {
+  const sel = $(id), keep = sel.value;
+  sel.length = 1;  // keep the "all" option
+  for (const [value, label] of entries) {
+    const o = document.createElement("option"); o.value = value; o.textContent = label; sel.appendChild(o);
+  }
+  if ([...sel.options].some((o) => o.value === keep)) sel.value = keep;
+}
+
+function showMeta(meta) {
+  const last = (meta.refresh_runs || [])[0];
+  $("file").innerHTML = meta.db
+    ? `${meta.records} rekordów z bazy <code>${esc(meta.db)}</code>` + (meta.removed ? ` (+${meta.removed} usuniętych ze źródła)` : "") +
+      (last ? ` · ostatnie odświeżenie: ${dt(last.at)} (${esc(last.source)}, ${last.ok ? "ok" : "błąd"})` : " · baza jeszcze nie była odświeżana")
+    : `${meta.records} rekordów z plików: ` + meta.files.map((f) => `<code>${esc(f.path)}</code> (${f.records})`).join(", ");
+  fillSelect("f-cat", Object.entries(meta.categories || {}).sort().map(([cat, n]) =>
+    [cat === "(brak)" ? "-" : cat, `${CATEGORY_PL[cat] || cat} (${n})`]));
+  fillSelect("f-source", Object.entries(meta.source_ids || {}).map(([id, name]) => [id, name]));
+  fillSelect("f-voiv", (meta.voivodeships || []).map((v) => [v, v]));
+}
+
+async function load() {
+  META = await fetch("/api/meta").then((r) => r.json());
+  showMeta(META);
+  await loadPage(true);
+  const first = decodeURIComponent(location.hash.slice(1)) || (VIEW[0] && VIEW[0].key);
+  if (first) select(first);
+  setInterval(poll, POLL_MS);
+}
+
+// a background harvest adds records: say so, but do not reshuffle the list under the reader
+async function poll() {
+  let light, meta;
+  try { light = await fetch("/api/meta?light=1").then((r) => r.json()); } catch { return; }
+  const lastNow = (light.refresh_runs || [])[0];
+  const stamp = `${light.records}|${lastNow ? lastNow.at : ""}`;
+  if (LAST_STAMP === null) LAST_STAMP = `${META.records}|${((META.refresh_runs || [])[0] || {}).at || ""}`;
+  if (stamp === LAST_STAMP) return;  // nothing changed since the previous poll
+  LAST_STAMP = stamp;
+  const lastBefore = (META.refresh_runs || [])[0];
+  const added = light.records - META.records;
+  const newRun = lastNow && (!lastBefore || lastNow.at !== lastBefore.at);
+  try { meta = await fetch("/api/meta").then((r) => r.json()); } catch { return; }  // full stats only on change
+  showMeta(meta);
+  if (added > 0 || newRun) {
+    $("fresh").innerHTML = (added > 0 ? `Pobrano nowe rekordy: +${added}. ` : "Zakończono kolejne odświeżanie. ") +
+      '<button type="button" id="fresh-reload">Odśwież listę</button>';
+    $("fresh").hidden = false;
+    $("fresh-reload").onclick = async () => {
+      $("fresh").hidden = true;
+      try { META = await fetch("/api/meta").then((r) => r.json()); } catch { META = meta; }  // state at click time
+      LAST_STAMP = null;
+      showMeta(META);
+      loadPage(true);
+    };
+  }
+}
+
+function query(offset) {
+  const p = new URLSearchParams({limit: PAGE_SIZE, offset});
+  for (const [key, id] of [["q", "q"], ["category", "f-cat"], ["source", "f-source"], ["quality", "f-quality"], ["voivodeship", "f-voiv"]]) {
+    const v = $(id).value.trim();
+    if (v) p.set(key, v);
+  }
+  return "/api/records?" + p.toString();
+}
+
+async function loadPage(reset) {
+  const seq = ++LOAD_SEQ;
+  LOADING = true;
+  const offset = reset ? 0 : VIEW.length;
+  let page;
+  try { page = await fetch(query(offset)).then((r) => r.json()); }
+  finally { if (seq === LOAD_SEQ) LOADING = false; }
+  if (seq !== LOAD_SEQ) return;  // a newer filter change won
+  VIEW = reset ? page.rows : VIEW.concat(page.rows);
+  TOTAL = page.total;
+  render();
+}
+
+// "new" = appeared in a later refresh than the first records, within the last 7 days
+const isNew = (r) => {
+  if (!r.first_seen || !META.first_seen_min) return false;
+  const t = Date.parse(r.first_seen);
+  return t - Date.parse(META.first_seen_min) > 3600e3 && Date.now() - t < 7 * 864e5;
+};
+
+function render() {
+  $("count").textContent = VIEW.length < TOTAL ? `${VIEW.length} z ${TOTAL} pasujących (wszystkich: ${META.records})`
+                                              : `${TOTAL} z ${META.records} rekordów`;
+  $("list").innerHTML = VIEW.map((r) => {
+    const where = r.voivodeships.length ? r.voivodeships.join(", ") : (r.country && r.country !== "Polska" ? r.country : "");
+    return `<div class="item${r.key === SEL ? " sel" : ""}" data-id="${esc(r.key)}" role="option">
+      <div class="t">${esc(r.title)}${r.quality === "needs_review" ? '<span class="tag warn">do przeglądu</span>' : ""}${isNew(r) ? '<span class="tag src">nowy</span>' : ""}</div>
+      <div class="m"><span class="tag src">${esc(short(r.source))}</span>${esc(r.beneficiary || "beneficjent nieustalony")}${where ? " · " + esc(where) : ""}</div>
+    </div>`;
+  }).join("") || '<div class="empty">Brak rekordów.</div>';
+  if (VIEW.length < TOTAL) {
+    $("list").insertAdjacentHTML("beforeend", `<button type="button" class="more" id="more">Pokaż kolejne ${Math.min(PAGE_SIZE, TOTAL - VIEW.length)}</button>`);
+    $("more").onclick = () => loadPage(false);
+  }
+  for (const el of $("list").querySelectorAll(".item")) el.onclick = () => select(el.dataset.id);
+}
+
+async function select(key) {
+  SEL = key;
+  history.replaceState(null, "", "#" + encodeURIComponent(key));
+  for (const el of $("list").querySelectorAll(".item")) el.classList.toggle("sel", el.dataset.id === key);
+  const [source, id] = key.split("/");
+  const res = await fetch(`/api/records/${encodeURIComponent(source)}/${encodeURIComponent(id)}`);
+  if (!res.ok) { $("detail").innerHTML = '<div class="empty">Nie znaleziono rekordu.</div>'; return; }
+  renderDetail(await res.json());
+}
+
+function renderDetail({record: r, raw_files: raw, data_file, history: h}) {
+  const p = r.provenance || {}, q = r.quality || {}, f = r.funding || {}, per = r.period || {}, reg = r.region || {};
+  const rawRow = (label, info) => info ? [label, `<code>${esc(info.path)}</code>${info.exists ? "" : ' <span class="raw">(brak pliku)</span>'}`] : null;
+  const fileSource = !!p.source_file_url;
+
+  const source = kv([
+    ["Źródło", esc(r.source_name) + ` <span class="raw">(${esc(r.source)})</span>`],
+    fileSource ? null : ["Strona projektu", link(r.url)],
+    ["Strona listy", link(r.list_url)],
+    fileSource ? ["Plik źródłowy", link(p.source_file_url)] : null,
+    fileSource ? ["Wiersz w pliku", p.source_row != null ? String(p.source_row) : null] : null,
+    ["Pobrano stronę listy", dt(p.list_fetched_at)],
+    [fileSource ? "Pobrano plik" : "Pobrano stronę projektu", dt(p.detail_fetched_at)],
+    ["Konektor", p.connector ? `<code>${esc(p.connector)}</code>` : null],
+    ["Schemat rekordu", r.schema ? `<code>${esc(r.schema)}</code>` : null],
+    ["ID rekordu", `<code>${esc(r.record_id)}</code>`],
+    ["Hash treści", r.content_hash ? `<code>${esc(r.content_hash.slice(0, 16))}…</code>` : null],
+    [h ? "Baza" : "Plik danych", `<code>${esc(data_file)}</code>`],
+    h ? ["Pierwszy raz widziany", dt(h.first_seen)] : null,
+    h ? ["Ostatnia zmiana treści", dt(h.changed_at)] : null,
+    h ? ["Ostatnio w źródle", dt(h.last_seen)] : null,
+    h && h.removed_at ? ["Usunięty ze źródła", `<span class="status-warn">${dt(h.removed_at)}</span>`] : null,
+    h ? ["Wersje treści", String(h.versions.length)] : null,
+    rawRow("Zapisany plik źródłowy", raw.source_file),
+    rawRow("Zapisana strona projektu", raw.detail_page),
+    rawRow("Zapisana strona listy", raw.list_page),
+  ]);
+
+  const quality = kv([
+    ["Status", q.status === "ok" ? '<span class="status-ok">ok</span>' : `<span class="status-warn">${esc(q.status)}</span>`],
+    ["Blokujące", (q.blocking || []).length ? `<ul>${q.blocking.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : null],
+    ["Ostrzeżenia", (q.warnings || []).length ? `<ul>${q.warnings.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : null],
+    ["Długość opisu", q.narrative_chars != null ? `${q.narrative_chars} znaków` : null],
+  ]);
+
+  const loc = (o) => o.location ? [o.location.city, o.location.powiat && o.location.powiat !== o.location.city ? "pow. " + o.location.powiat : null, o.location.region, o.location.country].filter(Boolean).join(", ") : "";
+  const orgs = (r.organizations || []).map((o) => `<li>${esc(o.name)} <span class="raw">· ${esc(ROLE_PL[o.role] || o.role)}${o.type_hint ? " · typ (podpowiedź): " + esc(o.type_hint) : ""}${loc(o) ? " · " + esc(loc(o)) : ""}</span></li>`).join("");
+  const people = (r.people || []).map((x) => `<li>${esc(x.name)} <span class="raw">· ${esc(ROLE_PL[x.role] || x.role || "rola nieznana")}${x.titles ? " · " + esc(x.titles) : ""}</span></li>`).join("");
+  const raws = f.raw || {};
+  const inSource = (v) => v ? ` <span class="raw">· w źródle: ${esc(v)}</span>` : "";
+  const data = kv([
+    ["Tytuł", esc(r.title)],
+    ["Organizacje", orgs ? `<ul>${orgs}</ul>` : null],
+    people ? ["Osoby", `<ul>${people}</ul>`] : null,
+    ["Operator / program", [f.operator, f.programme].filter(Boolean).map(esc).join(" · ") || null],
+    f.project_no ? ["Numer projektu", `<code>${esc(f.project_no)}</code>`] : null,
+    f.contest ? ["Konkurs", esc(f.contest)] : null,
+    f.fund ? ["Fundusz", esc(f.fund)] : null,
+    f.specific_objective ? ["Cel szczegółowy", esc(f.specific_objective)] : null,
+    f.intervention_field ? ["Zakres interwencji", esc(f.intervention_field)] : null,
+    ["Wartość projektu", f.total_value != null ? amount(f.total_value, f.currency) + inSource(raws.total_value) : (raws.total_value ? `<span class="raw">nieodczytane: ${esc(raws.total_value)}</span>` : null)],
+    ["Dofinansowanie", f.grant_value != null ? amount(f.grant_value, f.currency) + (f.grant_share != null ? ` (${Math.round(f.grant_share * 100)}%)` : "") +
+      (f.grant_value_computed ? ' <span class="raw">· wyliczone: wartość × stopa dofinansowania</span>' : inSource(raws.grant_value)) : null],
+    f.strategic_project != null ? ["Projekt strategiczny", yesno(f.strategic_project)] : null,
+    f.above_5m_eur != null ? ["Powyżej 5 mln EUR", yesno(f.above_5m_eur)] : null,
+    ["Okres", per.start || per.end ? `${esc(per.start || "?")} – ${esc(per.end || (per.ongoing ? "w toku" : "?"))} · ${esc(STATUS_PL[per.status] || per.status || "")}${inSource(per.raw)}` : (per.raw ? `<span class="raw">nieodczytane: ${esc(per.raw)}</span>` : null)],
+    ["Województwo / region", (reg.voivodeships || []).length || reg.nationwide ? esc((reg.voivodeships || []).join(", ") || "cała Polska") + inSource(reg.raw)
+      : (reg.raw ? esc(reg.raw) + (reg.country ? ` <span class="raw">· ${esc(reg.country)}</span>` : "") : null)],
+    (r.keywords || []).length ? ["Słowa kluczowe", esc(r.keywords.join(", "))] : null,
+    ["Prawa do treści", r.rights ? `${esc(r.rights.licence)} <span class="raw">· ${esc(r.rights.note || "")}</span>` : null],
+  ]);
+
+  const x = r.extra || {}, sig = x.signals || {};
+  const crawl = sig.hits ? kv([
+    ["Kategoria", esc(CATEGORY_PL[x.category] || x.category)],
+    ["Rodzaj strony", esc(PAGE_TYPE_PL[x.page_type] || x.page_type)],
+    ["Data publikacji", esc(x.published || "")],
+    ["Ostatnia zmiana na stronie", esc(x.modified || "")],
+    ["Wynik filtra", sig.score != null ? String(sig.score) : null],
+    ["Powód zachowania", esc(p.keep_reason || "")],
+    ["Dopasowane sygnały", Object.keys(sig.hits).length ? `<ul>${Object.entries(sig.hits).map(([g, pats]) =>
+      `<li>${esc(SIGNAL_PL[g] || g)}: <span class="raw">${esc(pats.join(" · "))}</span></li>`).join("")}</ul>` : null],
+  ]) : "";
+
+  const t = r.text || {};
+  const texts = [
+    r.intro ? `<h4>Zajawka</h4><p>${esc(r.intro)}</p>` : "",
+    ...Object.keys(TEXT_PL).filter((k) => t[k]).map((k) => `<h4>${TEXT_PL[k]}</h4><p>${esc(t[k])}</p>`),
+    ...(t.other || []).map((o) => `<h4>${esc(o.heading || "Inne")}</h4><p>${esc(o.text)}</p>`),
+  ].join("") || '<p class="raw">Brak treści opisowej.</p>';
+
+  $("detail").innerHTML = `<div class="wrap">
+    <h2>${esc(r.title)}</h2>
+    <div class="sub">${esc(r.source_name)} · rekord ${q.status === "ok" ? '<span class="status-ok">kompletny</span>' : '<span class="status-warn">do przeglądu</span>'}</div>
+    <section><h3>Źródło wczytania</h3>${source}</section>
+    <section><h3>Dane rekordu</h3>${data}</section>
+    ${crawl ? `<section><h3>Ocena crawlera (reguły, bez LLM)</h3>${crawl}</section>` : ""}
+    <section><h3>${fileSource ? "Treść z pliku" : "Treść ze strony"}</h3><div class="text">${texts}</div></section>
+    <section><h3>Jakość wczytania</h3>${quality}</section>
+    <details><summary>Surowy JSON rekordu</summary><pre>${esc(JSON.stringify(r, null, 2))}</pre></details>
+  </div>`;
+  $("detail").scrollTop = 0;
+}
+
+async function move(step) {
+  const i = VIEW.findIndex((r) => r.key === SEL);
+  if (i + step >= VIEW.length && VIEW.length < TOTAL && !LOADING) await loadPage(false);
+  const next = VIEW[Math.max(0, Math.min(VIEW.length - 1, i + step))];
+  if (next) { select(next.key); document.querySelector(`.item[data-id="${CSS.escape(next.key)}"]`)?.scrollIntoView({block: "nearest"}); }
+}
+document.addEventListener("keydown", (e) => {
+  if (["INPUT", "SELECT"].includes(document.activeElement.tagName)) return;
+  if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+  if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
+});
+for (const id of ["f-cat", "f-source", "f-quality", "f-voiv"]) $(id).addEventListener("input", () => loadPage(true));
+let searchTimer;
+$("q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadPage(true), 250); });
+load();
+</script>
+</body>
+</html>

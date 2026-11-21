@@ -1,0 +1,72 @@
+<?xml version="1.0" ?><OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd"><responseDate>2026-11-21T16:50:29.348520Z</responseDate><request metadataPrefix="oai_openaire" verb="ListRecords">https://bibliotekanauki.pl/api/oai/articles</request><ListRecords><record><header><identifier>oai:bibliotekanauki.pl:5166</identifier><datestamp>2026-03-04T15:05:37.084Z</datestamp><setSpec>11</setSpec></header><metadata><resource xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:datacite="http://datacite.org/schema/kernel-4" xmlns="http://namespace.openaire.eu/schema/oaire/" xsi:schemaLocation="http://namespace.openaire.eu/schema/oaire/ https://www.openaire.eu/schema/repo-lit/4.0/openaire.xsd"><datacite:titles><datacite:title xml:lang="pl">Wykorzystanie odpadów z przetwórstwa mięsnego na cele energetyczne</datacite:title><datacite:title xml:lang="en">The usage of waste from meat processing for energetic purposes</datacite:title></datacite:titles><dc:description xml:lang="pl">Tani import oraz notowane przez ostatnie lata wysokie ceny skupu żywca są
+jedną z ważniejszych przyczyn nierentowności przedsiębiorstw przemysłu mięsnego. Dodatkowym
+problemem dla właścicieli firm z tej branży są powstające w produkcji mięsnej
+odpady, które powinny zostać odpowiednio zagospodarowane, co z reguły generuje wysokie
+koszty. Optymalnym rozwiązaniem wydaje się zastosowanie w tym celu fermentacji metanowej.
+Substraty, takie jak gnojowica świńska oraz treść przewodu pokarmowego, mogą
+być wykorzystane jako substrat dla biogazowni bez wstępnej obróbki termicznej, natomiast
+odpady poubojowe, w myśl Rozporządzenia Parlamentu Europejskiego i Rady (WE)
+nr 1069/2009 z dnia 21 października 2009 r., wymagają wcześniejszej higienizacji. W Pracowni
+Ekotechnologii, działającej przy Instytucie Inżynierii Biosystemów Uniwersytetu
+Przyrodniczego w Poznaniu, przeprowadzono badania wydajności biogazowej tych odpadów
+z Zakładu Mięsnego „Paszak” w Olszówce (gmina Przykona). Analizę wykonano zgodnie
+z obowiązującą niemiecką normą DIN 38 414/S8. Na podstawie otrzymanych wyników
+stwierdzono, że substraty te mają bardzo duży potencjał energetyczny. Wykazano, że racjonalne
+zagospodarowanie uciążliwych odpadów rzeźnych (treści przewodu pokarmowego
+świń i gnojowicy) może generować zysk ekonomiczny wynikający ze sprzedaży energii elektrycznej
+i ciepła, a także wyeliminowania kosztów związanych z utylizacją generowanych
+odpadów.</dc:description><dc:description xml:lang="en">The inexpensiveness of import and high prices of livestock noted in the last few
+years are one of the most significant reasons for the lack of profitability of meat industry
+companies. An additional problem for the entrepreneurs in this sector is the production of
+meat waste which needs to be properly managed, which usually generates high costs. Methane
+fermentation seems to be the optimal solution for this problem. Such substrates as swine
+slurry and digestive tract content can be used as a substrate for biogas plants without heat
+pretreatment, while slaughterhouse waste requires prior hygienisation in accordance with the Regulation of the European Parliament and Council Regulation (EC) No 1069/2009 of 21
+October 2009.In the Laboratory of Eco-technology functioning at the Institute of Biosystems
+Engineering at the University of Life Sciences in Poznan research on biogas efficiency of
+waste from a meat processing plant “Paszak” in Olszowka (municipality of Przykona) was
+conducted. The analysis was performed on the basis of the German standard DIN 38 414/S8.
+On a base of achieved results it was concluded that these substrates have a very high energy
+potential. It was also shown that rational waste management burdensome slaughterhouse
+waste such as swine slurry and digestive tract cane generate economic profit resulting from
+the sale of electricity and heat production, but also in the avoidance of costs of proper waste
+utilization.</dc:description><datacite:creators><datacite:creator><datacite:creatorName>Kozlowski, K.</datacite:creatorName><datacite:affiliation>Uniwersytet Przyrodniczy w Poznaniu, Poznań</datacite:affiliation></datacite:creator><datacite:creator><datacite:creatorName>Cieslik, M.</datacite:creatorName><datacite:affiliation>Uniwersytet Przyrodniczy w Poznaniu, Poznań</datacite:affiliation></datacite:creator><datacite:creator><datacite:creatorName>Smurzynska, A.</datacite:creatorName><datacite:affiliation>Uniwersytet Przyrodniczy w Poznaniu, Poznań</datacite:affiliation></datacite:creator><datacite:creator><datacite:creatorName>Lewicki, A.</datacite:creatorName><datacite:affiliation>Uniwersytet Przyrodniczy w Poznaniu, Poznań</datacite:affiliation></datacite:creator><datacite:creator><datacite:creatorName>Jas, M.</datacite:creatorName><datacite:affiliation>Uniwersytet Przyrodniczy w Poznaniu, Poznań</datacite:affiliation></datacite:creator></datacite:creators><datacite:alternateIdentifiers><datacite:alternateIdentifier alternateIdentifierType="DOI">10.15611/nit.2015.1.04</datacite:alternateIdentifier></datacite:alternateIdentifiers><dc:language>pol</dc:language><dc:publisher>Uniwersytet Ekonomiczny we Wrocławiu. Wydawnictwo Uniwersytetu Ekonomicznego we Wrocławiu</dc:publisher><datacite:dates><datacite:date dateType="Issued">2015</datacite:date></datacite:dates><resourceType resourceTypeGeneral="literature" uri="http://purl.org/coar/resource_type/c_6501">journal article</resourceType><dc:format>application/pdf</dc:format><file accessRightsURI="http://purl.org/coar/access_right/c_abf2" mimeType="application/pdf" objectType="fulltext">https://bibliotekanauki.pl/articles/5166.pdf</file><datacite:identifier identifierType="URL">https://bibliotekanauki.pl/articles/5166</datacite:identifier><datacite:rights rightsURI="http://purl.org/coar/access_right/c_abf2">Wszystkie prawa zastrzeżone. Swoboda użytkownika ograniczona do ustawowego zakresu dozwolonego użytku</datacite:rights><licenseCondition uri="">Wszystkie prawa zastrzeżone. Swoboda użytkownika ograniczona do ustawowego zakresu dozwolonego użytku</licenseCondition><datacite:subjects><datacite:subject>gospodarka odpadami</datacite:subject><datacite:subject>przetworstwo miesa</datacite:subject><datacite:subject>odpady produkcyjne</datacite:subject><datacite:subject>wykorzystanie odpadow</datacite:subject><datacite:subject>biogaz</datacite:subject><datacite:subject>fermentacja metanowa</datacite:subject><datacite:subject>gnojowica</datacite:subject><datacite:subject>tresc przewodu pokarmowego</datacite:subject><datacite:subject>swinia</datacite:subject><datacite:subject>cele energetyczne</datacite:subject></datacite:subjects></resource></metadata></record><record><header><identifier>oai:bibliotekanauki.pl:5175</identifier><datestamp>2026-03-04T15:05:37.084Z</datestamp><setSpec>11</setSpec></header><metadata><resource xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:datacite="http://datacite.org/schema/kernel-4" xmlns="http://namespace.openaire.eu/schema/oaire/" xsi:schemaLocation="http://namespace.openaire.eu/schema/oaire/ https://www.openaire.eu/schema/repo-lit/4.0/openaire.xsd"><datacite:titles><datacite:title xml:lang="pl">Identyfikowalność surowca mięsnego w wybranej firmie handlowej</datacite:title><datacite:title xml:lang="en">Traceability of raw meat in the selected trade company</datacite:title></datacite:titles><dc:description xml:lang="pl">Celem pracy było ukazanie znaczenia systemu identyfikowalności w funkcjonowaniu
+wybranego przedsiębiorstwa branży mięsnej w zapewnieniu bezpieczeństwa i wysokiej
+jakości surowca mięsnego. Przedstawiono różne definicje terminu identyfikowalność, łączące
+dwa aspekty, tj. śledzenia, czyli podążania za produktem od początku do końca łańcucha żywnościowego,
+oraz odnajdywania, czyli ustalania pochodzenia produktu od końca do początku
+łańcucha żywnościowego. Pozwala to na wycofanie niezgodnego/niezgodnych z wymaganiami/
+standardami produktu/produktów z rynku oraz określenie potencjalnych przyczyn i źródeł zagrożenia.
+Głównym celem śledzenia produktów jest ochrona konsumentów i producentów żywności.
+To także wpływający na działanie rynku mechanizm bezpieczeństwa żywności. Na przykładzie
+wybranego przedsiębiorstwa X opisano ogniwa w systemie identyfikowalności mięsa
+wieprzowego. Firma X zajmuje się kupowaniem surowca wieprzowego bezpośrednio po rozbiorze,
+a następnie jego transportem do zakładów przetwórstwa mięsnego. Wskazano na
+konieczność kształtowania odpowiednich relacji firmy X z ubojniami w kontekście uzyskania
+surowca o zapewnionej/gwarantowanej jakości oraz ubojni z dostawcami żywca. W odniesieniu
+do przemysłu mięsnego skoncentrowano uwagę na ewolucji systemu identyfikowalności,
+początkowo w sektorze mięsa wołowego, następnie mięsa drobiowego oraz jaj i na koniec,
+bardziej szczegółowo, mięsa wieprzowego oraz wymogów, aby system mógł prawidłowo funkcjonować.
+Opracowanie systemu w zakładzie X wymagało połączenia wielu wzajemnie powiązanych
+i obowiązujących w łańcuchu dostaw produktów żywnościowych systemów jakości
+oraz zaangażowania w jego funkcjonowanie rzetelnej pracy wszystkich pracowników, w tym
+również najwyższego kierownictwa.</dc:description><dc:description xml:lang="en">The aim of the paper was to show the importance of the traceability system in the
+operation of a selected meat industry enterprise in ensuring the safety and high quality of raw
+meat. Different definitions of the term identifiability were presented, combining two aspects,
+i.e. tracking − following the product from the beginning to the end of the food chain and
+finding, i.e. determining the origin of the product from the end to the beginning of the food
+chain. This allows for the withdrawal of illegal/non-compliant with requirements/standards
+product/products from the market and identifying potential causes and sources of danger. The
+main purpose of product tracking is to protect consumers and food producers. It is also
+affecting the operation of the market mechanism for food safety. On the example of the
+selected company X, links in the traceability system of pork were described. Company X
+deals in the purchase of raw pork directly after the cutting and then its transport to meat
+processing plants. It was pointed out that it was necessary to shape proper relations between
+company X and slaughterhouses in the context of obtaining raw material with assured/
+guaranteed quality and slaughterhouses with livestock suppliers. Regarding meat industry,
+attention was focused on the evolution of the traceability system, initially in the beef meat
+sector, then poultry meat and eggs, and finally, more specifically, pork meat and requirements
+so that the system could function properly. The development of the system at X plant required
+the connection of many interrelated and applicable in the supply chain of food products
+quality systems and the involvement in its functioning of the reliable work of all employees,
+including also top management.</dc:description><datacite:creators><datacite:creator><datacite:creatorName>Obal, M.</datacite:creatorName><datacite:affiliation>PHU Plewex Pawel Plewa, Krotoszyn</datacite:affiliation></datacite:creator><datacite:creator><datacite:creatorName>Lesiow, T.</datacite:creatorName><datacite:affiliation>Uniwersytet Ekonomiczny we Wrocławiu, Wrocław</datacite:affiliation></datacite:creator><datacite:creator><datacite:creatorName>Smiechowska, M.</datacite:creatorName><datacite:affiliation>Akademia Morska w Gdyni, Gdynia</datacite:affiliation></datacite:creator></datacite:creators><datacite:alternateIdentifiers><datacite:alternateIdentifier alternateIdentifierType="DOI">10.15611/nit.2017.3.02</datacite:alternateIdentifier></datacite:alternateIdentifiers><dc:language>pol</dc:language><dc:publisher>Uniwersytet Ekonomiczny we Wrocławiu. Wydawnictwo Uniwersytetu Ekonomicznego we Wrocławiu</dc:publisher><datacite:dates><datacite:date dateType="Issued">2017</datacite:date></datacite:dates><resourceType resourceTypeGeneral="literature" uri="http://purl.org/coar/resource_type/c_6501">journal article</resourceType><dc:format>application/pdf</dc:format><file accessRightsURI="http://purl.org/coar/access_right/c_abf2" mimeType="application/pdf" objectType="fulltext">https://bibliotekanauki.pl/articles/5175.pdf</file><datacite:identifier identifierType="URL">https://bibliotekanauki.pl/articles/5175</datacite:identifier><datacite:rights rightsURI="http://purl.org/coar/access_right/c_abf2">Wszystkie prawa zastrzeżone. Swoboda użytkownika ograniczona do ustawowego zakresu dozwolonego użytku</datacite:rights><licenseCondition uri="">Wszystkie prawa zastrzeżone. Swoboda użytkownika ograniczona do ustawowego zakresu dozwolonego użytku</licenseCondition><datacite:subjects><datacite:subject>firmy handlowe</datacite:subject><datacite:subject>mieso</datacite:subject><datacite:subject>surowce zwierzece</datacite:subject><datacite:subject>identyfikowalnosc</datacite:subject><datacite:subject>sledzenie produktu</datacite:subject><datacite:subject>jakosc</datacite:subject><datacite:subject>systemy jakosci</datacite:subject><datacite:subject>bezpieczenstwo zywnosci</datacite:subject></datacite:subjects></resource></metadata></record><resumptionToken>eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJtZXRhZGF0YVByZWZpeCI6Im9haV9vcGVuYWlyZSIsInNldCI6IjExIiwic3RhcnRpbmdJZCI6NTIxMH0.</resumptionToken></ListRecords></OAI-PMH>
