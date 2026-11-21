@@ -1,0 +1,14 @@
+{
+  "claude": false,
+  "codex": false,
+  "cursor": false,
+  "uv": false,
+  "ruff": false,
+  "grok_bot": false,
+  "ollama": {
+    "installed": false,
+    "models": []
+  },
+  "gpu": null,
+  "checked_at": "2026-11-21T10:36:26+01:00"
+}
