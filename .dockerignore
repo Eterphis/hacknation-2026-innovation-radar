@@ -1,0 +1,12 @@
+data/
+.git/
+.house/
+.claude/
+.worktrees/
+.venv/
+**/__pycache__/
+tests/
+docs/
+.env
+.env.*
+*.orig

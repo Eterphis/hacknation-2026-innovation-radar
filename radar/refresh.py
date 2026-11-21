@@ -17,7 +17,9 @@ Mechanizmy:
 - przebudowa wyniku jest pomijana, gdy dane wejściowe (SHA-256) się nie zmieniły i wynik istnieje;
 - poprzedni wynik zostaje jako `*.prev.jsonl`; gdy liczba rekordów spadnie o ponad połowę,
   skrypt ostrzega i kończy się kodem 1 (prawdopodobna zmiana formatu źródła);
-- błąd jednego źródła nie zatrzymuje drugiego; stan i historia w `data/refresh_state.json`.
+- po przebudowie rekordy trafiają do bazy `data/radar.db` (`radar.store`): nowe, zmienione,
+  usunięte ze źródła; każde uruchomienie zapisuje się w tabeli `refresh_runs`;
+- błąd jednego źródła nie zatrzymuje drugiego.
 """
 from __future__ import annotations
 
@@ -26,19 +28,21 @@ import hashlib
 import json
 import os
 import shutil
+import socket
+import sqlite3
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import store
 from .http import FetchError, fetch, fetch_bytes
 from .sources import interreg, ncbr
 
 DATA = Path("data")
-STATE_FILE = DATA / "refresh_state.json"
+STATE_FILE = DATA / "refresh_state.json"  # legacy, read once for migration
 LOCK_FILE = DATA / ".refresh.lock"
 LOCK_STALE_SECONDS = 6 * 3600
-HISTORY_LIMIT = 50
 DROP_WARN_RATIO = 0.5
 
 
@@ -74,13 +78,6 @@ def read_json(path: Path) -> dict:
         return {}
 
 
-def write_json_atomic(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), "utf-8")
-    tmp.replace(path)
-
-
 # --- lock ----------------------------------------------------------------------
 def _pid_alive(pid: int) -> bool:
     if pid <= 0:
@@ -107,20 +104,26 @@ class Lock:
             except FileExistsError:
                 info = read_json(self.path)
                 age = time.time() - self.path.stat().st_mtime
-                if age < LOCK_STALE_SECONDS and _pid_alive(int(info.get("pid", 0))):
-                    raise SystemExit(f"odświeżanie już trwa (pid {info.get('pid')}, od {info.get('started')}); "
+                # a PID is only meaningful on the host (or container) that wrote it
+                other_host = info.get("host") not in (None, socket.gethostname())
+                if age < LOCK_STALE_SECONDS and (other_host or _pid_alive(int(info.get("pid", 0)))):
+                    raise SystemExit(f"odświeżanie już trwa (pid {info.get('pid')} na {info.get('host')}, od {info.get('started')}); "
                                      f"jeśli to nieprawda, usuń {self.path}")
                 log(f"przejmuję porzuconą blokadę {self.path}")
                 self.path.unlink(missing_ok=True)
                 continue
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump({"pid": os.getpid(), "started": now_iso()}, fh)
+                json.dump({"pid": os.getpid(), "host": socket.gethostname(), "started": now_iso()}, fh)
             self.held = True
             return self
         raise SystemExit(f"nie udało się założyć blokady {self.path}")
 
     def __exit__(self, *exc) -> None:
-        if self.held:
+        if not self.held:
+            return
+        info = read_json(self.path)
+        # release only our own lock: another process may have taken over a stale one meanwhile
+        if info.get("pid") == os.getpid() and info.get("host") == socket.gethostname():
             self.path.unlink(missing_ok=True)
 
 
@@ -276,6 +279,33 @@ def refresh_ncbr(args, prev_state: dict) -> dict:
 
 
 SOURCES = {"interreg": refresh_interreg, "ncbr": refresh_ncbr}
+# connector `source` id of the records each refresh step produces
+SOURCE_IDS = {"interreg": "interreg_pl", "ncbr": "ncbr_sukcesy"}
+OUTPUTS = {"interreg": "interreg.jsonl", "ncbr": "ncbr.jsonl"}
+
+
+def previous_state(conn, name: str) -> dict:
+    """Last good run from the database; falls back to the old refresh_state.json once."""
+    prev = store.last_successful_run(conn, name)
+    if not prev:
+        prev = (read_json(STATE_FILE).get("sources") or {}).get(name, {})
+    return prev
+
+
+def load_into_db(conn, name: str, out: Path, res: dict) -> None:
+    """Upsert the source's JSONL after a rebuild, or when the database has none of it yet."""
+    sid = SOURCE_IDS[name]
+    in_db = conn.execute("SELECT 1 FROM records WHERE source=? LIMIT 1", (sid,)).fetchone()
+    if res.get("rebuild") != "rebuilt" and in_db:
+        res.update(added=0, changed=0, removed=0)
+        return
+    if not out.exists():
+        return
+    recs = [r for r in store.read_jsonl(out) if r.get("source") == sid]
+    counts = store.upsert_source(conn, sid, recs)
+    res.update({k: counts[k] for k in ("added", "changed", "removed", "restored")})
+    log(f"{name}: baza: nowe {counts['added']}, zmienione {counts['changed']}, "
+        f"usunięte ze źródła {counts['removed']}, przywrócone {counts['restored']}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -284,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
                     help="które źródła odświeżyć (domyślnie wszystkie)")
     ap.add_argument("--raw-dir", default=str(DATA / "raw"))
     ap.add_argument("--out-dir", default=str(DATA / "normalized"))
+    ap.add_argument("--db", default=None, help=f"baza SQLite (domyślnie $RADAR_DB albo {store.DEFAULT_DB})")
     ap.add_argument("--max-age", type=float, default=24.0,
                     help="NCBR: po ilu godzinach pobrać stronę listy ponownie (domyślnie 24)")
     ap.add_argument("--delay", type=float, default=1.0, help="NCBR: sekundy między zapytaniami")
@@ -294,42 +325,35 @@ def main(argv: list[str] | None = None) -> int:
     if args.offline and args.force:
         ap.error("--offline i --force wzajemnie się wykluczają")
 
+    db_path = args.db or store.default_db()
     with Lock(LOCK_FILE):
-        state = read_json(STATE_FILE)
-        sources_state = state.setdefault("sources", {})
-        history = state.setdefault("history", [])
+        conn = store.connect(db_path)
         failed, warned = [], []
         for name in args.sources:
             started = time.monotonic()
             log(f"=== {name} ===")
-            prev = sources_state.get(name, {})
+            prev = previous_state(conn, name)
             try:
                 res = SOURCES[name](args, prev)
+                if not args.dry_run:
+                    load_into_db(conn, name, Path(args.out_dir) / OUTPUTS[name], res)
                 res["ok"] = True
-            except (FetchError, OSError, RuntimeError, interreg.FormatChanged) as e:
+            except (FetchError, OSError, RuntimeError, ValueError, sqlite3.Error, interreg.FormatChanged) as e:
                 log(f"{name}: BŁĄD: {e}")
                 res = {"ok": False, "error": f"{type(e).__name__}: {e}"}
                 failed.append(name)
             res["seconds"] = round(time.monotonic() - started, 1)
             res["at"] = now_iso()
+            res.setdefault("download", res.get("list"))
             if res.get("warning"):
                 log(f"{name}: UWAGA: {res['warning']}")
                 warned.append(name)
-            summary = {k: res.get(k) for k in ("download", "list", "rebuild", "records", "detail_pages_new") if res.get(k) is not None}
+            summary = {k: res.get(k) for k in ("download", "rebuild", "records", "added", "changed", "removed",
+                                               "detail_pages_new") if res.get(k) is not None}
             log(f"{name}: {'OK' if res['ok'] else 'BŁĄD'} {summary} w {res['seconds']} s")
-            if args.dry_run:
-                continue
-            if res["ok"]:
-                sources_state[name] = {**prev, **res, "last_success": res["at"]}
-            else:
-                sources_state[name] = {**prev, "last_error": res["error"], "last_error_at": res["at"]}
-            history.append({"source": name, **{k: res.get(k) for k in
-                            ("at", "ok", "download", "list", "rebuild", "records", "error", "warning", "seconds")
-                            if res.get(k) is not None}})
-        if not args.dry_run:
-            state["history"] = history[-HISTORY_LIMIT:]
-            state["last_run"] = now_iso()
-            write_json_atomic(STATE_FILE, state)
+            if not args.dry_run:
+                store.add_refresh_run(conn, name, res)
+        conn.close()
 
     if failed:
         log(f"nie udało się: {', '.join(failed)}")

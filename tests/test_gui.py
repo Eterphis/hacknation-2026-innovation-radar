@@ -7,7 +7,8 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from radar.gui.__main__ import RecordStore, make_handler
+from radar import store as db
+from radar.gui.__main__ import DbRecordStore, RecordStore, make_handler
 from tests.test_card import czujnik_record
 
 
@@ -79,6 +80,57 @@ class ViewerServerTest(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError) as ctx:
                 urllib.request.urlopen(self.base + path)
             self.assertEqual(ctx.exception.code, 404)
+
+
+class DbViewerTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        self.rec = czujnik_record()
+        other = dict(self.rec, record_id="inny", title="Pompa ciepła", content_hash="x",
+                     text_for_llm="Tytuł: Pompa ciepła", organizations=[], keywords=[])
+        self.db_path = root / "radar.db"
+        conn = db.connect(self.db_path)
+        db.upsert_source(conn, self.rec["source"], [self.rec, other], "2026-11-01T00:00:00+00:00")
+        db.add_refresh_run(conn, "ncbr", {"ok": True, "at": "2026-11-01T00:00:00+00:00", "rebuild": "rebuilt"})
+        conn.close()
+        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(DbRecordStore(self.db_path, root / "raw")))
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        self.base = f"http://127.0.0.1:{self.httpd.server_address[1]}"
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.tmp.cleanup()
+
+    def get_json(self, path):
+        with urllib.request.urlopen(self.base + path) as r:
+            return json.loads(r.read())
+
+    def test_meta_from_db(self):
+        meta = self.get_json("/api/meta")
+        self.assertEqual(meta["records"], 2)
+        self.assertEqual(meta["db"], str(self.db_path))
+        self.assertEqual(meta["refresh_runs"][0]["source"], "ncbr")
+
+    def test_full_text_search(self):
+        keys = [r["key"] for r in self.get_json("/api/records?q=odksztalcen")]
+        self.assertEqual(keys, ["ncbr_sukcesy/" + self.rec["record_id"]])
+        self.assertEqual(len(self.get_json("/api/records")), 2)
+        self.assertEqual(len(self.get_json("/api/records?q=pompa%20ciepla")), 1)
+
+    def test_record_with_history(self):
+        data = self.get_json(f"/api/records/ncbr_sukcesy/{self.rec['record_id']}")
+        self.assertEqual(data["record"], self.rec)
+        self.assertEqual(data["history"]["first_seen"], "2026-11-01T00:00:00+00:00")
+        self.assertEqual(len(data["history"]["versions"]), 1)
+
+    def test_new_data_visible_without_restart(self):
+        conn = db.connect(self.db_path)
+        db.upsert_source(conn, self.rec["source"], [self.rec])
+        conn.close()
+        self.assertEqual(len(self.get_json("/api/records")), 1)
+        self.assertEqual(len(self.get_json("/api/records?removed=1")), 2)
 
 
 if __name__ == "__main__":

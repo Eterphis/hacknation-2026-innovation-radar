@@ -1,0 +1,31 @@
+# Uruchomienie:  docker compose up -d --build   ->  http://localhost:8765
+# Jednorazowo:   docker compose run --rm gui refresh          (opcje jak w radar.refresh)
+#                docker compose run --rm gui cards --stale    (karty dla nowych i zmienionych rekordów)
+#                docker compose run --rm gui store stats
+x-radar: &radar
+  build: .
+  image: innovation-radar:latest
+  init: true
+  volumes:
+    - ./data:/app/data
+  env_file:
+    - path: .env
+      required: false
+  restart: unless-stopped
+
+services:
+  gui:
+    <<: *radar
+    command: ["gui"]
+    ports:
+      - "${RADAR_PORT:-8765}:8765"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/meta', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  scheduler:
+    <<: *radar
+    command: ["scheduler"]

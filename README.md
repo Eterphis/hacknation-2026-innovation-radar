@@ -53,12 +53,24 @@ python -X utf8 -m radar.sources.interreg --offline   # z zapisanego pliku, bez s
 python -X utf8 -m radar.refresh              # Interreg + NCBR, pobiera tylko to, co nowe
 python -X utf8 -m radar.refresh --dry-run    # pokaż, co by zrobił
 python -X utf8 -m radar.refresh --force      # wszystko od nowa
+python -X utf8 -m radar.gui                  # przeglądarka danych z bazy: http://127.0.0.1:8765
 ```
 
 - Interreg: XLSX pobierany tylko, gdy link na stronie wskazuje inny plik albo zapisany jest uszkodzony (SHA-256); pobrany plik musi być poprawnym XLSX.
 - NCBR: lista pobierana ponownie po `--max-age` godzinach (domyślnie 24), strony szczegółów już na dysku nie są pobierane drugi raz.
 - Przebudowa pomijana, gdy wejście się nie zmieniło; poprzedni wynik zostaje w `*.prev.jsonl`, spadek liczby rekordów o ponad połowę daje ostrzeżenie i kod 1.
-- Blokada `data/.refresh.lock` przed równoległym uruchomieniem, błąd jednego źródła nie zatrzymuje drugiego, stan i historia w `data/refresh_state.json`.
+- Blokada `data/.refresh.lock` przed równoległym uruchomieniem (także między kontenerami), błąd jednego źródła nie zatrzymuje drugiego.
+
+**Baza danych** ([`radar/store.py`](radar/store.py), SQLite z biblioteki standardowej, plik `data/radar.db`): po każdym odświeżeniu rekordy są zapisywane z historią (pierwsze pojawienie się, zmiany opisu, usunięcie ze źródła). Baza ma wyszukiwanie pełnotekstowe działające też bez polskich znaków, organizacje wspólne dla źródeł, karty i przebiegi odświeżania (`refresh_runs`). Da się ją w całości odtworzyć z `data/raw/` (`radar.refresh --offline`).
+
+```bash
+python -X utf8 -m radar.store stats
+python -X utf8 -m radar.store search "pompa ciepla"
+python -X utf8 -m radar.store export --source ncbr_sukcesy --out eksport.jsonl
+python -X utf8 -m radar.card --stale         # karty tylko dla nowych i zmienionych rekordów
+```
+
+**Docker** ([`docs/docker.md`](docs/docker.md)): `docker compose up -d --build` uruchamia przeglądarkę na http://localhost:8765 i harmonogram odświeżania co 24 h; dane trafiają do `./data`.
 
 Testy: `python -X utf8 -m unittest discover -s tests -t .`
 

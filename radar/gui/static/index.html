@@ -81,7 +81,7 @@ a { color: var(--accent); }
 <main>
   <aside>
     <div class="filters">
-      <input type="search" id="q" placeholder="Szukaj po tytule, beneficjencie, programie" autocomplete="off">
+      <input type="search" id="q" placeholder="Szukaj w tytułach, opisach i organizacjach" autocomplete="off">
       <select id="f-source" aria-label="Źródło"><option value="">Wszystkie źródła</option></select>
       <div class="row">
         <select id="f-quality" aria-label="Jakość rekordu"><option value="">Każda jakość</option><option value="ok">Kompletne (ok)</option><option value="needs_review">Do przeglądu</option></select>
@@ -102,7 +102,7 @@ const TEXT_PL = {description: "Opis projektu", problem: "Jaki problem rozwiązuj
 const STATUS_PL = {finished: "zakończony", running: "w trakcie", planned: "planowany"};
 const ROLE_PL = {beneficiary: "beneficjent", partner: "partner", lead_partner: "partner wiodący"};
 
-let ALL = [], VIEW = [], SEL = null;
+let ALL = [], VIEW = [], SEL = null, META = {}, HITS = null, SEARCH_SEQ = 0;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const safeUrl = (u) => /^https?:\/\//.test(u || "") ? u : null;
@@ -116,9 +116,12 @@ const short = (s) => SOURCE_SHORT[s] || s;
 
 async function load() {
   const [meta, rows] = await Promise.all([fetch("/api/meta").then((r) => r.json()), fetch("/api/records").then((r) => r.json())]);
-  ALL = rows;
-  $("file").innerHTML = `${meta.records} rekordów z plików: ` +
-    meta.files.map((f) => `<code>${esc(f.path)}</code> (${f.records})`).join(", ");
+  ALL = rows; META = meta;
+  const last = (meta.refresh_runs || [])[0];
+  $("file").innerHTML = meta.db
+    ? `${meta.records} rekordów z bazy <code>${esc(meta.db)}</code>` + (meta.removed ? ` (+${meta.removed} usuniętych ze źródła)` : "") +
+      (last ? ` · ostatnie odświeżenie: ${dt(last.at)} (${esc(last.source)}, ${last.ok ? "ok" : "błąd"})` : " · baza jeszcze nie była odświeżana")
+    : `${meta.records} rekordów z plików: ` + meta.files.map((f) => `<code>${esc(f.path)}</code> (${f.records})`).join(", ");
   for (const [id, name] of Object.entries(meta.source_ids)) {
     const o = document.createElement("option"); o.value = id; o.textContent = name; $("f-source").appendChild(o);
   }
@@ -130,16 +133,36 @@ async function load() {
   if (first) select(first);
 }
 
+// "new" = appeared in a later refresh than the initial load, within the last 7 days
+let FIRST_LOAD = null;
+const isNew = (r) => {
+  if (!r.first_seen) return false;
+  if (FIRST_LOAD === null) FIRST_LOAD = Math.min(...ALL.filter((x) => x.first_seen).map((x) => Date.parse(x.first_seen)));
+  const t = Date.parse(r.first_seen);
+  return t - FIRST_LOAD > 3600e3 && Date.now() - t < 7 * 864e5;
+};
+
+// with the database, search runs on the server (full text, Polish letters optional)
+async function search() {
+  const q = $("q").value.trim(), seq = ++SEARCH_SEQ;
+  if (!META.db || !q) { HITS = null; return render(); }
+  const rows = await fetch("/api/records?q=" + encodeURIComponent(q)).then((r) => r.json());
+  if (seq !== SEARCH_SEQ) return;
+  HITS = new Set(rows.map((r) => r.key));
+  render();
+}
+
 function render() {
   const q = $("q").value.trim().toLowerCase(), src = $("f-source").value, qual = $("f-quality").value, voiv = $("f-voiv").value;
+  const textHit = (r) => HITS ? HITS.has(r.key) : [r.title, r.beneficiary, r.programme, r.contest].join(" ").toLowerCase().includes(q);
   VIEW = ALL.filter((r) =>
-    (!q || [r.title, r.beneficiary, r.programme, r.contest].join(" ").toLowerCase().includes(q)) &&
+    (!q || textHit(r)) &&
     (!src || r.source === src) && (!qual || r.quality === qual) && (!voiv || r.voivodeships.includes(voiv)));
   $("count").textContent = `${VIEW.length} z ${ALL.length} rekordów`;
   $("list").innerHTML = VIEW.map((r) => {
     const where = r.voivodeships.length ? r.voivodeships.join(", ") : (r.country && r.country !== "Polska" ? r.country : "");
     return `<div class="item${r.key === SEL ? " sel" : ""}" data-id="${esc(r.key)}" role="option">
-      <div class="t">${esc(r.title)}${r.quality === "needs_review" ? '<span class="tag warn">do przeglądu</span>' : ""}</div>
+      <div class="t">${esc(r.title)}${r.quality === "needs_review" ? '<span class="tag warn">do przeglądu</span>' : ""}${isNew(r) ? '<span class="tag src">nowy</span>' : ""}</div>
       <div class="m"><span class="tag src">${esc(short(r.source))}</span>${esc(r.beneficiary || "beneficjent nieustalony")}${where ? " · " + esc(where) : ""}</div>
     </div>`;
   }).join("") || '<div class="empty">Brak rekordów.</div>';
@@ -156,7 +179,7 @@ async function select(key) {
   renderDetail(await res.json());
 }
 
-function renderDetail({record: r, raw_files: raw, data_file}) {
+function renderDetail({record: r, raw_files: raw, data_file, history: h}) {
   const p = r.provenance || {}, q = r.quality || {}, f = r.funding || {}, per = r.period || {}, reg = r.region || {};
   const rawRow = (label, info) => info ? [label, `<code>${esc(info.path)}</code>${info.exists ? "" : ' <span class="raw">(brak pliku)</span>'}`] : null;
   const fileSource = !!p.source_file_url;
@@ -173,7 +196,12 @@ function renderDetail({record: r, raw_files: raw, data_file}) {
     ["Schemat rekordu", r.schema ? `<code>${esc(r.schema)}</code>` : null],
     ["ID rekordu", `<code>${esc(r.record_id)}</code>`],
     ["Hash treści", r.content_hash ? `<code>${esc(r.content_hash.slice(0, 16))}…</code>` : null],
-    ["Plik danych", `<code>${esc(data_file)}</code>`],
+    [h ? "Baza" : "Plik danych", `<code>${esc(data_file)}</code>`],
+    h ? ["Pierwszy raz widziany", dt(h.first_seen)] : null,
+    h ? ["Ostatnia zmiana treści", dt(h.changed_at)] : null,
+    h ? ["Ostatnio w źródle", dt(h.last_seen)] : null,
+    h && h.removed_at ? ["Usunięty ze źródła", `<span class="status-warn">${dt(h.removed_at)}</span>`] : null,
+    h ? ["Wersje treści", String(h.versions.length)] : null,
     rawRow("Zapisany plik źródłowy", raw.source_file),
     rawRow("Zapisana strona projektu", raw.detail_page),
     rawRow("Zapisana strona listy", raw.list_page),
@@ -242,7 +270,9 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
   if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
 });
-for (const id of ["q", "f-source", "f-quality", "f-voiv"]) $(id).addEventListener("input", render);
+for (const id of ["f-source", "f-quality", "f-voiv"]) $(id).addEventListener("input", render);
+let searchTimer;
+$("q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(search, META.db ? 200 : 0); });
 load();
 </script>
 </body>

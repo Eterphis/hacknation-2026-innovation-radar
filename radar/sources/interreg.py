@@ -271,7 +271,14 @@ class RawStore:
 
     def load(self, name: str) -> dict | None:
         p = self._meta(name)
-        return json.loads(p.read_text("utf-8")) if p.exists() else None
+        if not p.exists():
+            return None
+        meta = json.loads(p.read_text("utf-8"))
+        if meta.get("path"):
+            # the saved file sits next to its meta file; a path written on another OS
+            # (e.g. Windows backslashes read inside a Linux container) would not resolve
+            meta["path"] = str(self.root / re.split(r"[\\/]", meta["path"])[-1])
+        return meta
 
 
 @dataclass

@@ -7,6 +7,8 @@ Jedno polecenie, które pobiera i przebudowuje dane z dwóch źródeł:
 | `interreg` | wykaz projektów Interreg 2021–2027 (plik XLSX ze strony `interreg.gov.pl/lista-projektow/`) | [`radar/sources/interreg.py`](../radar/sources/interreg.py) |
 | `ncbr` | wyszukiwarka sukcesów beneficjentów NCBR (strona listy i strona szczegółów każdego projektu) | [`radar/sources/ncbr.py`](../radar/sources/ncbr.py) |
 
+Po każdej przebudowie rekordy trafiają do bazy `data/radar.db` (moduł [`radar/store.py`](../radar/store.py)). Baza pamięta, kiedy projekt pojawił się pierwszy raz, kiedy zmienił się jego opis i czy zniknął ze źródła.
+
 Skrypt pobiera tylko to, czego jeszcze nie ma albo co się zmieniło. Dzięki temu można go uruchamiać często, np. raz dziennie z harmonogramu.
 
 ## Wymagania
@@ -78,6 +80,7 @@ python -X utf8 -m radar.refresh --sources ncbr --delay 0.3
 | `--sources` | `interreg ncbr` | które źródła odświeżyć (jedno lub oba, oddzielone spacją) |
 | `--raw-dir` | `data/raw` | gdzie trzymać surowe pliki (podkatalogi `interreg/`, `ncbr/`) |
 | `--out-dir` | `data/normalized` | gdzie zapisać wyniki `*.jsonl` i `*.csv` |
+| `--db` | `data/radar.db` | baza SQLite (albo zmienna `RADAR_DB`) |
 | `--max-age` | `24` | NCBR: po ilu godzinach pobrać stronę listy ponownie |
 | `--delay` | `1.0` | NCBR: sekundy przerwy między zapytaniami |
 | `--force` | – | pobierz i przebuduj wszystko, ignorując cache |
@@ -100,8 +103,9 @@ python -X utf8 -m radar.refresh --sources ncbr --delay 0.3
 - Jeśli dane wejściowe (suma SHA-256 pliku XLSX lub strony listy) się nie zmieniły, a wynik istnieje i jest nienaruszony, przebudowa jest pomijana.
 - Przed przebudową poprzedni wynik jest kopiowany do `*.prev.jsonl`.
 - Jeśli liczba rekordów spadnie o ponad połowę, skrypt ostrzega i kończy się kodem 1 (zwykle oznacza to zmianę formatu źródła). Poprzednie dane są wtedy w `*.prev.jsonl`.
+- Po przebudowie rekordy są zapisywane do bazy. Nowe dostają datę pierwszego pojawienia się, zmienione (inny `content_hash`) nową wersję, a te, których zabrakło w źródle, datę usunięcia. Nic nie jest kasowane.
 - Błąd jednego źródła nie zatrzymuje drugiego.
-- Plik `data/.refresh.lock` nie pozwala uruchomić dwóch odświeżeń naraz. Blokada po zakończonym procesie albo starsza niż 6 godzin jest przejmowana automatycznie.
+- Plik `data/.refresh.lock` nie pozwala uruchomić dwóch odświeżeń naraz, także z różnych kontenerów Dockera. Blokada po zakończonym procesie na tym samym komputerze albo starsza niż 6 godzin jest przejmowana automatycznie.
 
 ## Jak czytać wynik
 
@@ -130,6 +134,7 @@ Wartości w podsumowaniu:
 | `rebuild` | `rebuilt` | wynik przebudowany |
 | | `skipped_unchanged` | dane bez zmian, wynik pozostawiony |
 | `records` | liczba | rekordów w wyniku |
+| `added` / `changed` / `removed` | liczba | ile rekordów w bazie przybyło, zmieniło się, zniknęło ze źródła |
 | `detail_pages_new` (NCBR) | liczba | ile nowych stron szczegółów pobrano |
 
 ## Kody wyjścia
@@ -150,19 +155,29 @@ data/
 ├── normalized/
 │   ├── interreg.jsonl   rekordy radar.record/v1 (+ interreg.csv, interreg.prev.jsonl)
 │   └── ncbr.jsonl       rekordy radar.record/v1 (+ ncbr.csv, ncbr.prev.jsonl)
-├── refresh_state.json   stan każdego źródła i historia ostatnich 50 uruchomień
+├── radar.db             baza SQLite: rekordy z historią, wyszukiwanie, karty, tabela refresh_runs
 └── .refresh.lock        istnieje tylko w trakcie działania
 ```
 
 `data/` jest w `.gitignore`, nic z tego nie trafia do repozytorium.
 
-Podgląd stanu ostatniego odświeżenia:
+Podgląd zawartości bazy i wyszukiwanie:
 
 ```powershell
-Get-Content data\refresh_state.json
+python -X utf8 -m radar.store stats
 ```
 
-## Uruchamianie automatyczne (Harmonogram zadań Windows)
+```powershell
+python -X utf8 -m radar.store search "pompa ciepla"
+```
+
+Każde uruchomienie odświeżania jest zapisane w tabeli `refresh_runs`; ostatnie widać też w nagłówku przeglądarki (`python -X utf8 -m radar.gui`). Dawny plik `data/refresh_state.json` jest czytany tylko raz, przy pierwszym uruchomieniu z bazą.
+
+## Uruchamianie automatyczne
+
+Najprościej w Dockerze: kontener `scheduler` odświeża dane co 24 h, patrz [docker.md](docker.md).
+
+### Harmonogram zadań Windows
 
 Codziennie o 6:00 (`schtasks` uruchamia polecenie w katalogu systemowym, dlatego najpierw `cd /d` do repozytorium; podmień ścieżkę na swoją):
 

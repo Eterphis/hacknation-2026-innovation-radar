@@ -2,6 +2,7 @@
 plus the justification for the official in the layout of an administrative decision (I-011).
 
 Run:  python -m radar.card --in data/normalized/ncbr.jsonl --ids <record_id>,<record_id>
+      python -m radar.card --stale        -> records from data/radar.db without an up-to-date card
       RADAR_LLM=offline|claude|auto (default auto)
 """
 
@@ -183,13 +184,28 @@ def render_justification(card: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--in", dest="inp", default="data/normalized/ncbr.jsonl")
+    ap.add_argument("--db", nargs="?", const="", default=None,
+                    help="czytaj rekordy z bazy SQLite i zapisuj do niej karty (bez ścieżki: $RADAR_DB albo data/radar.db)")
+    ap.add_argument("--stale", action="store_true",
+                    help="z --db: tylko rekordy bez karty albo zmienione od czasu jej utworzenia")
     ap.add_argument("--ids", default=None, help="comma-separated record_id list (default: all ok records)")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--llm", default=None, help="auto | claude | offline (overrides RADAR_LLM)")
     ap.add_argument("--out", default="data/cards", help="directory for cards.jsonl and <card_id>.md")
     args = ap.parse_args(argv)
 
-    records = [json.loads(line) for line in Path(args.inp).read_text("utf-8").splitlines() if line.strip()]
+    conn = None
+    if args.stale and args.db is None:
+        args.db = ""
+    if args.db is not None:
+        from . import store as db
+        conn = db.connect(args.db or None)
+        if args.stale:
+            records = db.stale_records(conn, quality=None if args.ids else "ok")
+        else:
+            records = [json.loads(r["data"]) for r in db.list_records(conn)]
+    else:
+        records = [json.loads(line) for line in Path(args.inp).read_text("utf-8").splitlines() if line.strip()]
     if args.ids:
         wanted = [i.strip() for i in args.ids.split(",") if i.strip()]
         by_id = {r["record_id"]: r for r in records}
@@ -214,10 +230,17 @@ def main(argv: list[str] | None = None) -> int:
             fh.write(json.dumps(card, ensure_ascii=False) + "\n")
             (out / f"{card['card_id']}.md").write_text(render_justification(card), "utf-8")
             counts[card["status"]] = counts.get(card["status"], 0) + 1
+            if conn is not None:
+                db.save_card(conn, card, rec)
             light = card.get("scores", {}).get("light", "-")
             total = card.get("scores", {}).get("total", "-")
             print(f"[{i}/{len(records)}] {card['card_id']} {card['status']:<12} {total!s:>4} {light:<8} {card['title'][:70]}",
                   file=sys.stderr)
+    if conn is not None:
+        # cards.jsonl mirrors every card in the database, not only this run's
+        rows = conn.execute("SELECT data FROM cards ORDER BY source, record_id").fetchall()
+        (out / "cards.jsonl").write_text("".join(r["data"] + "\n" for r in rows), "utf-8")
+        conn.close()
     print(f"cards: {counts} -> {out}", file=sys.stderr)
     return 0
 
