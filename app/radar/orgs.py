@@ -30,10 +30,19 @@ from typing import Any, Iterable
 
 ACCEPT, REVIEW = 0.90, 0.70
 STEM = 6
-STOP = {"w", "we", "i", "im", "z", "ze", "na", "do", "oraz", "of", "the", "and", "in"}
+STOP = {"w", "we", "i", "im", "z", "ze", "na", "do", "oraz", "of", "the", "and", "in",
+        # legal form and address words say nothing about which body it is
+        "spolka", "spolki", "ograniczona", "ograniczonej", "odpowiedzialnoscia", "akcyjna", "siedziba", "ul", "ulica"}
 TYPE_MAP = {"university": "uczelnia", "research_institute": "instytut"}
 ID_FIELDS = (("radon", "radon_uuid"), ("regon", "regon"), ("nip", "nip"), ("krs", "krs"))
 REGISTRY_FILE = "radon_institutions.jsonl"
+ORG_HEAD = re.compile(r"(?:Instytut|Centrum|Ośrodek|Uniwersytet|Akademia|Politechnika|Szkoła|Laboratorium|Muzeum|"
+                      r"Zakład|Biblioteka)\b")
+COMPANY = re.compile(r"\b(?:sp\.?\s*z\s*o\.?\s*o|spółk\w*|s\.\s?a\.|sp\.\s?[jk]\.|p\.s\.a)|(?-i:\bS\.?A\b)", re.I)
+OWN_BODY = re.compile(r"\s*(?:Fundacj|Fundaci|Stowarzysz|Towarzystw|Związek|Zwiazek|Koło|Kolo)", re.I)
+# stems that say what kind of body it is, not which one
+GENERIC = {"instyt", "badawc", "panstw", "naukow", "centrum", "osrode", "polski", "polska", "akadem", "nauk", "wyzsza",
+           "szkola", "uniwer", "politec", "zaklad", "laborat", "wojewo", "szpita", "specja", "sp", "o", "z"}
 CITY_RE = re.compile(r"\bwe?\s+([A-ZŁŚŻŹĆŃÓĘĄ][a-ząćęłńóśźż]+(?:[- ][A-ZŁŚŻŹĆŃÓĘĄ][a-ząćęłńóśźż]+)?)")
 
 
@@ -81,9 +90,18 @@ def name_variants(name: str) -> set[str]:
         if m:
             out.add(m.group(1))
         parts = re.split(r"\s+[-–—]\s+", v, maxsplit=1)
-        if len(parts) == 2:
+        # "Sieć Badawcza Łukasiewicz – Instytut Lotnictwa" -> "Instytut Lotnictwa", but never a generic tail such
+        # as "Państwowy Instytut Badawczy" or "z siedzibą w Warszawie" (seen as false matches on RAD-on data)
+        if len(parts) == 2 and ORG_HEAD.match(parts[1]):
             out.add(parts[1])
     return {v for v in out if v}
+
+
+def city_stripped(name: str) -> set[str]:
+    """The variants of name_variants() that only lost their 'w <city>': exact matches only, since without the
+    city they may name a whole class ("Wojewódzki Szpital Specjalistyczny" is in every voivodeship)."""
+    return {v for v in name_variants(name)
+            if re.match(r"(.+?)\s+w(?:e)?\s+[A-ZŁŚŻŹĆŃÓĘĄ]", name) and not re.search(r"\s+we?\s+[A-ZŁŚŻŹĆŃÓĘĄ]", v)}
 
 
 def registry_row(inst: dict) -> dict:
@@ -116,6 +134,8 @@ class Matcher:
         self.orgs: dict[int, OrgInfo] = {}
         self.by_id: dict[tuple[str, str], int] = {}
         owners: dict[str, set[int]] = defaultdict(set)
+        weak_keys: set[str] = set()
+        strong_keys: set[str] = set()
         self.official: set[str] = set()  # keys of full official and former names: they carry their own city
         for o in orgs:
             o = o if isinstance(o, OrgInfo) else OrgInfo(**o)
@@ -124,16 +144,20 @@ class Matcher:
                 self.by_id[(kind, re.sub(r"\D", "", str(value)) if kind != "radon" else str(value))] = o.id
             for name in [o.name, *(aliases or {}).get(o.id, [])]:
                 self.official.add(key(name))
+                weak = city_stripped(name)
                 for v in name_variants(name):
                     k = key(v)
                     if len(k) >= 4:
                         owners[k].add(o.id)
+                        (weak_keys if v in weak else strong_keys).add(k)
         # a short form shared by two entries ("Uniwersytet Medyczny") identifies neither
         self.exact = {k: next(iter(ids)) for k, ids in owners.items() if len(ids) == 1}
         self.by_first: dict[str, list[tuple[list[str], int]]] = defaultdict(list)
         for k, oid in self.exact.items():
             toks = k.split()
-            if len(toks) >= 2:
+            # containment needs a distinctive word ("Instytut Badawczy" alone would sit inside many names) and
+            # never uses a name that only lost its city
+            if len(toks) >= 2 and not set(toks) <= GENERIC and not (k in weak_keys and k not in strong_keys):
                 self.by_first[toks[0]].append((toks, oid))
         for lst in self.by_first.values():
             lst.sort(key=lambda x: -len(x[0]))
@@ -168,13 +192,21 @@ class Matcher:
             oid = self.exact.get(key(p))
             if oid is not None and (key(p) in self.official or self._city_ok(name, oid)):
                 return self._hit(name, oid, 0.98, "alias")
-        for word in re.findall(r"\b[A-ZŁŚŻŹĆŃÓĘĄ]{3,6}\b", name):
+        company = bool(COMPANY.search(name))
+        shouting = len(re.findall(r"\b[A-ZŁŚŻŹĆŃÓĘĄ]{3,}\b", name)) > 2
+        # acronyms only as standalone words, never in a company name or an all-caps name ("TYMBARK-MWS sp z o.o.",
+        # "SEA CAT NEW TECHNOLOGY")
+        # ...nor in a foundation or society named after the university ("Fundacja Absolwentów UMCS"), nor in
+        # parentheses, where it abbreviates the name before it ("Fundació Institut ... (IMIM)")
+        own = OWN_BODY.match(name)
+        words = [] if company or shouting or own else re.findall(r"(?<![\w(-])[A-ZŁŚŻŹĆŃÓĘĄ]{3,6}(?![\w)-])", name)
+        for word in words:
             oid = self.acronyms.get(fold(word).upper())
             if oid is not None and self._city_ok(name, oid):
                 return self._hit(name, oid, 0.95, "acronym")
         toks = tokens(name)
         best: tuple[int, int] | None = None
-        for i, t in enumerate(toks):
+        for i, t in enumerate([] if company else toks):  # a company is not a unit "inside" a university
             for alias, oid in self.by_first.get(t, ()):
                 if (toks[i:i + len(alias)] == alias and (best is None or len(alias) > best[0])
                         and self._city_ok(name, oid)):
