@@ -49,3 +49,15 @@ Dla każdego rekordu powstaje karta `radar.card/v1` (`data/cards/cards.jsonl`) i
 - **Ekstrakcja** ([`radar/extract.py`](radar/extract.py), [`radar/llm.py`](radar/llm.py)): pola karty (rozwiązanie, problem, co nowego, wymagania, typ, odbiorcy, sygnały dojrzałości, dziedziny), każde z cytatem. Kod sprawdza, czy cytat występuje w źródle; przy błędzie ponawia z listą błędów (maks. 2 razy), potem usuwa niepotwierdzone twierdzenia i oznacza kartę.
 - **Dostawca LLM** (`--llm` lub `RADAR_LLM`): `auto` (domyślnie: Claude, gdy jest pakiet `anthropic` i poświadczenia, inaczej reguły), `claude`, `offline`. Claude: `claude-opus-5-5`, structured outputs zgodne ze schematem, włączony serwerowy fallback przy odmowie (`fallbacks: "default"`). Reguły offline są zawsze ostatnim zapasem, więc demo działa bez klucza. Instalacja: `pip install anthropic`.
 - **Dojrzałość, ocena, ścieżka** ([`radar/assess.py`](radar/assess.py)): tylko reguły, bez LLM. Pięć kryteriów (dojrzałość, przenaszalność, skala problemu, koszt i wymagania wdrożenia, siła dowodów), każde z uzasadnieniem; brak danych o koszcie to luka, nie ocena. Światła: ≥ 3,8 zielone, ≥ 2,8 żółte.
+
+## GUI operatora (kolejka kart)
+
+```bash
+python -X utf8 -m radar.gui              # http://127.0.0.1:8765
+python -X utf8 -m radar.gui --rebuild    # najpierw przebuduj karty z data/normalized (offline)
+```
+
+- Kolejka kart z oceną i światłem, filtry (ocena, dojrzałość, typ, odbiorca, województwo, ukryte innowacje, specjalizacje PCI), sortowanie, wyszukiwanie.
+- Karta w układzie uzasadnienia (fakty z cytatami i linkiem do źródła, kryteria, dojrzałość, co przemawia przeciw, ścieżka, odbiorcy, mierniki, ograniczenia) i pobranie uzasadnienia jako `.md`.
+- Decyzja **Zatwierdź / Odrzuć / Cofnij** z notatką; zapis w `data/decisions.jsonl` (log tylko dopisywany, ostatni wpis wygrywa). Skróty: ↑/↓ lub j/k, Z, O.
+- Serwer tylko na `127.0.0.1`, biblioteka standardowa Pythona; brak kart → buduje je sam z `data/normalized/ncbr.jsonl`.

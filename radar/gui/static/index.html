@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar innowacji</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --line: #dfe3e8;
+  --text: #1b1f24; --muted: #5b6573; --accent: #1f5fbf; --accent-soft: #e6eefb;
+  --green: #1f8a4c; --green-soft: #e3f4ea; --yellow: #a86b00; --yellow-soft: #fdf1d8;
+  --red: #b42318; --red-soft: #fde7e5; --quote: #3a4452;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --line: #2b323c;
+    --text: #e6e9ee; --muted: #9aa4b2; --accent: #6ea0ff; --accent-soft: #1c2a44;
+    --green: #4cc38a; --green-soft: #15291f; --yellow: #e0b14a; --yellow-soft: #2d2412;
+    --red: #ff7b72; --red-soft: #3a1714; --quote: #c3cad4; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: var(--panel);
+  border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+header h1 span { color: var(--muted); font-weight: 400; }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+.stat b { font-variant-numeric: tabular-nums; }
+.stat.active { border-color: var(--accent); background: var(--accent-soft); }
+main { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); height: calc(100% - 53px); }
+aside { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+.filters { padding: 10px 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; border-bottom: 1px solid var(--line); }
+.filters input[type=search] { grid-column: 1 / -1; }
+.filters label.chk { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+input, select, textarea, button { font: inherit; color: inherit; }
+input[type=search], select, textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--panel); }
+.count { padding: 6px 12px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); }
+#list { overflow-y: auto; flex: 1; }
+.item { padding: 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; display: grid;
+  grid-template-columns: 44px minmax(0, 1fr); gap: 10px; }
+.item:hover { background: var(--panel-2); }
+.item.sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.score { border-radius: 8px; text-align: center; font-weight: 700; padding: 6px 0; font-variant-numeric: tabular-nums; height: fit-content; }
+.score.green { background: var(--green-soft); color: var(--green); }
+.score.yellow { background: var(--yellow-soft); color: var(--yellow); }
+.score.red { background: var(--red-soft); color: var(--red); }
+.item .t { font-weight: 550; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item .m { color: var(--muted); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.b { font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.b.hidden { border-color: var(--accent); color: var(--accent); }
+.b.pci { border-color: var(--green); color: var(--green); }
+.b.ok { background: var(--green-soft); color: var(--green); border-color: transparent; }
+.b.no { background: var(--red-soft); color: var(--red); border-color: transparent; }
+#detail { overflow-y: auto; padding: 20px 28px 60px; min-width: 0; }
+.empty { color: var(--muted); padding: 40px; text-align: center; }
+.top { display: flex; gap: 20px; align-items: flex-start; }
+.top h2 { margin: 0 0 4px; font-size: 20px; line-height: 1.3; }
+.top .sub { color: var(--muted); }
+.big { min-width: 120px; text-align: center; border-radius: 12px; padding: 10px 12px; }
+.big .n { font-size: 30px; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1; }
+.big .l { font-size: 12px; margin-top: 4px; }
+.verdict { margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); }
+.decide { display: flex; gap: 8px; align-items: center; margin: 14px 0 4px; flex-wrap: wrap; }
+.decide textarea { flex: 1 1 260px; min-height: 36px; height: 36px; resize: vertical; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 7px 14px; cursor: pointer; font-weight: 600; }
+.btn.approve { background: var(--green); border-color: var(--green); color: #fff; }
+.btn.reject { background: var(--panel); border-color: var(--red); color: var(--red); }
+.btn:disabled { opacity: .5; cursor: default; }
+.dstate { color: var(--muted); font-size: 13px; }
+section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 14px; box-shadow: var(--shadow); }
+section.card h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.fact { display: grid; grid-template-columns: 170px 1fr; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--line); }
+.fact:first-of-type { border-top: 0; }
+.fact .k { color: var(--muted); }
+q, .q { color: var(--quote); font-style: italic; }
+q::before { content: "„"; } q::after { content: "”"; }
+a { color: var(--accent); }
+.src { font-size: 12px; margin-left: 4px; white-space: nowrap; }
+table { border-collapse: collapse; width: 100%; }
+td, th { text-align: left; padding: 7px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; font-size: 12px; border-top: 0; }
+.dots { font-family: ui-monospace, monospace; letter-spacing: 1px; white-space: nowrap; color: var(--accent); }
+.gap { color: var(--muted); font-style: italic; }
+ul.plain { margin: 0; padding-left: 18px; }
+ul.plain li { margin: 4px 0; }
+.ladder { display: flex; gap: 4px; margin: 4px 0 8px; }
+.ladder div { flex: 1; text-align: center; font-size: 12px; padding: 6px 4px; border-radius: 6px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
+.ladder div.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.foot { color: var(--muted); font-size: 12px; margin-top: 16px; }
+.toolbar { display: flex; gap: 8px; margin-top: 8px; }
+.hint { color: var(--muted); font-size: 12px; }
+@media (max-width: 860px) {
+  main { grid-template-columns: minmax(0, 1fr); height: auto; }
+  aside { max-height: 55vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .stats { margin-left: 0; }
+  #detail { padding: 16px; }
+  .fact { grid-template-columns: 1fr; gap: 2px; }
+  .top { flex-direction: column-reverse; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Radar innowacji <span>· kolejka operatora PCI</span></h1>
+  <div class="stats" id="stats"></div>
+</header>
+<main>
+  <aside>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Szukaj: tytuł, twórca, województwo…" autocomplete="off">
+      <select id="f-light"><option value="">Wszystkie oceny</option><option value="green">Zielone</option><option value="yellow">Żółte</option><option value="red">Czerwone</option></select>
+      <select id="f-level"><option value="">Każda dojrzałość</option><option value="exploring">Badania</option><option value="tech_ready">Gotowa technologia</option><option value="business_ready">Gotowa do wdrożenia</option><option value="market_ready">Na rynku</option></select>
+      <select id="f-type"><option value="">Każdy typ</option></select>
+      <select id="f-recip"><option value="">Każdy odbiorca</option></select>
+      <select id="f-voiv"><option value="">Każde województwo</option></select>
+      <select id="f-sort"><option value="score">Sortuj: ocena</option><option value="level">Sortuj: dojrzałość</option><option value="title">Sortuj: tytuł</option></select>
+      <label class="chk"><input type="checkbox" id="f-hidden"> tylko ukryte innowacje</label>
+      <label class="chk"><input type="checkbox" id="f-pci"> tylko specjalizacje PCI</label>
+    </div>
+    <div class="count" id="count"></div>
+    <div id="list" role="listbox" aria-label="Kolejka kart"></div>
+  </aside>
+  <div id="detail"><div class="empty">Wybierz kartę z kolejki.</div></div>
+</main>
+<script>
+const LEVELS = ["exploring", "tech_ready", "business_ready", "market_ready"];
+const LEVEL_PL = {exploring: "Badania", tech_ready: "Gotowa technologia", business_ready: "Gotowa do wdrożenia", market_ready: "Na rynku"};
+const LIGHT_PL = {green: "zielona", yellow: "żółta", red: "czerwona"};
+const PATH_PL = {replikacja: "Replikacja", dalsze_badania: "Dalsze badania", transfer_technologii: "Transfer technologii",
+  pilotaz_wdrozeniowy: "Pilotaż wdrożeniowy", skalowanie: "Skalowanie", zakup_replikacja: "Zakup / replikacja"};
+const RECIP_PL = {gmina_miasto: "gminy i miasta", powiat_wojewodztwo: "powiaty i województwa", szkola: "szkoły",
+  uczelnia: "uczelnie", instytut_badawczy: "instytuty badawcze", ochrona_zdrowia: "ochrona zdrowia",
+  administracja_sluzby: "administracja i służby", przemysl: "przemysł", msp: "MŚP", energetyka_media: "energetyka i media",
+  transport: "transport", rolnictwo: "rolnictwo", ngo: "NGO", mieszkancy: "mieszkańcy", inne: "inne"};
+const DEC_PL = {approve: "zatwierdzona", reject: "odrzucona"};
+
+let ALL = [], VIEW = [], SEL = null, CURRENT = null, DECFILTER = "";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const safeUrl = (u) => /^https?:\/\//.test(u || "") ? u : "#";
+const num = (x) => x == null ? "–" : String(x).replace(".", ",");
+const money = (x) => x == null ? "kwota nieznana" : x.toLocaleString("pl-PL", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " zł";
+
+async function load() {
+  ALL = await (await fetch("/api/cards")).json();
+  fillSelect("f-type", [...new Set(ALL.map((c) => c.innovation_type).filter(Boolean))].sort(), (v) => v);
+  fillSelect("f-recip", [...new Set(ALL.flatMap((c) => c.recipient_types))].sort(), (v) => RECIP_PL[v] || v);
+  fillSelect("f-voiv", [...new Set(ALL.flatMap((c) => c.voivodeships))].sort((a, b) => a.localeCompare(b, "pl")), (v) => v);
+  render();
+  const first = location.hash.slice(1) || (VIEW[0] && VIEW[0].card_id);
+  if (first) select(first);
+}
+
+function fillSelect(id, values, label) {
+  const el = $(id);
+  for (const v of values) { const o = document.createElement("option"); o.value = v; o.textContent = label(v); el.appendChild(o); }
+}
+
+function stats() {
+  const n = (f) => ALL.filter(f).length;
+  const items = [
+    ["", "Wszystkie", ALL.length],
+    ["todo", "Do decyzji", n((c) => !c.decision)],
+    ["approve", "Zatwierdzone", n((c) => c.decision === "approve")],
+    ["reject", "Odrzucone", n((c) => c.decision === "reject")],
+  ];
+  $("stats").innerHTML = items.map(([k, l, v]) =>
+    `<div class="stat${DECFILTER === k ? " active" : ""}" data-k="${k}">${l}: <b>${v}</b></div>`).join("") +
+    `<div class="stat" title="gotowa technologia bez śladu wdrożenia poza twórcą">Ukryte innowacje: <b>${n((c) => c.hidden)}</b></div>`;
+  for (const el of $("stats").querySelectorAll(".stat[data-k]")) el.onclick = () => { DECFILTER = el.dataset.k; render(); };
+}
+
+function render() {
+  const q = $("q").value.trim().toLowerCase();
+  const light = $("f-light").value, level = $("f-level").value, type = $("f-type").value;
+  const recip = $("f-recip").value, voiv = $("f-voiv").value, sort = $("f-sort").value;
+  const onlyHidden = $("f-hidden").checked, onlyPci = $("f-pci").checked;
+  VIEW = ALL.filter((c) =>
+    (!q || [c.title, c.org, c.voivodeships.join(" ")].join(" ").toLowerCase().includes(q)) &&
+    (!light || c.light === light) && (!level || c.level === level) && (!type || c.innovation_type === type) &&
+    (!recip || c.recipient_types.includes(recip)) && (!voiv || c.voivodeships.includes(voiv)) &&
+    (!onlyHidden || c.hidden) && (!onlyPci || c.pci.length) &&
+    (DECFILTER === "" || (DECFILTER === "todo" ? !c.decision : c.decision === DECFILTER)));
+  const cmp = {
+    score: (a, b) => (b.total ?? -1) - (a.total ?? -1),
+    level: (a, b) => (b.level_index ?? 0) - (a.level_index ?? 0) || (b.total ?? 0) - (a.total ?? 0),
+    title: (a, b) => (a.title || "").localeCompare(b.title || "", "pl"),
+  }[sort];
+  VIEW.sort(cmp);
+  $("count").textContent = `${VIEW.length} z ${ALL.length} kart`;
+  $("list").innerHTML = VIEW.map((c) => `
+    <div class="item${c.card_id === SEL ? " sel" : ""}" data-id="${c.card_id}" role="option">
+      <div class="score ${esc(c.light)}">${num(c.total)}</div>
+      <div>
+        <div class="t">${esc(c.title)}</div>
+        <div class="m">${esc(c.org || "twórca nieustalony")} · ${esc(c.voivodeships.join(", ") || "—")}</div>
+        <div class="badges">
+          <span class="b">${esc(LEVEL_PL[c.level] || c.level)}</span>
+          ${c.hidden ? '<span class="b hidden">ukryta innowacja</span>' : ""}
+          ${c.pci.length ? `<span class="b pci">PCI: ${esc(c.pci.join(", "))}</span>` : ""}
+          ${c.decision ? `<span class="b ${c.decision === "approve" ? "ok" : "no"}">${DEC_PL[c.decision]}</span>` : ""}
+        </div>
+      </div>
+    </div>`).join("") || '<div class="empty">Brak kart dla tych filtrów.</div>';
+  for (const el of $("list").querySelectorAll(".item")) el.onclick = () => select(el.dataset.id);
+  stats();
+}
+
+async function select(id) {
+  SEL = id;
+  history.replaceState(null, "", "#" + id);
+  for (const el of $("list").querySelectorAll(".item")) el.classList.toggle("sel", el.dataset.id === id);
+  const res = await fetch("/api/cards/" + encodeURIComponent(id));
+  if (!res.ok) { $("detail").innerHTML = '<div class="empty">Nie znaleziono karty.</div>'; return; }
+  CURRENT = await res.json();
+  renderDetail(CURRENT);
+}
+
+function src(card) { return `<a class="src" href="${esc(safeUrl(card.url))}" target="_blank" rel="noopener">[NCBR ↗]</a>`; }
+function quote(text) { return `<q>${esc(text)}</q>`; }
+function fact(k, v) { return `<div class="fact"><div class="k">${k}</div><div>${v}</div></div>`; }
+
+function renderDetail({card, markdown, decision}) {
+  if (!card.extraction) {
+    $("detail").innerHTML = `<h2>${esc(card.title)}</h2><div class="verdict">Karta niekompletna: ${esc((card.reasons || []).join("; "))}</div>`;
+    return;
+  }
+  const ex = card.extraction, mat = card.maturity, sc = card.scores, rt = card.route, f = card.facts;
+  const orgs = f.organizations.filter((o) => o.role === "beneficiary").map((o) => o.name);
+  const people = (f.people || []).map((p) => p.source_text);
+  const s = src(card);
+  const facts = [
+    fact("Twórca", esc(orgs.join("; ") || (people.join("; ") + " (beneficjent wpisany z imienia i nazwiska)") || "nieustalony") +
+      ` · woj. ${esc(f.region.voivodeships.join(", ") || "—")} ${s}`),
+    fact("Finansowanie", `${esc(f.funding.programme || "")} · konkurs ${esc(f.funding.contest || "—")} · ${esc(money(f.funding.total_value))} ${s}`),
+    f.period.start ? fact("Okres realizacji", `${esc(f.period.start)} – ${esc(f.period.end || "w toku")} ${s}`) : "",
+    ex.problem_solved.value ? fact("Problem", quote(ex.problem_solved.quote) + s) : "",
+    ex.what_is_new.value ? fact("Co nowego", quote(ex.what_is_new.quote) + s) : "",
+    ex.requirements.value ? fact("Wymagania wdrożenia", quote(ex.requirements.quote) + s) : "",
+    ...mat.evidence.map((e) => fact(`Dowód: ${esc(e.label)}`, quote(e.quote) + s)),
+    fact("Typ i dziedziny", `${esc(ex.innovation_type)} · ${esc(ex.sectors.join(", ") || "nieustalone")}`),
+  ].join("");
+  const ladder = LEVELS.map((l) => `<div class="${l === mat.level ? "on" : ""}">${LEVEL_PL[l]}</div>`).join("");
+  const crit = sc.criteria.map((c) => `<tr><td>${esc(c.label)}</td><td class="dots">${c.score == null ? '<span class="gap">brak danych</span>' : esc(c.dots)}</td><td>${esc(c.why)}</td></tr>`).join("");
+  const recips = rt.recipients.length ? rt.recipients.map((r) =>
+    `<li><b>${esc(r.label)}</b>${r.public_sector ? ' <span class="b">sektor publiczny</span>' : ""}<br>${quote(r.quote)} ${s}</li>`).join("")
+    : '<li class="gap">Źródło nie wymienia odbiorców: do ustalenia z twórcą.</li>';
+  const p = card.provenance;
+  const dec = decision ? `${DEC_PL[decision.decision]} ${esc(decision.at.replace("T", " ").slice(0, 16))}${decision.note ? " · " + esc(decision.note) : ""}` : "czeka na decyzję";
+
+  $("detail").innerHTML = `
+    <div class="top">
+      <div style="flex:1;min-width:0">
+        <h2>${esc(ex.solution_name.value || card.title)}</h2>
+        <div class="sub">${esc(card.card_id)} · ${esc(LEVEL_PL[mat.level])}${mat.hidden ? " · <b>ukryta innowacja</b>" : ""} · ścieżka: ${esc(PATH_PL[rt.path] || rt.path)}</div>
+        <div class="verdict">${esc(ex.summary_pl)}</div>
+      </div>
+      <div class="big score ${esc(sc.light)}"><div class="n">${num(sc.total)}</div><div class="l">/ 5 · ${esc(LIGHT_PL[sc.light])}</div></div>
+    </div>
+    <div class="decide">
+      <textarea id="note" placeholder="Notatka do decyzji (opcjonalnie)">${esc(decision?.note || "")}</textarea>
+      <button class="btn approve" id="b-approve" title="Zatwierdź (skrót: Z)">Zatwierdź</button>
+      <button class="btn reject" id="b-reject" title="Odrzuć (skrót: O)">Odrzuć</button>
+      ${decision ? '<button class="btn" id="b-reset">Cofnij</button>' : ""}
+    </div>
+    <div class="dstate">Decyzja: ${dec}. ${card.status !== "ready" ? "Do przeglądu: " + esc(card.reasons.join("; ")) : ""}</div>
+
+    <section class="card"><h3>1. Co ustalono (fakty i dowody)</h3>${facts}</section>
+    <section class="card"><h3>2–3. Kryteria i ocena</h3>
+      <div class="hint">${esc(sc.verdict)} · ${esc(sc.method)}</div>
+      <table><thead><tr><th>Kryterium</th><th>Ocena</th><th>Uzasadnienie</th></tr></thead><tbody>${crit}</tbody></table>
+      <div style="margin-top:12px" class="hint">Dojrzałość</div><div class="ladder">${ladder}</div>
+      <div>Brakuje do następnego poziomu: ${esc(mat.missing)}.</div>
+    </section>
+    <section class="card"><h3>4. Co przemawia przeciw</h3><ul class="plain">${card.against.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></section>
+    <section class="card"><h3>5. Rozstrzygnięcie: do czego i dla kogo</h3>
+      <div><b>Ścieżka:</b> ${esc(rt.path_pl)}</div>
+      <div style="margin-top:8px"><b>Odbiorcy:</b></div><ul class="plain">${recips}</ul>
+      ${rt.pci_priority_sectors.length ? `<div style="margin-top:8px"><b>Specjalizacje PCI:</b> ${esc(rt.pci_priority_sectors.join(", "))}</div>` : ""}
+      <div style="margin-top:8px"><b>Mierniki skuteczności:</b></div><ul class="plain">${rt.metrics.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>
+    </section>
+    <section class="card"><h3>6. Ograniczenia</h3><ul class="plain">${card.limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></section>
+    <div class="toolbar">
+      <a class="btn" href="${esc(safeUrl(card.url))}" target="_blank" rel="noopener">Otwórz źródło ↗</a>
+      <button class="btn" id="b-md">Pobierz uzasadnienie (.md)</button>
+    </div>
+    <div class="foot">Ekstrakcja: ${esc(p.extractor)}${p.model ? " (" + esc(p.model) + ")" : ""}, ${esc(p.prompt_version)}, prób: ${p.attempts}${p.fallback_reason ? ", zapas: " + esc(p.fallback_reason) : ""} · ocena: ${esc(p.assess_version)} · ${esc(p.created_at)}</div>`;
+  $("b-approve").onclick = () => decide("approve");
+  $("b-reject").onclick = () => decide("reject");
+  if ($("b-reset")) $("b-reset").onclick = () => decide("reset");
+  $("b-md").onclick = () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([markdown], {type: "text/markdown"}));
+    a.download = `${card.card_id}.md`; a.click(); URL.revokeObjectURL(a.href);
+  };
+  $("detail").scrollTop = 0;
+}
+
+async function decide(decision) {
+  if (!SEL) return;
+  for (const b of document.querySelectorAll(".decide .btn")) b.disabled = true;
+  const note = $("note") ? $("note").value : "";
+  const res = await fetch(`/api/cards/${encodeURIComponent(SEL)}/decision`, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({decision, note})});
+  if (!res.ok) { alert("Nie udało się zapisać decyzji."); return; }
+  const entry = await res.json();
+  const row = ALL.find((c) => c.card_id === SEL);
+  row.decision = decision === "reset" ? null : decision;
+  const idx = VIEW.findIndex((c) => c.card_id === SEL);
+  render();
+  if (decision !== "reset" && DECFILTER === "todo" && VIEW.length) {
+    select(VIEW[Math.min(idx, VIEW.length - 1)].card_id);  // next card in the queue
+  } else {
+    CURRENT.decision = decision === "reset" ? null : entry;
+    renderDetail(CURRENT);
+  }
+}
+
+function move(step) {
+  const i = VIEW.findIndex((c) => c.card_id === SEL);
+  const next = VIEW[Math.max(0, Math.min(VIEW.length - 1, i + step))];
+  if (next) { select(next.card_id); document.querySelector(`.item[data-id="${next.card_id}"]`)?.scrollIntoView({block: "nearest"}); }
+}
+
+document.addEventListener("keydown", (e) => {
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+  if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); move(1); }
+  else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); move(-1); }
+  else if (e.key === "z" || e.key === "Z") decide("approve");
+  else if (e.key === "o" || e.key === "O") decide("reject");
+});
+for (const id of ["q", "f-light", "f-level", "f-type", "f-recip", "f-voiv", "f-sort", "f-hidden", "f-pci"])
+  $(id).addEventListener("input", render);
+load();
+</script>
+</body>
+</html>
