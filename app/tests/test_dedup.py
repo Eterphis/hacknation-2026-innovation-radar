@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from radar.db import session
 from radar.models import Record
+from radar.pipeline.normalize import programme_key, same_programme
 from radar.pipeline.tasks import completeness, harvest, reconcile_all
 
 BODY = ("Opracowano system czujników IoT i aplikację, która w czasie rzeczywistym monitoruje jakość wody w sieci "
@@ -131,3 +132,52 @@ def test_completeness_prefers_richer_records():
     thin = Record(title="t", abstract="x" * 300)
     rich = Record(title="t", abstract="x" * 300, doi="10.1/x", affiliations=["A"], keywords=["k"], amounts={"amount_total": 1.0})
     assert completeness(rich) > completeness(thin)
+
+
+# titles as returned by Kohesio for "czyste powietrze" (2026-11-21)
+SAME = [
+    ("Czyste powietrze w Gminie Żytno poprzez montaż OZE", "Czyste powietrze w gminie Młodzieszyn- wymiana urządzeń grzewczych"),
+    ("Poprawa efektywności energetycznej budynków użyteczności publicznej gminy Hażlach - etap I.",
+     "Poprawa efektywności energetycznej budynków użyteczności publicznej gminy Hażlach - etap II"),
+    ("Energia ze źródeł odnawialnych = czyste powietrze w Gminie Krzczonów",
+     "ENERGIA ZE ŹRÓDEŁ ODNAWIALNYCH = CZYSTE POWIETRZE W GMINIE KRZCZONÓW - CZĘŚĆ II"),
+    ("Ziemia Kłodzka – czyste powietrze (wymiana źródeł ciepła na terenie Gminy Duszniki-Zdrój, Kłodzko Miasto)",
+     "Ziemia Kłodzka – czyste powietrze (wymiana źródeł ciepła na terenie Gminy Bystrzyca Kłodzka, Lądek-Zdrój)"),
+    ("Aktywizacja zawodowa osób bezrobotnych z powiatu skierniewickiego i miasta Skierniewice (II)",
+     "Aktywizacja zawodowa osób bezrobotnych z powiatu skierniewickiego i miasta Skierniewice (I)."),
+    ("Wdrożenie Programu ochrony powietrza w Gminie Nowe Brzesko", "Wdrożenie Programu ochrony powietrza w gminie Rabka-Zdrój"),
+]
+DIFFERENT = [
+    ("BUDOWA BUDYNKU URZĘDU GMINY W MIEJSCOWOŚCI MAKÓW W TECHNOLOGII PASYWNEJ",
+     "Rozbudowa budynku Urzędu Gminy z dostosowaniem do nowych funkcji społecznych"),
+    ("Czyste powietrze w Gminie Żytno", "Budowa ścieżki rowerowej w Gminie Żytno"),
+    ("Ziemia Kłodzka – czyste powietrze (wymiana)", "Czyste Powietrze - wymiana źródeł ciepła w gospodarstwach w Gminie Knurów"),
+]
+
+
+@pytest.mark.parametrize("a,b", SAME)
+def test_projects_of_one_programme(a, b):
+    assert same_programme(programme_key(a), programme_key(b)), (programme_key(a), programme_key(b))
+
+
+@pytest.mark.parametrize("a,b", DIFFERENT)
+def test_different_programmes(a, b):
+    assert not same_programme(programme_key(a), programme_key(b)), (programme_key(a), programme_key(b))
+
+
+def test_kohesio_programme_across_municipalities(sources):
+    desc = ("Projekt obejmuje wymianę wysokoemisyjnych źródeł ciepła na pompy ciepła i kotły gazowe w budynkach "
+            "mieszkalnych na terenie gminy, co ograniczy niską emisję i poprawi jakość powietrza.")
+    sources("k",
+            {"id": "Q10", "title": "Czyste powietrze w Gminie Żytno poprzez montaż OZE", "abstract": desc, "year": 2018},
+            {"id": "Q11", "title": "Czyste powietrze w gminie Młodzieszyn- wymiana urządzeń grzewczych", "abstract": desc * 2,
+             "year": 2020, "orgs": ["Gmina Młodzieszyn"]},
+            {"id": "Q12", "title": "Czyste powietrze w Gminie Krasnosielc – wymiana źródeł ciepła", "abstract": desc, "year": 2023})
+    harvest.apply(("kohesio",)).get()
+    st = _state()
+    assert [k for k in ("Q10", "Q11", "Q12") if st[k][0] != "duplicate"] == ["Q11"]
+    assert st["Q11"][3] == 3
+    with session() as s:  # Q12 was a duplicate of Q10 before Q11 took over: its reason follows the cluster
+        q11 = s.scalar(select(Record).where(Record.title.contains("Młodzieszyn")))
+        for r in s.scalars(select(Record).where(Record.cluster_id == q11.id, Record.id != q11.id)):
+            assert f"#{q11.id}" in r.review_reasons[0]

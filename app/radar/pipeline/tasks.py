@@ -21,7 +21,7 @@ from radar.db import session
 from radar.models import Card, RawRecord, Record, SourceState, StageRun
 from radar.pipeline import extract as ex
 from radar.pipeline.celery_app import app
-from radar.pipeline.normalize import apply_mapping, norm_title, quality_gate
+from radar.pipeline.normalize import apply_mapping, norm_title, programme_key, quality_gate, same_programme
 from radar.sources.registry import connector, get_source
 
 log = logging.getLogger(__name__)
@@ -173,8 +173,9 @@ def _fuller(a: Record, b: Record) -> bool:
 
 def _find_match(s, rec: Record, group_by_title: bool) -> tuple[Record | None, str | None]:
     """Canonical record (not a duplicate) this one duplicates. Layers 2-3 of §16: same DOI, or same normalized
-    title + year; sources with `group_by_title` (Kohesio: one programme, many beneficiaries) group the same
-    title in the source whatever the year. Layers 4-5 (embeddings) stay in the graph as possible_duplicate."""
+    title + year; sources with `group_by_title` (Kohesio: one programme, many beneficiaries) group projects of
+    the same programme (normalize.programme_key: phases, places, scope removed) whatever the year.
+    Layers 4-5 (embeddings) stay in the graph as possible_duplicate."""
     live = (Record.id != rec.id, Record.status.notin_(("duplicate", "deleted")))
     if rec.doi:
         m = s.scalar(select(Record).where(Record.doi == rec.doi, *live).order_by(Record.id))
@@ -184,11 +185,12 @@ def _find_match(s, rec: Record, group_by_title: bool) -> tuple[Record | None, st
     if not nt:
         return None, None
     if group_by_title:
-        prefix = (rec.title or "")[:12].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pk = programme_key(rec.title)
+        prefix = (rec.title or "")[:6].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         for other in s.scalars(select(Record).where(Record.source_id == rec.source_id, *live,
                                                     Record.title.ilike(prefix + "%", escape="\\")).order_by(Record.id)):
-            if norm_title(other.title) == nt:
-                return other, f"ten sam tytuł projektu w {rec.source_id} (grupa projektów)"
+            if norm_title(other.title) == nt or same_programme(pk, programme_key(other.title)):
+                return other, f"ten sam program „{pk}” w {rec.source_id} (grupa projektów)"
     if rec.year:
         for other in s.scalars(select(Record).where(Record.year.between(rec.year - 1, rec.year + 1), *live,
                                                     Record.kind == rec.kind).order_by(Record.id)):
@@ -226,6 +228,8 @@ def dedup(self, raw_id: int, h: str) -> str:
             old = match.cluster_id or match.id
             for member in s.scalars(select(Record).where(Record.cluster_id == old)):
                 member.cluster_id = rec.id
+                member.review_reasons = [r.replace(f"duplikat rekordu #{match.id}", f"duplikat rekordu #{rec.id}")
+                                         for r in member.review_reasons or []]
             match.cluster_id = rec.id
             match.status = "duplicate"
             match.review_reasons = [f"duplikat rekordu #{rec.id} (pełniejszy opis): {reason}"]
