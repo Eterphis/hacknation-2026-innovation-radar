@@ -12,9 +12,45 @@ contest:            # człowiek
 kind: build         # build | optimize — człowiek
 
 goal: "Wsrod lokalnych pomyslow ze szkol, uczelni, samorzadow i instytucji publicznych znalezc te, ktore moga miec znaczenie daleko poza miejscem, w ktorym powstaly, i ustalic, co je wyroznia. (teaser ze strony; pelna tresc zadania 21.11 11:00)"
+goal_full: >-   # proposed: z pełnej treści zadania §2-§3, §6, §9
+  Prototyp, który systematycznie odnajduje „ukryte” innowacje ze szkół, uczelni, JST i innych instytucji
+  publicznych (także nietechnologiczne: organizacyjne, edukacyjne, społeczne, procesowe), porządkuje
+  informacje o pomyśle i twórcach, ocenia potencjał według jawnych kryteriów, rekomenduje ścieżkę
+  (rozwój / transfer / komercjalizacja / wdrożenie w innej organizacji), wykrywa podobne rozwiązania
+  (mniej dublowania prac) i łączy twórców z użytkownikami, partnerami lub inwestorami. Forma otwarta.
+  Mile widziane mechanizmy: zgłaszanie lub automatyczne wykrywanie; uporządkowanie informacji; ocena
+  wg jasnych kryteriów; rekomendacja ścieżki; wyszukiwanie podobnych; łączenie z odbiorcami.
+  Walidacja: scenariusz a) wprowadzenie/wykrycie innowacji, b) uporządkowanie informacji, c) ocena
+  potencjału, d) wskazanie odbiorców/partnerów/ścieżek, e) uzasadnienie rekomendacji + oczekiwane
+  mierniki skuteczności; na co najmniej dwóch przykładowych przypadkach użycia.
+  Nacisk: działa w wielu typach instytucji, powtarzalny proces oceny, jasne „co dalej” po identyfikacji,
+  użyteczność po hackathonie.
+users: ["pracownicy i przedstawiciele szkół, uczelni, JST i innych instytucji publicznych", "podmioty szukające gotowych lub rozwijających się rozwiązań"]   # proposed: treść §3
+data_sources:       # proposed: treść §7 (możliwe, nieobowiązkowe)
+  - {name: "UPRP e-wyszukiwarka patentów", url: "https://ewyszukiwarka.pue.uprp.gov.pl/search/simple-search"}
+  - {name: "EPO Register", url: "https://register.epo.org/regviewer"}
+  - {name: "PBN (Polska Bibliografia Naukowa)", url: "https://pbn.nauka.gov.pl/core/#/home"}
+  - {name: "PPM (Platforma Publikacji Medycznych / repozytorium)", url: "https://ppm.edu.pl/index.seam"}
+  - {name: "Biblioteka cyfrowa PAN (czasopisma)", url: "https://www.czasopisma.pan.pl/dlibra"}
+  - {name: "BazTOL (PUT Poznań)", url: "http://baztol.library.put.poznan.pl/baztol_czytelnik/baztol"}
+  - {name: "Interreg - lista projektów", url: "https://interreg.gov.pl/lista-projektow/"}
+  - {name: "NCBR - wyszukiwarka sukcesów beneficjentów", url: "https://www.gov.pl/web/ncbr/wyszukiwarka-sukcesow-beneficjentow"}
+contact: {name: Kacper Moczarny, email: k.moczarny@pcinn.org, mentors: "stanowisko PCI + Discord wyzwania"}   # proposed: treść §10
 
 scoring:            # build: rubryka; optimize: metryka + sprawdzarka — z regulaminu
-  rubric: null      # build: lista kryteriów {name, what, levels 1-5, weight}
+  rubric:           # proposed: treść §8 + regulamin zadania §2 ust. 4-5 (etap I, 0-5 pkt każde, wagi po 20%, max 25)
+    - {name: "Związek z wyzwaniem i jakość rozwiązania problemu", weight: 0.2, max: 5, what: "czy realnie wspiera odnajdywanie i ocenę ukrytych innowacji i prowadzi od identyfikacji do ścieżki rozwoju/wdrożenia (treść §6)"}
+    - {name: "Pomysł i oryginalność", weight: 0.2, max: 5, what: "nowe podejście do wykrywania, oceny i łączenia innowacji"}
+    - {name: "Użyteczność dla użytkowników i jakość doświadczenia", weight: 0.2, max: 5, what: "dla pracowników szkół, uczelni, JST, instytucji publicznych i szukających rozwiązań"}
+    - {name: "Kompletność oraz jakość prototypu/demonstracji", weight: 0.2, max: 5, what: "działający prototyp, scenariusz a-e na min. 2 przypadkach, film"}
+    - {name: "Potencjał wdrożeniowy, skalowalność i możliwość transferu innowacji", weight: 0.2, max: 5, what: "wiele organizacji, bezpieczeństwo danych, integracje, przejrzystość kryteriów, rozwój po hackathonie (treść §5, §9)"}
+  rubric_stage2:    # proposed: regulamin zadania §2 ust. 8-9 (TOP 3, pitch 5 min; ocena samego wystąpienia)
+    - {name: "Spójność prezentacji", weight: 0.2, max: 5}
+    - {name: "Jasność przekazu", weight: 0.2, max: 5}
+    - {name: "Umiejętność zainteresowania odbiorcy", weight: 0.2, max: 5}
+    - {name: "Pomysłowość w zaprezentowaniu rozwiązania", weight: 0.2, max: 5}
+    - {name: "Charyzma w wystąpieniu", weight: 0.2, max: 5}
+  winner: "1. miejsce w rankingu etapu II (regulamin §2 ust. 9); nagroda nie jest przyznawana poniżej 50% punktów (§3 ust. 11)"   # proposed
   metric: null      # optimize: nazwa metryki i kierunek (max/min)
   direction: null   # optimize: max | min (house exp; bez tego bierze max/min ze słów w metric)
   local_scorer: null   # optimize: komenda lokalnej sprawdzarki; drukuje `score: <liczba>`
@@ -29,25 +65,31 @@ timeline:           # z regulaminu
     - {at: "2026-11-22T00:00+01:00", what: "judge round; wow feature chosen"}
     - {at: "2026-11-22T09:30+01:00", what: "feature freeze: only bugs, fallback demo video, README, pitch"}
     - {at: "2026-11-22T10:30+01:00", what: "Hacktribe submission done (30 min buffer)"}
-    - {at: "2026-11-22T14:45+01:00", what: "Stage I results: top 5 per task go to the pitch"}
+    - {at: "2026-11-22T14:45+01:00", what: "Stage I results: top 5 per task go to the pitch"}   # proposed: regulamin zadania §2 ust. 8 mówi TOP 3 i ma pierwszeństwo (§5 ust. 2)
     - {at: "2026-11-22T15:15+01:00", what: "Stage II: 5 min live pitch + 5 min jury Q&A"}    # np. {at: "19:00", what: "golden path end-to-end"}, feature freeze
 
 rules:              # sprawdza researcher PRZED startem
   url: https://hacknation.pl/api/public/dokumenty/28c74284-6390-4665-b8aa-bf4367db79c0/regulamin-hacknation_19.11.pdf
-  allowed_ai: null              # general rules say nothing; check the task's own regulamin at 11:00
-  allowed_autonomous_agents: null
+  task_docs: ["PCI - Regulamin zadania konkursowego.pdf", "PCI - Pełna treść zadania konkursowego.pdf"]   # publikowane na hacknation.pl (regulamin §5 ust. 4)
+  allowed_ai: true              # proposed: ani regulamin wydarzenia, ani regulamin zadania nie zabraniają; treść §5 wprost przewiduje AI/ML w rozwiązaniu (trzeba podać źródła danych, założenia, ograniczenia)
+  allowed_autonomous_agents: true   # proposed: brak zakazu w obu regulaminach; do potwierdzenia u mentorów (Q-003)
+  task_notes: "proposed: Regulamin zadania ma pierwszeństwo nad regulaminem wydarzenia (§5 ust. 2). Etap I: jury PCI (min. 3 os.) ocenia zgłoszenia, ranking wg średniej; mentorzy obserwują pracę i ich opinia może wpłynąć na werdykt (§2 ust. 7). Do etapu II wchodzi TOP 3 (nie 5), pitch 5 min oceniany tylko za wystąpienie; wygrywa 1. miejsce etapu II. Jedna nagroda 11 111,00 zł brutto (minus 10% podatku), dzielona równo w zespole. Wypłata dopiero po przekazaniu pełnego kodu źródłowego z dokumentacją i udostępnieniu na EUPL-1.2 (§3 ust. 5); brak = dyskwalifikacja. Zwycięskie rozwiązanie trafia do publicznego repo Ministerstwa Cyfryzacji na GitHubie z licencją i autorami (§4 ust. 5); prawa majątkowe zostają u autorów, PCI i MC korzystają na EUPL (§4 ust. 6-7). Zakaz elementów, których licencja blokuje publikację na EUPL (§4 ust. 8) -> sprawdzać licencje zależności i danych. Zgoda na publikację na EUPL jest nieodwołalna (§1 ust. 10)."
   notes: "Teams up to 6. Per-task criteria come with the full brief (Sat 11:00). Stage I = jury (3+) scores Hacktribe submissions, top 5 per task go to Stage II = 5 min pitch + 5 min Q&A. Jury may award nothing below 50% of points. Prize per task 11-34k PLN. Task regulamin may transfer IP to the partner (art. 921 par. 3 kc): check it."
 
 deliverables:       # co trzeba oddać — researcher sprawdza w regulaminie; nie zakładaj niczego (null = nieznane)
-  video_required: null
-  video_max_seconds: null
+  video_required: true          # proposed: treść §4, link do filmu w dostępnym, otwartym repozytorium
+  video_max_seconds: 180        # proposed: treść §4 („maksymalnie 3 minuty”, pokazuje działanie projektu)
   live_demo: true              # Stage II is a live pitch to the jury
-  slides: null
-  repo_submission: null
+  slides: "PDF, max 10 slajdów"  # proposed: treść §4
+  repo_submission: optional     # proposed: treść §4 „dodatkowo może zawierać”; zwycięzca MUSI oddać pełny kod + dokumentację (regulamin §3 ust. 5)
+  required_texts: [tytuł projektu, opis problemu i proponowanego rozwiązania, opis sposobu działania i głównych funkcji]   # proposed: treść §4
+  optional_items: [repozytorium kodu, działający prototyp/demonstrator, zrzuty ekranu, link do demonstracji, grafiki/makiety/modele]   # proposed: treść §4
+  ai_disclosure: "źródła danych, podstawowe założenia działania, ograniczenia (gdy są dane/AI/rekomendacje/integracje)"   # proposed: treść §5
+  license: EUPL-1.2             # proposed: regulamin §1 ust. 10, §3 ust. 5, §4 ust. 5
   starter_code_allowed: null    # czy wolno użyć kodu przygotowanego przed eventem
-  ai_apis_allowed: null
-  external_data_allowed: null
-  cloud_deploy_allowed: null
+  ai_apis_allowed: true         # proposed: brak zakazu; treść §5 dopuszcza AI/ML i integracje zewnętrzne (z opisem ograniczeń)
+  external_data_allowed: true   # proposed: treść §7 sama podaje bazy zewnętrzne; uwaga na licencje danych (regulamin §4 ust. 8)
+  cloud_deploy_allowed: null    # nic o tym nie mówią; treść §4 dopuszcza „link do demonstracji”
   format: null                  # optimize: .py / .onnx / zip / plik wyników …
 
 mode: copilot       # copilot (pytaj o trudne decyzje) | autopilot (decyduj sam, pytaj tylko w końcówce)
