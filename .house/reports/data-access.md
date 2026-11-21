@@ -69,3 +69,30 @@ Raw responses (not committed): scratchpad `api/` folder of the coordinator sessi
 - **EP patents: live source without a key** (EPO Linked Data + document XML), applicant matched by name to the organisation registry. Gives the `tech_ready` evidence and patent text for the LLM.
 - **Polish national patents (PL, UPRP): no automated source.** Options: a manual export from e-Wyszukiwarka by a team member as a snapshot, or applying for UPRP API access (not within 24 h). State as a limitation.
 - **RAD-on projects:** one full download (about 49k records) per refresh, filtered locally by institution and funder (NCN, NCBR).
+
+## Remaining brief §7 sources, checked with real calls (2026-11-21 15:30)
+
+Question per source: does it give **text good enough to parse** (what was built, what problem, for whom) plus **who made it** (organisation, type, place), so it can feed filtering, innovation scoring and end-user matching?
+
+| Source (brief §7) | Call | Result | Verdict |
+|---|---|---|---|
+| **Interreg** (interreg.gov.pl lista projektów) | XLSX linked on the page: `/wp-content/uploads/2026/11/Wykaz_projektow_Interreg_2021-2027_art_49_CPR_20261116.xlsx` (434 KB, no key) | 200. **258 projects**, 21 columns: programme, number, title, **description (median 3,900 chars, min 961)**, dates, total cost EUR, EU rate, specific objective, **lead partner + postal code, voivodeship, powiat, gmina, city**, **all partners**, intervention field. Lead partner is a gmina/miasto/powiat/województwo in **55 of 258**, a university in 5. Podkarpackie leads with 36. Description cut at 4,000 chars. File name carries a date, so the URL changes on refresh: read the link from the page. | **Live, best for local-government innovations** and for a catalogue of recipients (partner lists = institutions already working on the topic). |
+| **NCBR wyszukiwarka sukcesów** | `gov.pl/web/ncbr/wyszukiwarka-sukcesow-beneficjentow` (static HTML) + detail pages `gov.pl/web/ncbr/<slug>` | 200, no key. List page has **~316 entries** with title, beneficiary, programme, contest (LIDER, ZPU, Trzecia Misja…), project value, funding, period, region, keyword. Detail page has a teaser, team lead, **"Zobacz efekt naszej pracy"** (result, e.g. demonstrator) and **"Jaki problem rozwiązuje nasz projekt?"**. | **Live (scrape), best text quality of all**: already written as problem → solution → result. Small set, chosen by NCBR (success bias). Mix of universities, institutes, companies; filter by beneficiary in RAD-on. |
+| **PPM** (ppm.edu.pl, Polska Platforma Medyczna) | OAI-PMH `https://ppm.edu.pl/oai` (found by probing; certificate chain incomplete for curl, fine in a browser) | 200. Formats `oai_dc`, `oai_cerif_openaire`, `oai_cerif_openaire_v1_2`. **540,421 records**, 100 per page, resumptionToken. In CERIF (100 sample): **DOI 97**, **affiliation/OrgUnit 81** (internal unit codes like `UML/…`, "Obca jednostka"), ORCID 13, **abstract > 200 chars only 4** (most say "brak streszczenia"). Medical universities only. | **Metadata yes, text no.** Useful as a publication/affiliation registry for medicine; not a source of innovation descriptions. Optional; skip in golden path. |
+| **Biblioteka cyfrowa PAN** (czasopisma.pan.pl → journals.pan.pl dLibra) | OAI-PMH `https://journals.pan.pl/oai-pmh-repository.xml` | `Identify` and `ListMetadataFormats` 200 (`oai_dc`, `oai_qdc`, `mets`, `oai_etdms`, `dlibra_avs`; earliest 2016-09-05). **`ListRecords` returns a "High Load – Verifying Browser" JS challenge**, also in a real browser. Not bypassed. | **Blocked for automated harvest.** Same journals are in **Biblioteka Nauki** (already verified), use that. |
+| **BazTOL** (PUT) | form POST `akcja=szukanie_proste`, `wyr_wysz=<term>` | 200, works, but it is a **catalogue of links to technical online resources** (databases, portals), not research outputs. "czujnik" → nothing found. | **Not useful** for finding innovations. Skip. |
+| **PBN** | `pbn.nauka.gov.pl/api/v1/...` | **403 "token aplikacji null"** / 401. Needs an OPI application token. | **No** (as before). Publications via Biblioteka Nauki; institutions via RAD-on. |
+
+### Ranking for "parse → filter → score innovation → find end users"
+
+1. **NCBR sukcesy**: richest text (problem, result, team), already innovation-shaped; small.
+2. **Interreg XLSX**: long descriptions, public-sector authors with gmina/powiat, partner lists for recipient matching; small, one file.
+3. **EPO Linked Data** (checked earlier): abstract + claims + CPC + applicant; proof of `tech_ready`.
+4. **RAD-on projects** (checked earlier): ~49k Polish projects with abstracts, funder, institution type (public/private, REGON) for filtering.
+5. **Biblioteka Nauki** (checked earlier): bulk article metadata with abstracts; most are not innovations, needs the prefilter.
+6. **Kohesio** (checked earlier): beneficiaries as recipient catalogue; descriptions shorter.
+- Out: UPRP (bot protection + 401), PBN (token), PAN dLibra (JS challenge, use Biblioteka Nauki), BazTOL (link catalogue), PPM (no abstracts; optional metadata).
+
+### What changes
+- **Add NCBR sukcesy and Interreg XLSX to the golden path** next to RAD-on, Biblioteka Nauki, EPO, Kohesio: they are the two sources whose text already says what was built and for whom, and Interreg gives the "rozwiązanie gminy" demo case directly.
+- **Interreg partners and Kohesio beneficiaries** together give the end-user catalogue for local government (who already funds or runs similar projects).
