@@ -3,332 +3,222 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Radar innowacji</title>
+<title>Radar innowacji – dane</title>
 <style>
 :root {
   --bg: #f5f6f8; --panel: #fff; --soft: #f0f2f5; --line: #e3e6ea;
   --text: #1c2026; --muted: #6a7380; --accent: #1f5fbf; --accent-soft: #e8effb;
-  --green: #1b7f47; --green-soft: #e4f3ea; --yellow: #9a6200; --yellow-soft: #fbf0d9;
-  --red: #b42318; --red-soft: #fce8e6;
+  --ok: #1b7f47; --ok-soft: #e4f3ea; --warn: #9a6200; --warn-soft: #fbf0d9; --code: #f3f4f6;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #101317; --panel: #171b21; --soft: #1f242b; --line: #2b313a;
     --text: #e7eaee; --muted: #98a2af; --accent: #7aa7ff; --accent-soft: #1c2a42;
-    --green: #55c48e; --green-soft: #15291f; --yellow: #e3b450; --yellow-soft: #2c2412;
-    --red: #ff8077; --red-soft: #391816;
+    --ok: #55c48e; --ok-soft: #15291f; --warn: #e3b450; --warn-soft: #2c2412; --code: #12161b;
   }
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-body { margin: 0; background: var(--bg); color: var(--text);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-button, input, select, textarea { font: inherit; color: inherit; }
-
-header { display: flex; align-items: center; gap: 20px; padding: 12px 20px; background: var(--panel);
-  border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+input, select, button { font: inherit; color: inherit; }
+header { padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
 header h1 { font-size: 17px; margin: 0; font-weight: 650; }
-.tabs { display: flex; gap: 4px; background: var(--soft); padding: 3px; border-radius: 10px; }
-.tab { border: 0; background: transparent; padding: 5px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); }
-.tab b { font-variant-numeric: tabular-nums; margin-left: 4px; }
-.tab.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-
-main { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); height: calc(100% - 59px); }
+header .file { color: var(--muted); font-size: 13px; margin-top: 2px; overflow-wrap: anywhere; }
+main { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); height: calc(100% - 64px); }
 aside { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
 .filters { padding: 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
-.row { display: flex; gap: 8px; align-items: center; }
-input[type=search], select, textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
-.chk { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; white-space: nowrap; }
-.more { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 14px; justify-self: start; }
-.extra { display: none; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.extra.open { display: grid; }
+.row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+input[type=search], select { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .count { padding: 6px 12px; color: var(--muted); font-size: 13px; }
 #list { overflow-y: auto; flex: 1; }
-.item { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; padding: 12px; border-top: 1px solid var(--line); cursor: pointer; }
+.item { padding: 11px 12px; border-top: 1px solid var(--line); cursor: pointer; }
 .item:hover { background: var(--soft); }
 .item.sel { background: var(--accent-soft); }
 .item .t { font-weight: 550; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .item .m { color: var(--muted); font-size: 13px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.score { border-radius: 8px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; padding: 5px 0; height: fit-content; font-size: 14px; }
-.green { background: var(--green-soft); color: var(--green); }
-.yellow { background: var(--yellow-soft); color: var(--yellow); }
-.red { background: var(--red-soft); color: var(--red); }
 .tag { display: inline-block; font-size: 12px; padding: 0 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
-.tag.hidden { background: var(--accent-soft); color: var(--accent); }
-.tag.ok { background: var(--green-soft); color: var(--green); }
-.tag.no { background: var(--red-soft); color: var(--red); }
-
-#detail { overflow-y: auto; padding: 28px 36px 80px; min-width: 0; }
-.wrap { max-width: 820px; }
+.tag.ok { background: var(--ok-soft); color: var(--ok); }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+#detail { overflow-y: auto; padding: 24px 32px 80px; min-width: 0; }
+.wrap { max-width: 860px; }
 .empty { color: var(--muted); padding: 48px 20px; text-align: center; }
-h2 { font-size: 22px; line-height: 1.3; margin: 0 0 6px; }
-.org { color: var(--muted); }
-.verdict { display: flex; align-items: center; gap: 14px; margin: 18px 0; padding: 14px 16px; border-radius: 12px; }
-.verdict .n { font-size: 28px; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1; }
-.verdict .v { font-weight: 600; }
-.verdict .s { font-size: 13px; opacity: .85; }
-.glance { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px 16px; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
-.glance .k { color: var(--muted); }
-.decide { display: flex; gap: 8px; margin: 18px 0 6px; flex-wrap: wrap; }
-.decide textarea { flex: 1 1 240px; height: 40px; min-height: 40px; resize: vertical; }
-.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 8px 16px; cursor: pointer; font-weight: 600; }
-.btn.approve { background: var(--green); border-color: var(--green); color: #fff; }
-.btn.reject { color: var(--red); border-color: var(--red); }
-.btn:disabled { opacity: .5; cursor: default; }
-.state { color: var(--muted); font-size: 14px; }
-
-details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-top: 12px; }
-summary { cursor: pointer; padding: 13px 18px; font-weight: 600; list-style: none; display: flex; align-items: baseline; gap: 10px; }
-summary::-webkit-details-marker { display: none; }
-summary::after { content: "▾"; color: var(--muted); }
-details[open] summary::after { content: "▴"; }
-summary span { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: auto; }
-.body { padding: 0 18px 16px; }
-.ev { padding: 10px 0; border-top: 1px solid var(--line); }
-.ev:first-child { border-top: 0; padding-top: 0; }
-.ev .k { color: var(--muted); font-size: 13px; }
-blockquote { margin: 3px 0 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--text); }
-table { width: 100%; border-collapse: collapse; }
-td { padding: 9px 0; border-top: 1px solid var(--line); vertical-align: top; }
-tr:first-child td { border-top: 0; }
-td.c { width: 210px; padding-right: 12px; }
-.bar { display: flex; gap: 3px; margin-top: 4px; }
-.bar i { width: 18px; height: 6px; border-radius: 3px; background: var(--line); }
-.bar i.on { background: var(--accent); }
-.why { color: var(--muted); font-size: 14px; }
-ul { margin: 0; padding-left: 20px; }
-li { margin: 5px 0; }
+h2 { font-size: 21px; line-height: 1.3; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 14px; }
+section, details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-top: 14px; }
+section > h3, summary { margin: 0; padding: 12px 16px; font-size: 14px; font-weight: 650; }
+section > h3 { border-bottom: 1px solid var(--line); }
+summary { cursor: pointer; }
+.kv { display: grid; grid-template-columns: 190px minmax(0, 1fr); }
+.kv > div { padding: 8px 16px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.kv > div:nth-child(-n+2) { border-top: 0; }
+.kv .k { color: var(--muted); }
+.raw { color: var(--muted); font-size: 13px; }
+code, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+pre { margin: 0; padding: 14px 16px; background: var(--code); border-top: 1px solid var(--line); overflow: auto; max-height: 520px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.text { padding: 4px 16px 14px; }
+.text h4 { margin: 12px 0 4px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.text p { margin: 0 0 8px; white-space: pre-line; }
+ul { margin: 0; padding-left: 18px; }
 a { color: var(--accent); }
-.src { font-size: 14px; }
-.foot { color: var(--muted); font-size: 12px; margin-top: 18px; }
-
+.status-ok { color: var(--ok); font-weight: 600; }
+.status-warn { color: var(--warn); font-weight: 600; }
 @media (max-width: 860px) {
   main { grid-template-columns: minmax(0, 1fr); height: auto; }
   aside { max-height: 50vh; border-right: 0; border-bottom: 1px solid var(--line); }
-  #detail { padding: 18px 16px 60px; }
-  .glance { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-  .glance .k { margin-top: 8px; }
-  td.c { width: 130px; }
+  #detail { padding: 16px 16px 60px; }
+  .kv { grid-template-columns: minmax(0, 1fr); }
+  .kv .k { padding-bottom: 0; }
+  .kv .k + div { border-top: 0; padding-top: 2px; }
 }
 </style>
 </head>
 <body>
 <header>
-  <h1>Radar innowacji</h1>
-  <nav class="tabs" id="tabs" aria-label="Status decyzji"></nav>
+  <h1>Radar innowacji · wczytane dane</h1>
+  <div class="file" id="file">Wczytywanie…</div>
 </header>
 <main>
   <aside>
     <div class="filters">
-      <input type="search" id="q" placeholder="Szukaj po tytule, twórcy, województwie" autocomplete="off">
+      <input type="search" id="q" placeholder="Szukaj po tytule, beneficjencie, konkursie" autocomplete="off">
       <div class="row">
-        <select id="f-light" aria-label="Ocena">
-          <option value="">Każda ocena</option><option value="green">Zielone</option>
-          <option value="yellow">Żółte</option><option value="red">Czerwone</option>
-        </select>
-        <label class="chk"><input type="checkbox" id="f-hidden"> ukryte innowacje</label>
-      </div>
-      <button class="more" id="more" aria-expanded="false">Więcej filtrów</button>
-      <div class="extra" id="extra">
-        <select id="f-level" aria-label="Dojrzałość"><option value="">Każda dojrzałość</option></select>
-        <select id="f-recip" aria-label="Odbiorca"><option value="">Każdy odbiorca</option></select>
+        <select id="f-quality" aria-label="Jakość rekordu"><option value="">Każda jakość</option><option value="ok">Kompletne (ok)</option><option value="needs_review">Do przeglądu</option></select>
         <select id="f-voiv" aria-label="Województwo"><option value="">Każde województwo</option></select>
-        <select id="f-sort" aria-label="Sortowanie"><option value="score">Od najwyższej oceny</option><option value="title">Alfabetycznie</option></select>
       </div>
     </div>
     <div class="count" id="count"></div>
-    <div id="list" role="listbox" aria-label="Kolejka kart"></div>
+    <div id="list" role="listbox" aria-label="Rekordy"></div>
   </aside>
-  <div id="detail"><div class="empty">Wybierz kartę z listy.</div></div>
+  <div id="detail"><div class="empty">Wybierz rekord z listy.</div></div>
 </main>
 <script>
-const LEVELS = ["exploring", "tech_ready", "business_ready", "market_ready"];
-const LEVEL_PL = {exploring: "Badania", tech_ready: "Gotowa technologia", business_ready: "Gotowa do wdrożenia", market_ready: "Na rynku"};
-const RECIP_PL = {gmina_miasto: "gminy i miasta", powiat_wojewodztwo: "powiaty i województwa", szkola: "szkoły",
-  uczelnia: "uczelnie", instytut_badawczy: "instytuty badawcze", ochrona_zdrowia: "ochrona zdrowia",
-  administracja_sluzby: "administracja i służby", przemysl: "przemysł", msp: "małe i średnie firmy",
-  energetyka_media: "energetyka i media", transport: "transport i lotnictwo", rolnictwo: "rolnictwo",
-  ngo: "organizacje pozarządowe", mieszkancy: "mieszkańcy", inne: "inni"};
-const VERDICT = {green: "Warto przekazać dalej", yellow: "Do sprawdzenia z ekspertem", red: "Niski priorytet"};
-const TABS = [["todo", "Do decyzji"], ["approve", "Zatwierdzone"], ["reject", "Odrzucone"], ["", "Wszystkie"]];
+const TEXT_PL = {problem: "Jaki problem rozwiązuje", result: "Efekt pracy", users: "Kto korzysta / skorzysta",
+  challenges: "Największe wyzwania", advice: "Rada dla wnioskodawców", market_readiness: "Gotowość rynkowa",
+  commercialization: "Ścieżka komercjalizacji", commercialization_barriers: "Trudności w komercjalizacji", ip: "Własność intelektualna"};
+const STATUS_PL = {finished: "zakończony", running: "w trakcie", planned: "planowany"};
+const ROLE_PL = {beneficiary: "beneficjent", partner: "partner"};
 
-let ALL = [], VIEW = [], SEL = null, CURRENT = null, TAB = "todo";
+let ALL = [], VIEW = [], SEL = null;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
-const safeUrl = (u) => /^https?:\/\//.test(u || "") ? u : "#";
-const num = (x) => x == null ? "–" : String(x).replace(".", ",");
-const money = (x) => x == null ? "kwota nieznana" : Math.round(x).toLocaleString("pl-PL") + " zł";
-const short = (s, n = 260) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length <= n ? s : s.slice(0, n).replace(/\s\S*$/, "") + "…"; };
+const safeUrl = (u) => /^https?:\/\//.test(u || "") ? u : null;
+const link = (u) => safeUrl(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>` : esc(u || "—");
+const dt = (s) => s ? esc(s.replace("T", " ").replace("+00:00", " UTC")) : "—";
+const or = (v) => (v === null || v === undefined || v === "" || (Array.isArray(v) && !v.length)) ? '<span class="raw">brak</span>' : v;
+const pln = (x) => x == null ? null : x.toLocaleString("pl-PL", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const kv = (rows) => `<div class="kv">${rows.filter(Boolean).map(([k, v]) => `<div class="k">${esc(k)}</div><div>${or(v)}</div>`).join("")}</div>`;
+const listOf = (obj) => Object.entries(obj || {}).map(([k, v]) => `${esc(k)} (${v})`).join(", ");
 
 async function load() {
-  ALL = await (await fetch("/api/cards")).json();
-  fill("f-level", LEVELS.filter((l) => ALL.some((c) => c.level === l)), (v) => LEVEL_PL[v]);
-  fill("f-recip", [...new Set(ALL.flatMap((c) => c.recipient_types))].sort(), (v) => RECIP_PL[v] || v);
-  fill("f-voiv", [...new Set(ALL.flatMap((c) => c.voivodeships))].sort((a, b) => a.localeCompare(b, "pl")), (v) => v);
+  const [meta, rows] = await Promise.all([fetch("/api/meta").then((r) => r.json()), fetch("/api/records").then((r) => r.json())]);
+  ALL = rows;
+  $("file").innerHTML = `Plik: <code>${esc(meta.file)}</code> · ${meta.records} rekordów · źródło: ${listOf(meta.sources)}` +
+    (meta.list_fetched_at.length ? ` · pobrano: ${dt(meta.list_fetched_at[meta.list_fetched_at.length - 1])}` : "");
+  for (const v of [...new Set(ALL.flatMap((r) => r.voivodeships))].sort((a, b) => a.localeCompare(b, "pl"))) {
+    const o = document.createElement("option"); o.value = v; o.textContent = v; $("f-voiv").appendChild(o);
+  }
   render();
-  const first = location.hash.slice(1) || (VIEW[0] && VIEW[0].card_id);
+  const first = decodeURIComponent(location.hash.slice(1)) || (VIEW[0] && VIEW[0].record_id);
   if (first) select(first);
-}
-function fill(id, values, label) {
-  for (const v of values) { const o = document.createElement("option"); o.value = v; o.textContent = label(v); $(id).appendChild(o); }
-}
-
-function renderTabs() {
-  const n = (k) => ALL.filter((c) => k === "" || (k === "todo" ? !c.decision : c.decision === k)).length;
-  $("tabs").innerHTML = TABS.map(([k, l]) => `<button class="tab${TAB === k ? " on" : ""}" data-k="${k}">${l}<b>${n(k)}</b></button>`).join("");
-  for (const b of $("tabs").querySelectorAll(".tab")) b.onclick = () => { TAB = b.dataset.k; render(); };
 }
 
 function render() {
-  const q = $("q").value.trim().toLowerCase();
-  const light = $("f-light").value, level = $("f-level").value, recip = $("f-recip").value, voiv = $("f-voiv").value;
-  const onlyHidden = $("f-hidden").checked;
-  VIEW = ALL.filter((c) =>
-    (TAB === "" || (TAB === "todo" ? !c.decision : c.decision === TAB)) &&
-    (!q || [c.title, c.org, c.voivodeships.join(" ")].join(" ").toLowerCase().includes(q)) &&
-    (!light || c.light === light) && (!level || c.level === level) &&
-    (!recip || c.recipient_types.includes(recip)) && (!voiv || c.voivodeships.includes(voiv)) && (!onlyHidden || c.hidden));
-  VIEW.sort($("f-sort").value === "title"
-    ? (a, b) => (a.title || "").localeCompare(b.title || "", "pl")
-    : (a, b) => (b.total ?? -1) - (a.total ?? -1));
-  $("count").textContent = `${VIEW.length} ${VIEW.length === 1 ? "karta" : "kart"}`;
-  $("list").innerHTML = VIEW.map((c) => {
-    const tag = c.decision ? `<span class="tag ${c.decision === "approve" ? "ok" : "no"}">${c.decision === "approve" ? "zatwierdzona" : "odrzucona"}</span>`
-      : c.hidden ? '<span class="tag hidden">ukryta</span>' : "";
-    return `<div class="item${c.card_id === SEL ? " sel" : ""}" data-id="${c.card_id}" role="option">
-      <div class="score ${esc(c.light)}">${num(c.total)}</div>
-      <div><div class="t">${esc(c.title)}${tag}</div>
-      <div class="m">${esc(c.org || "twórca nieustalony")}${c.voivodeships.length ? " · " + esc(c.voivodeships.join(", ")) : ""}</div></div>
-    </div>`;
-  }).join("") || '<div class="empty">Brak kart.</div>';
+  const q = $("q").value.trim().toLowerCase(), qual = $("f-quality").value, voiv = $("f-voiv").value;
+  VIEW = ALL.filter((r) =>
+    (!q || [r.title, r.beneficiary, r.contest].join(" ").toLowerCase().includes(q)) &&
+    (!qual || r.quality === qual) && (!voiv || r.voivodeships.includes(voiv)));
+  $("count").textContent = `${VIEW.length} z ${ALL.length} rekordów`;
+  $("list").innerHTML = VIEW.map((r) => `
+    <div class="item${r.record_id === SEL ? " sel" : ""}" data-id="${esc(r.record_id)}" role="option">
+      <div class="t">${esc(r.title)}${r.quality === "needs_review" ? '<span class="tag warn">do przeglądu</span>' : ""}</div>
+      <div class="m">${esc(r.beneficiary || "beneficjent nieustalony")}${r.voivodeships.length ? " · " + esc(r.voivodeships.join(", ")) : ""}</div>
+    </div>`).join("") || '<div class="empty">Brak rekordów.</div>';
   for (const el of $("list").querySelectorAll(".item")) el.onclick = () => select(el.dataset.id);
-  renderTabs();
 }
 
 async function select(id) {
   SEL = id;
-  history.replaceState(null, "", "#" + id);
+  history.replaceState(null, "", "#" + encodeURIComponent(id));
   for (const el of $("list").querySelectorAll(".item")) el.classList.toggle("sel", el.dataset.id === id);
-  const res = await fetch("/api/cards/" + encodeURIComponent(id));
-  if (!res.ok) { $("detail").innerHTML = '<div class="empty">Nie znaleziono karty.</div>'; return; }
-  CURRENT = await res.json();
-  renderDetail(CURRENT);
+  const res = await fetch("/api/records/" + encodeURIComponent(id));
+  if (!res.ok) { $("detail").innerHTML = '<div class="empty">Nie znaleziono rekordu.</div>'; return; }
+  renderDetail(await res.json());
 }
 
-function bar(score) { return `<div class="bar">${[1, 2, 3, 4, 5].map((i) => `<i class="${score && i <= score ? "on" : ""}"></i>`).join("")}</div>`; }
-function ev(label, text) { return `<div class="ev"><div class="k">${esc(label)}</div><blockquote>${esc(short(text, 400))}</blockquote></div>`; }
+function renderDetail({record: r, raw_files: raw, data_file}) {
+  const p = r.provenance || {}, q = r.quality || {}, f = r.funding || {}, per = r.period || {}, reg = r.region || {};
+  const rawRow = (label, info) => info ? [label, `<code>${esc(info.path)}</code>${info.exists ? "" : ' <span class="raw">(brak pliku)</span>'}`] : null;
 
-function renderDetail({card, markdown, decision}) {
-  if (!card.extraction) {
-    $("detail").innerHTML = `<div class="wrap"><h2>${esc(card.title)}</h2><p class="state">Karta niekompletna: ${esc((card.reasons || []).join("; "))}</p></div>`;
-    return;
-  }
-  const ex = card.extraction, mat = card.maturity, sc = card.scores, rt = card.route, f = card.facts;
-  const orgs = f.organizations.filter((o) => o.role === "beneficiary").map((o) => o.name);
-  const who = orgs.join("; ") || (f.people || []).map((p) => p.source_text).join("; ") || "twórca nieustalony";
-  const recipients = [...new Set(rt.recipients.map((r) => r.label))];
-  const link = `<a class="src" href="${esc(safeUrl(card.url))}" target="_blank" rel="noopener">Zobacz źródło (NCBR) ↗</a>`;
-  const dState = decision
-    ? `${decision.decision === "approve" ? "Zatwierdzona" : "Odrzucona"} ${esc(decision.at.slice(0, 10))}${decision.note ? ": " + esc(decision.note) : ""}`
-    : "Czeka na decyzję";
+  const source = kv([
+    ["Źródło", esc(r.source_name) + ` <span class="raw">(${esc(r.source)})</span>`],
+    ["Strona projektu", link(r.url)],
+    ["Strona listy", link(r.list_url)],
+    ["Pobrano listę", dt(p.list_fetched_at)],
+    ["Pobrano stronę projektu", dt(p.detail_fetched_at)],
+    ["Konektor", p.connector ? `<code>${esc(p.connector)}</code>` : null],
+    ["Schemat rekordu", r.schema ? `<code>${esc(r.schema)}</code>` : null],
+    ["ID rekordu", `<code>${esc(r.record_id)}</code>`],
+    ["Hash treści", r.content_hash ? `<code>${esc(r.content_hash.slice(0, 16))}…</code>` : null],
+    ["Plik danych", `<code>${esc(data_file)}</code>`],
+    rawRow("Surowa strona projektu", raw.detail_page),
+    rawRow("Surowa strona listy", raw.list_page),
+  ]);
 
-  const evidence = [
-    ex.problem_solved.value ? ev("Problem", ex.problem_solved.quote) : "",
-    ex.what_is_new.value ? ev("Co nowego", ex.what_is_new.quote) : "",
-    ...mat.evidence.map((e) => ev(`Dowód: ${e.label}`, e.quote)),
-    ex.requirements.value ? ev("Wymagania wdrożenia", ex.requirements.quote) : "",
-  ].join("") || '<p class="state">Brak cytatów do pokazania.</p>';
+  const quality = kv([
+    ["Status", q.status === "ok" ? '<span class="status-ok">ok</span>' : `<span class="status-warn">${esc(q.status)}</span>`],
+    ["Blokujące", (q.blocking || []).length ? `<ul>${q.blocking.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : null],
+    ["Ostrzeżenia", (q.warnings || []).length ? `<ul>${q.warnings.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : null],
+    ["Długość opisu", q.narrative_chars != null ? `${q.narrative_chars} znaków` : null],
+  ]);
+
+  const orgs = (r.organizations || []).map((o) => `<li>${esc(o.name)} <span class="raw">· ${esc(ROLE_PL[o.role] || o.role)}${o.type_hint ? " · typ (podpowiedź): " + esc(o.type_hint) : ""}</span></li>`).join("");
+  const people = (r.people || []).map((x) => `<li>${esc(x.name)} <span class="raw">· ${esc(ROLE_PL[x.role] || x.role || "rola nieznana")}${x.titles ? " · " + esc(x.titles) : ""}</span></li>`).join("");
+  const raws = f.raw || {};
+  const data = kv([
+    ["Tytuł", esc(r.title)],
+    ["Organizacje", orgs ? `<ul>${orgs}</ul>` : null],
+    ["Osoby", people ? `<ul>${people}</ul>` : null],
+    ["Operator / program", [f.operator, f.programme].filter(Boolean).map(esc).join(" · ") || null],
+    ["Konkurs", f.contest ? esc(f.contest) : null],
+    ["Wartość projektu", f.total_value != null ? `${pln(f.total_value)} ${esc(f.currency || "")} <span class="raw">· w źródle: ${esc(raws.total_value)}</span>` : (raws.total_value ? `<span class="raw">nieodczytane: ${esc(raws.total_value)}</span>` : null)],
+    ["Dofinansowanie", f.grant_value != null ? `${pln(f.grant_value)} ${esc(f.currency || "")}${f.grant_share != null ? ` (${Math.round(f.grant_share * 100)}%)` : ""} <span class="raw">· w źródle: ${esc(raws.grant_value)}</span>` : (raws.grant_value ? `<span class="raw">nieodczytane: ${esc(raws.grant_value)}</span>` : null)],
+    ["Okres", per.start || per.end ? `${esc(per.start || "?")} – ${esc(per.end || (per.ongoing ? "w toku" : "?"))} · ${esc(STATUS_PL[per.status] || per.status || "")} <span class="raw">· w źródle: ${esc(per.raw)}</span>` : (per.raw ? `<span class="raw">nieodczytane: ${esc(per.raw)}</span>` : null)],
+    ["Województwo", (reg.voivodeships || []).length || reg.nationwide ? `${esc((reg.voivodeships || []).join(", ") || "cała Polska")} <span class="raw">· w źródle: ${esc(reg.raw)}</span>` : (reg.raw ? `<span class="raw">nieodczytane: ${esc(reg.raw)}</span>` : null)],
+    ["Słowa kluczowe", (r.keywords || []).length ? esc(r.keywords.join(", ")) : null],
+    ["Prawa do treści", r.rights ? `${esc(r.rights.licence)} <span class="raw">· ${esc(r.rights.note || "")}</span>` : null],
+  ]);
+
+  const t = r.text || {};
+  const texts = [
+    r.intro ? `<h4>Zajawka</h4><p>${esc(r.intro)}</p>` : "",
+    ...Object.keys(TEXT_PL).filter((k) => t[k]).map((k) => `<h4>${TEXT_PL[k]}</h4><p>${esc(t[k])}</p>`),
+    ...(t.other || []).map((o) => `<h4>${esc(o.heading || "Inne")}</h4><p>${esc(o.text)}</p>`),
+  ].join("") || '<p class="raw">Brak treści opisowej.</p>';
 
   $("detail").innerHTML = `<div class="wrap">
-    <h2>${esc(ex.solution_name.value || card.title)}</h2>
-    <div class="org">${esc(who)}${f.region.voivodeships.length ? " · woj. " + esc(f.region.voivodeships.join(", ")) : ""}</div>
-
-    <div class="verdict ${esc(sc.light)}">
-      <div class="n">${num(sc.total)}</div>
-      <div><div class="v">${esc(VERDICT[sc.light])}</div><div class="s">ocena w skali 1–5</div></div>
-    </div>
-
-    <div class="glance">
-      <div class="k">Co to jest</div><div>${esc(short(ex.summary_pl, 320))}</div>
-      <div class="k">Dla kogo</div><div>${recipients.length ? esc(recipients.join(", ")) : '<span class="state">źródło nie wymienia odbiorców</span>'}</div>
-      <div class="k">Co dalej</div><div>${esc(rt.path_pl)}</div>
-      <div class="k">Dojrzałość</div><div>${esc(LEVEL_PL[mat.level])}${mat.hidden ? " – <b>ukryta innowacja</b> (brak wdrożeń poza twórcą)" : ""}</div>
-    </div>
-
-    <div class="decide">
-      <textarea id="note" placeholder="Notatka (opcjonalnie)" aria-label="Notatka do decyzji">${esc(decision?.note || "")}</textarea>
-      <button class="btn approve" id="b-approve">Zatwierdź</button>
-      <button class="btn reject" id="b-reject">Odrzuć</button>
-      ${decision ? '<button class="btn" id="b-reset">Cofnij</button>' : ""}
-    </div>
-    <div class="state">${dState}</div>
-
-    <details><summary>Dowody ze źródła <span>${mat.evidence.length + ["problem_solved", "what_is_new", "requirements"].filter((k) => ex[k].value).length} cytaty</span></summary>
-      <div class="body">${evidence}<p>${link}</p></div></details>
-
-    <details><summary>Jak oceniono <span>5 kryteriów</span></summary><div class="body"><table>
-      ${sc.criteria.map((c) => `<tr><td class="c">${esc(c.label)}${c.score == null ? '<div class="why">brak danych</div>' : bar(c.score)}</td><td class="why">${esc(c.why)}</td></tr>`).join("")}
-    </table></div></details>
-
-    <details><summary>Co przemawia przeciw <span>${card.against.length}</span></summary>
-      <div class="body"><ul>${card.against.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div></details>
-
-    <details><summary>Szczegóły <span>finansowanie, mierniki, ograniczenia</span></summary><div class="body">
-      <p><b>Finansowanie:</b> ${esc(f.funding.programme || "")}${f.funding.contest ? ", konkurs " + esc(f.funding.contest) : ""}, ${esc(money(f.funding.total_value))}${f.period.start ? `, ${esc(f.period.start.slice(0, 4))}–${esc((f.period.end || "").slice(0, 4) || "w toku")}` : ""}</p>
-      <p><b>Mierniki skuteczności:</b></p><ul>${rt.metrics.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>
-      <p><b>Ograniczenia oceny:</b></p><ul>${card.limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>
-      <p><button class="btn" id="b-md">Pobierz uzasadnienie (.md)</button></p>
-      <div class="foot">${esc(card.card_id)} · ekstrakcja: ${esc(card.provenance.extractor)} · ${esc(card.provenance.assess_version)}</div>
-    </div></details>
+    <h2>${esc(r.title)}</h2>
+    <div class="sub">${esc(r.source_name)} · rekord ${q.status === "ok" ? '<span class="status-ok">kompletny</span>' : '<span class="status-warn">do przeglądu</span>'}</div>
+    <section><h3>Źródło wczytania</h3>${source}</section>
+    <section><h3>Dane rekordu</h3>${data}</section>
+    <section><h3>Treść ze strony</h3><div class="text">${texts}</div></section>
+    <section><h3>Jakość wczytania</h3>${quality}</section>
+    <details><summary>Surowy JSON rekordu</summary><pre>${esc(JSON.stringify(r, null, 2))}</pre></details>
   </div>`;
-
-  $("b-approve").onclick = () => decide("approve");
-  $("b-reject").onclick = () => decide("reject");
-  if ($("b-reset")) $("b-reset").onclick = () => decide("reset");
-  $("b-md").onclick = () => {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([markdown], {type: "text/markdown"}));
-    a.download = `${card.card_id}.md`; a.click(); URL.revokeObjectURL(a.href);
-  };
   $("detail").scrollTop = 0;
 }
 
-async function decide(decision) {
-  if (!SEL) return;
-  for (const b of document.querySelectorAll(".decide .btn")) b.disabled = true;
-  const res = await fetch(`/api/cards/${encodeURIComponent(SEL)}/decision`, {
-    method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({decision, note: $("note") ? $("note").value : ""})});
-  if (!res.ok) { alert("Nie udało się zapisać decyzji."); return; }
-  const entry = await res.json();
-  ALL.find((c) => c.card_id === SEL).decision = decision === "reset" ? null : decision;
-  const idx = VIEW.findIndex((c) => c.card_id === SEL);
-  render();
-  if (decision !== "reset" && TAB === "todo" && VIEW.length) {
-    select(VIEW[Math.min(idx, VIEW.length - 1)].card_id);
-  } else {
-    CURRENT.decision = decision === "reset" ? null : entry;
-    renderDetail(CURRENT);
-  }
-}
-
 function move(step) {
-  const i = VIEW.findIndex((c) => c.card_id === SEL);
+  const i = VIEW.findIndex((r) => r.record_id === SEL);
   const next = VIEW[Math.max(0, Math.min(VIEW.length - 1, i + step))];
-  if (next) { select(next.card_id); document.querySelector(`.item[data-id="${next.card_id}"]`)?.scrollIntoView({block: "nearest"}); }
+  if (next) { select(next.record_id); document.querySelector(`.item[data-id="${CSS.escape(next.record_id)}"]`)?.scrollIntoView({block: "nearest"}); }
 }
 document.addEventListener("keydown", (e) => {
-  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+  if (["INPUT", "SELECT"].includes(document.activeElement.tagName)) return;
   if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
   if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
 });
-$("more").onclick = () => {
-  const open = $("extra").classList.toggle("open");
-  $("more").textContent = open ? "Mniej filtrów" : "Więcej filtrów";
-  $("more").setAttribute("aria-expanded", open);
-};
-for (const id of ["q", "f-light", "f-hidden", "f-level", "f-recip", "f-voiv", "f-sort"]) $(id).addEventListener("input", render);
+for (const id of ["q", "f-quality", "f-voiv"]) $(id).addEventListener("input", render);
 load();
 </script>
 </body>

@@ -7,20 +7,22 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from radar.card import build_card
-from radar.gui.__main__ import Store, make_handler
-from radar.llm import RulesExtractor
+from radar.gui.__main__ import RecordStore, make_handler
 from tests.test_card import czujnik_record
 
 
-class GuiServerTest(unittest.TestCase):
+class ViewerServerTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
-        self.card = build_card(czujnik_record(), [RulesExtractor()])
-        (root / "cards.jsonl").write_text(json.dumps(self.card, ensure_ascii=False) + "\n", "utf-8")
-        self.decisions = root / "decisions.jsonl"
-        self.store = Store(root / "cards.jsonl", self.decisions)
+        self.rec = czujnik_record()
+        broken = dict(self.rec, record_id="toucan-eye", url="https://www.gov.pl/web/ncbr/toucan-eye",
+                      quality={"status": "needs_review", "blocking": ["detail_fetch_failed: broken link"], "warnings": []})
+        data = root / "ncbr.jsonl"
+        data.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in (self.rec, broken)) + "\n", "utf-8")
+        (root / "raw").mkdir()
+        (root / "raw" / "list.html").write_text("<html></html>", "utf-8")
+        self.store = RecordStore(data, root / "raw")
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.store))
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.base = f"http://127.0.0.1:{self.httpd.server_address[1]}"
@@ -30,52 +32,39 @@ class GuiServerTest(unittest.TestCase):
         self.httpd.server_close()
         self.tmp.cleanup()
 
-    def get(self, path):
+    def get_json(self, path):
         with urllib.request.urlopen(self.base + path) as r:
-            return r.status, r.read().decode("utf-8")
+            return json.loads(r.read())
 
-    def post(self, path, body: bytes):
-        req = urllib.request.Request(self.base + path, data=body, headers={"Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(req) as r:
-                return r.status, json.loads(r.read())
-        except urllib.error.HTTPError as e:
-            return e.code, json.loads(e.read())
+    def test_index(self):
+        with urllib.request.urlopen(self.base + "/") as r:
+            self.assertIn("wczytane dane", r.read().decode("utf-8"))
 
-    def test_index_and_list(self):
-        status, html = self.get("/")
-        self.assertEqual(status, 200)
-        self.assertIn("Radar innowacji", html)
-        _, body = self.get("/api/cards")
-        rows = json.loads(body)
-        self.assertEqual(rows[0]["card_id"], self.card["card_id"])
-        self.assertEqual(rows[0]["level"], "tech_ready")
-        self.assertIsNone(rows[0]["decision"])
+    def test_meta_describes_loaded_file(self):
+        meta = self.get_json("/api/meta")
+        self.assertEqual(meta["records"], 2)
+        self.assertEqual(meta["quality"], {"ok": 1, "needs_review": 1})
+        self.assertIn("NCBR – Wyszukiwarka sukcesów beneficjentów", meta["sources"])
+        self.assertTrue(meta["file"].endswith("ncbr.jsonl"))
 
-    def test_card_detail_has_markdown(self):
-        _, body = self.get(f"/api/cards/{self.card['card_id']}")
-        data = json.loads(body)
-        self.assertIn("## 5. Rozstrzygnięcie", data["markdown"])
+    def test_list_rows(self):
+        rows = self.get_json("/api/records")
+        self.assertEqual([r["quality"] for r in rows], ["ok", "needs_review"])
+        self.assertEqual(rows[0]["beneficiary"], "Polskie Centrum Fotoniki i Światłowodów")
+        self.assertEqual(rows[0]["voivodeships"], ["lubelskie"])
 
-    def test_decision_roundtrip_and_persistence(self):
-        cid = self.card["card_id"]
-        status, entry = self.post(f"/api/cards/{cid}/decision",
-                                  json.dumps({"decision": "approve", "note": "do CTT"}).encode("utf-8"))
-        self.assertEqual((status, entry["decision"]), (200, "approve"))
-        self.assertEqual(json.loads(self.get("/api/cards")[1])[0]["decision"], "approve")
-        # a fresh store reads the log back: decisions survive a restart
-        self.assertEqual(Store(self.store.cards_path, self.decisions).decisions[cid]["note"], "do CTT")
-        self.post(f"/api/cards/{cid}/decision", b'{"decision": "reset"}')
-        self.assertNotIn(cid, Store(self.store.cards_path, self.decisions).decisions)
-        self.assertEqual(len(self.decisions.read_text("utf-8").splitlines()), 2)  # append-only log
+    def test_record_is_returned_unchanged_with_provenance(self):
+        data = self.get_json(f"/api/records/{self.rec['record_id']}")
+        self.assertEqual(data["record"], self.rec)  # exactly what the connector wrote
+        self.assertTrue(data["raw_files"]["list_page"]["exists"])
+        self.assertFalse(data["raw_files"]["detail_page"]["exists"])
+        self.assertIn("detail", data["raw_files"]["detail_page"]["path"])
 
-    def test_bad_requests(self):
-        cid = self.card["card_id"]
-        self.assertEqual(self.post(f"/api/cards/{cid}/decision", b'{"decision": "maybe"}')[0], 400)
-        self.assertEqual(self.post(f"/api/cards/{cid}/decision", b"\xff\xfe not json")[0], 400)
-        self.assertEqual(self.post("/api/cards/K-00000000/decision", b'{"decision": "approve"}')[0], 404)
-        with self.assertRaises(urllib.error.HTTPError):
-            self.get("/../../etc/passwd")
+    def test_not_found_and_traversal(self):
+        for path in ("/api/records/nie-ma-takiego", "/api/records/..%2F..%2Fetc", "/../../etc/passwd"):
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                urllib.request.urlopen(self.base + path)
+            self.assertEqual(ctx.exception.code, 404)
 
 
 if __name__ == "__main__":

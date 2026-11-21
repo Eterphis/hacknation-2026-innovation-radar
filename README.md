@@ -50,14 +50,14 @@ Dla każdego rekordu powstaje karta `radar.card/v1` (`data/cards/cards.jsonl`) i
 - **Dostawca LLM** (`--llm` lub `RADAR_LLM`): `auto` (domyślnie: Claude, gdy jest pakiet `anthropic` i poświadczenia, inaczej reguły), `claude`, `offline`. Claude: `claude-opus-5-5`, structured outputs zgodne ze schematem, włączony serwerowy fallback przy odmowie (`fallbacks: "default"`). Reguły offline są zawsze ostatnim zapasem, więc demo działa bez klucza. Instalacja: `pip install anthropic`.
 - **Dojrzałość, ocena, ścieżka** ([`radar/assess.py`](radar/assess.py)): tylko reguły, bez LLM. Pięć kryteriów (dojrzałość, przenaszalność, skala problemu, koszt i wymagania wdrożenia, siła dowodów), każde z uzasadnieniem; brak danych o koszcie to luka, nie ocena. Światła: ≥ 3,8 zielone, ≥ 2,8 żółte.
 
-## GUI operatora (kolejka kart)
+## GUI: podgląd wczytanych danych
 
 ```bash
-python -X utf8 -m radar.gui              # http://127.0.0.1:8765
-python -X utf8 -m radar.gui --rebuild    # najpierw przebuduj karty z data/normalized (offline)
+python -X utf8 -m radar.gui                    # http://127.0.0.1:8765
+python -X utf8 -m radar.gui --data data/normalized/ncbr.jsonl --raw-dir data/raw/ncbr
 ```
 
-- Zakładki Do decyzji / Zatwierdzone / Odrzucone / Wszystkie; lista z oceną, wyszukiwarka, filtr oceny i „ukryte innowacje” (pozostałe filtry pod „Więcej filtrów”).
-- Karta: rekomendacja i blok „W skrócie” (co to jest, dla kogo, co dalej, dojrzałość); dowody, kryteria, ryzyka i szczegóły w zwijanych sekcjach; pobranie uzasadnienia jako `.md`.
-- Decyzja **Zatwierdź / Odrzuć / Cofnij** z notatką; zapis w `data/decisions.jsonl` (log tylko dopisywany, ostatni wpis wygrywa). Strzałki ↑/↓ przechodzą między kartami.
-- Serwer tylko na `127.0.0.1`, biblioteka standardowa Pythona; brak kart → buduje je sam z `data/normalized/ncbr.jsonl`.
+- Pokazuje wyłącznie to, co konektor zapisał w pliku JSONL: listę rekordów (wyszukiwarka, filtr jakości i województwa) i każdy rekord bez zmian.
+- **Źródło wczytania** przy każdym rekordzie: nazwa źródła, strona projektu i strona listy (linki), czas pobrania listy i strony projektu, wersja konektora, schemat, ID rekordu, hash treści, plik danych i ścieżka do zapisanej surowej strony.
+- Dane rekordu z wartością odczytaną obok wartości ze źródła (kwoty, okres, województwo), treść ze strony według sekcji, jakość wczytania (powody `needs_review`) i surowy JSON rekordu.
+- Tylko odczyt; serwer na `127.0.0.1`, biblioteka standardowa Pythona.
