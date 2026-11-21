@@ -74,3 +74,22 @@ Format wpisu: nagłówek drugiego poziomu `D-<kolejny numer, 3 cyfry> <krótki t
 - **Dlaczego:** Odpowiedzi człowieka w przepytaniu Q-007, 2026-11-21.
 - **Kto:** człowiek
 - **Data:** 2026-11-21 13:55
+
+## D-009 Feed rolek z głosowaniem w zakresie, po golden path
+- **Decyzja:**
+  1. Podział źródeł na typy (transport, rola, rodzaj, dostępność) i wspólny format `Signal` v1 jako jedyne wejście dalszych etapów obowiązują (`reports/sources-and-idea-flow.md` §2–3).
+  2. Przepływ po `dedup`: `gate` (Basal Omni) → `IdeaTask` → agent-analityk (pomysł, innowacyjność, klient, model biznesowy, wykonalność SDLC, ryzyka i mitygacje) → recenzent → brief → propozycja → zatwierdzenie operatora PCI (§4–8).
+  3. **Feed rolek z polubieniami, głosami i rankingiem wchodzi do zakresu przed oddaniem (22.11 11:00), ale dopiero po golden path** (krok 5 planu w §11). Generowanie AI dla top-N (krok 6) tylko jeśli starczy czasu; na pitch wystarczy jeden przykład.
+  4. Kto głosuje i czym jest Basal: rozstrzygnięte w D-010.
+- **Dlaczego:** Odpowiedź człowieka 2026-11-21 na pytanie 1 z `reports/sources-and-idea-flow.md` §12. Rozszerza D-008 (zatwierdź/odrzuć zostaje, feed widzi tylko zatwierdzone karty).
+- **Kto:** człowiek
+- **Data:** 2026-11-21 14:25
+
+## D-010 Basal bez LLM, publiczna platforma z głosowaniem, filmiki jako boost
+- **Decyzja:**
+  1. **Basal** (etap `gate`) działa bez LLM: odsiewa nieodpowiednie zgłoszenia (spam, treść obraźliwa, za mało informacji, poza zakresem, duplikat, dane osobowe) i sortuje resztę według typów z treści zadania (typ instytucji, typ innowacji, dojrzałość wstępna). Wynik to klucz routingu i priorytet w kolejce RabbitMQ, żeby LLM dostawał tylko to, co przeszło, w kolejności priorytetu (`reports/sources-and-idea-flow.md` §5).
+  2. **Demo oceniają użytkownicy:** platforma z rolkami jest publiczna; oglądanie bez konta, głos po lekkiej rejestracji, jedna osoba = jeden głos, równa waga (§9).
+  3. **Filmiki AI** tylko promują (boost) pomysły z czołówki rankingu głosów, w obrębie typu; wejście z zatwierdzonego briefu, oznaczenie „wizualizacja AI” (§10).
+- **Dlaczego:** Odpowiedź człowieka 2026-11-21 na pytania 2–3 z §12 raportu: zadań w kolejce może być dużo, LLM nie może się na nie marnować; „żyjemy w demokracji”.
+- **Kto:** człowiek
+- **Data:** 2026-11-21 14:35

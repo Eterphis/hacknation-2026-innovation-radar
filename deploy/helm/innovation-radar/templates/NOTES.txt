@@ -1,0 +1,12 @@
+Radar Innowacji {{ .Chart.AppVersion }} — release {{ .Release.Name }}
+
+UI i API:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "radar.fullname" . }}-api 8000:{{ .Values.service.port }}
+  open http://localhost:8000
+{{- if .Values.ingress.enabled }}
+  albo http://{{ .Values.ingress.host }}
+{{- end }}
+
+Tryb demo: {{ .Values.config.demoMode }} (snapshoty + heurystyczny LLM; ustaw config.demoMode=false i secrets.* dla danych na żywo)
+Webhook: POST /api/ingest/webhook/<source_id>   (HMAC: secret RADAR_WEBHOOK_SECRET_<ID>)
+Workery: {{ range .Values.workers }}{{ .name }}[{{ join "," .queues }}] {{ end }}

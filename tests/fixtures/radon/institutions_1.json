@@ -1,0 +1,282 @@
+{
+ "results": [
+  {
+   "country": "Polska",
+   "federationNumber": null,
+   "addresses": [
+    {
+     "country": "Polska",
+     "voivodeship": "małopolskie",
+     "city": "Kraków",
+     "postalCd": "31-120",
+     "street": "al. Adama Mickiewicza",
+     "bNumber": "31",
+     "lNumber": null,
+     "dateFrom": "1973-10-01"
+    }
+   ],
+   "regon": "357534720",
+   "targetInstitutions": [],
+   "countryCd": "167",
+   "pib": "0",
+   "institutionUuid": "5c3e8361-f5f3-4fc9-8751-5b1cb44e67a2",
+   "lNumber": null,
+   "managerName": "Michał",
+   "supervisingInstitutions": [
+    {
+     "supervisingInstitutionID": "2cc8ed07-3c06-47d4-b26a-64ab1f5df6eb",
+     "supervisingInstitutionName": "Polska Akademia Nauk",
+     "dateFrom": "1973-10-01"
+    }
+   ],
+   "eMail": "ijp@ijppan.pl",
+   "supervisingInstitutionID": "2cc8ed07-3c06-47d4-b26a-64ab1f5df6eb",
+   "nip": "6750001892",
+   "www": "http://ijppan.pl",
+   "managerSurnamePrefix": null,
+   "managerFunction": "Dyrektor instytutu PAN",
+   "espAddress": "/IJP_PAN/SkrytkaESP",
+   "id": "3987",
+   "iKindName": "Instytucja naukowa",
+   "federationComposition": null,
+   "edaAddress": "AE:PL-92784-36450-GDWIS-26",
+   "postalCd": "31-120",
+   "managerOtherNames": null,
+   "bNumber": "31",
+   "panNumber": null,
+   "branches": null,
+   "supervisingInstitutionName": "Polska Akademia Nauk",
+   "iLiqStartDT": null,
+   "eunNumber": null,
+   "uTypeName": null,
+   "phone": "126325692",
+   "iStartDT": "1973-10-01",
+   "iLiqDT": null,
+   "name": "Instytut Języka Polskiego Polskiej Akademii Nauk",
+   "statuses": [
+    {
+     "statusName": "Działająca",
+     "dateFrom": "1973-10-01"
+    }
+   ],
+   "iKindCd": "5",
+   "yearPib": null,
+   "dataSource": "POLON",
+   "status": "Działająca",
+   "statusCode": "1",
+   "city": "Kraków",
+   "managerSurname": "Rzepiela",
+   "siTypeName": "instytut naukowy PAN",
+   "managerEmployeeInInstitutionUuid": "846cea07-cb6b-4096-8f3b-aab5c4a7c83a",
+   "ministryNumber": null,
+   "street": "al. Adama Mickiewicza",
+   "voivodeship": "małopolskie",
+   "transformedInstitutions": [],
+   "types": [
+    {
+     "typeName": "instytut naukowy PAN",
+     "dateFrom": "1973-10-01"
+    }
+   ],
+   "lastRefresh": "1790155806368",
+   "krs": null,
+   "names": [
+    {
+     "name": "Instytut Języka Polskiego Polskiej Akademii Nauk",
+     "dateFrom": "1973-10-01"
+    }
+   ],
+   "institutionUid": "bzJUYFuMRws2WslBhdN4wcg",
+   "siTypeCd": "2",
+   "uTypeCd": null,
+   "voivodeshipCode": "6"
+  },
+  {
+   "country": "Polska",
+   "federationNumber": null,
+   "addresses": [
+    {
+     "country": "Polska",
+     "voivodeship": "mazowieckie",
+     "city": "Warszawa",
+     "postalCd": "00-330",
+     "street": "ul. Nowy Świat",
+     "bNumber": "72",
+     "lNumber": null,
+     "dateFrom": "1956-06-05"
+    }
+   ],
+   "regon": "000325802",
+   "targetInstitutions": [],
+   "countryCd": "167",
+   "pib": "0",
+   "institutionUuid": "e4059d4a-c713-487c-aeb1-a2f4e0ff4e87",
+   "lNumber": null,
+   "managerName": "Celina",
+   "supervisingInstitutions": [
+    {
+     "supervisingInstitutionID": "2cc8ed07-3c06-47d4-b26a-64ab1f5df6eb",
+     "supervisingInstitutionName": "Polska Akademia Nauk",
+     "dateFrom": "1956-06-05"
+    }
+   ],
+   "eMail": "inp@inp.pan.pl",
+   "supervisingInstitutionID": "2cc8ed07-3c06-47d4-b26a-64ab1f5df6eb",
+   "nip": "5250009393",
+   "www": "http://www.inp.pan.pl",
+   "managerSurnamePrefix": null,
+   "managerFunction": "Dyrektor instytutu PAN",
+   "espAddress": "/INPPAN/skrytka",
+   "id": "3995",
+   "iKindName": "Instytucja naukowa",
+   "federationComposition": null,
+   "edaAddress": "AE:PL-63159-51696-JHBGV-24",
+   "postalCd": "00-330",
+   "managerOtherNames": "Dominika",
+   "bNumber": "72",
+   "panNumber": null,
+   "branches": null,
+   "supervisingInstitutionName": "Polska Akademia Nauk",
+   "iLiqStartDT": null,
+   "eunNumber": null,
+   "uTypeName": null,
+   "phone": "22 826-75-71",
+   "iStartDT": "1956-06-05",
+   "iLiqDT": null,
+   "name": "Instytut Nauk Prawnych Polskiej Akademii Nauk",
+   "statuses": [
+    {
+     "statusName": "Działająca",
+     "dateFrom": "1956-06-05"
+    }
+   ],
+   "iKindCd": "5",
+   "yearPib": null,
+   "dataSource": "POLON",
+   "status": "Działająca",
+   "statusCode": "1",
+   "city": "Warszawa",
+   "managerSurname": "Nowak",
+   "siTypeName": "instytut naukowy PAN",
+   "managerEmployeeInInstitutionUuid": "1359fa10-1c9e-41b6-bca7-c639aff0081c",
+   "ministryNumber": null,
+   "street": "ul. Nowy Świat",
+   "voivodeship": "mazowieckie",
+   "transformedInstitutions": [],
+   "types": [
+    {
+     "typeName": "instytut naukowy PAN",
+     "dateFrom": "1956-06-05"
+    }
+   ],
+   "lastRefresh": "1787471128884",
+   "krs": null,
+   "names": [
+    {
+     "name": "Instytut Nauk Prawnych Polskiej Akademii Nauk",
+     "dateFrom": "1956-06-05"
+    }
+   ],
+   "institutionUid": "b7PvUaY5TWchofSOMfDP_aQ",
+   "siTypeCd": "2",
+   "uTypeCd": null,
+   "voivodeshipCode": "7"
+  },
+  {
+   "country": "Polska",
+   "federationNumber": null,
+   "addresses": [
+    {
+     "country": "Polska",
+     "voivodeship": "pomorskie",
+     "city": "Gdańsk",
+     "postalCd": "80-233",
+     "street": "ul. Gabriela Narutowicza",
+     "bNumber": "11/12",
+     "lNumber": null,
+     "dateFrom": "1945-05-24"
+    }
+   ],
+   "regon": "000001620",
+   "targetInstitutions": [],
+   "countryCd": "167",
+   "pib": "0",
+   "institutionUuid": "76e7e103-e39c-48d6-8aa2-8fde70c50563",
+   "lNumber": null,
+   "managerName": "Krzysztof",
+   "supervisingInstitutions": [
+    {
+     "supervisingInstitutionID": "2b2e64d0-dc32-4575-ba6c-073f0757f4f9",
+     "supervisingInstitutionName": "Minister Nauki i Szkolnictwa Wyższego (poprzednio MEiN)",
+     "dateFrom": "1945-05-24"
+    }
+   ],
+   "eMail": "rektor@pg.edu.pl",
+   "supervisingInstitutionID": "2b2e64d0-dc32-4575-ba6c-073f0757f4f9",
+   "nip": "5840203593",
+   "www": "http://pg.edu.pl",
+   "managerSurnamePrefix": null,
+   "managerFunction": "Rektor",
+   "espAddress": "/politechnikagdanska/SkrytkaESP",
+   "id": "3848",
+   "iKindName": "Uczelnia publiczna",
+   "federationComposition": null,
+   "edaAddress": "AE:PL-96874-63482-HDEBH-16",
+   "postalCd": "80-233",
+   "managerOtherNames": null,
+   "bNumber": "11/12",
+   "panNumber": null,
+   "branches": null,
+   "supervisingInstitutionName": "Minister Nauki i Szkolnictwa Wyższego (poprzednio MEiN)",
+   "iLiqStartDT": null,
+   "eunNumber": null,
+   "uTypeName": "akademicka",
+   "phone": "58 347 12 69",
+   "iStartDT": "1945-05-24",
+   "iLiqDT": null,
+   "name": "Politechnika Gdańska",
+   "statuses": [
+    {
+     "statusName": "Działająca",
+     "dateFrom": "1945-05-24"
+    }
+   ],
+   "iKindCd": "13",
+   "yearPib": null,
+   "dataSource": "POLON",
+   "status": "Działająca",
+   "statusCode": "1",
+   "city": "Gdańsk",
+   "managerSurname": "Wilde",
+   "siTypeName": null,
+   "managerEmployeeInInstitutionUuid": "8e569d13-a606-41a0-a6af-913d44188aec",
+   "ministryNumber": "262",
+   "street": "ul. Gabriela Narutowicza",
+   "voivodeship": "pomorskie",
+   "transformedInstitutions": [],
+   "types": [
+    {
+     "typeName": "akademicka",
+     "dateFrom": "1945-05-24"
+    }
+   ],
+   "lastRefresh": "1750836894905",
+   "krs": null,
+   "names": [
+    {
+     "name": "Politechnika Gdańska",
+     "dateFrom": "1945-05-24"
+    }
+   ],
+   "institutionUid": "b1ds4os9esVerVwE7LSdHOw",
+   "siTypeCd": null,
+   "uTypeCd": "1",
+   "voivodeshipCode": "11"
+  }
+ ],
+ "pagination": {
+  "maxCount": 7,
+  "token": "MTc1MDgzNjg5NDkwNQ=="
+ },
+ "version": "1.13.0"
+}

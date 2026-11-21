@@ -1,0 +1,33 @@
+{{- if .Values.sources }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "radar.fullname" . }}-sources
+  labels: {{- include "radar.labels" . | nindent 4 }}
+data:
+  sources.yaml: |
+{{ toYaml .Values.sources | indent 4 }}
+---
+{{- end }}
+{{- if and (not .Values.existingSecret) .Values.secrets }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "radar.secretName" . }}
+  labels: {{- include "radar.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+{{- range $k, $v := .Values.secrets }}
+  {{ $k }}: {{ $v | quote }}
+{{- end }}
+---
+{{- end }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "radar.fullname" . }}-internal
+  labels: {{- include "radar.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  RADAR_DATABASE_URL: {{ include "radar.databaseUrl" . | quote }}
+  RADAR_BROKER_URL: {{ include "radar.brokerUrl" . | quote }}

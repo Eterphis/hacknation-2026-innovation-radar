@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar Innowacji</title>
+<meta name="description" content="Radar Innowacji: automatyczne wyszukiwanie, ocena i kierowanie ukrytych innowacji z instytucji publicznych">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%23D21F3C'/%3E%3Ccircle cx='20' cy='20' r='9' fill='none' stroke='white' stroke-width='2.5'/%3E%3Ccircle cx='20' cy='20' r='2.5' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="navbar">
+  <div class="container nav-in">
+    <a class="brand" href="#/" aria-label="Radar Innowacji: przegląd">
+      <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+        <defs>
+          <linearGradient id="lg-body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3566C"/><stop offset="1" stop-color="#B0122D"/></linearGradient>
+          <linearGradient id="lg-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+          <radialGradient id="lg-sweep" cx="24" cy="24" r="14" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        </defs>
+        <rect x="2" y="3" width="44" height="44" rx="12" fill="#7a0b1e" opacity=".35"/>
+        <rect x="2" y="1" width="44" height="44" rx="12" fill="url(#lg-body)"/>
+        <circle cx="24" cy="23" r="13" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.6"/>
+        <circle cx="24" cy="23" r="7.5" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.6"/>
+        <path d="M24 23 L35.5 16.5 A13 13 0 0 1 37 23 Z" fill="url(#lg-sweep)"/>
+        <circle cx="24" cy="23" r="2.6" fill="#fff"/>
+        <circle cx="31" cy="15.5" r="1.8" fill="#fff"/>
+        <path d="M6 13c0-5.5 4.5-10 10-10h16c5.5 0 10 4.5 10 10v2c-6-4-12-5.5-18-5.5S12 11 6 15z" fill="url(#lg-glass)"/>
+      </svg>
+      <span>Radar Innowacji</span>
+    </a>
+    <nav class="nav" id="nav" aria-label="Główna nawigacja">
+      <a href="#/" data-i="layout-dashboard">Przegląd</a>
+      <a href="#/mapa" data-i="map">Mapa</a>
+      <a href="#/odkrywaj" data-i="layers">Odkrywaj</a>
+      <a href="#/graf" data-i="network">Graf</a>
+      <a href="#/rolki" data-i="clapperboard">Rolki</a>
+      <a href="#/zrodla" data-i="radar">Źródła</a>
+    </nav>
+    <div class="nav-tools">
+      <button class="btn-icon" id="cmdbtn" aria-label="Szukaj (klawisz /)" title="Szukaj ( / )"></button>
+      <div class="seg" id="theme" role="radiogroup" aria-label="Motyw kolorów">
+        <button data-t="light" role="radio" aria-label="Jasny"></button><button data-t="system" role="radio" aria-label="Systemowy"></button><button data-t="dark" role="radio" aria-label="Ciemny"></button>
+      </div>
+    </div>
+  </div>
+</header>
+<main class="container" id="view" tabindex="-1"></main>
+<footer class="container foot" id="foot"></footer>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Karta pomysłu"><div class="drawer-in" id="drawer-in"></div></aside>
+<div class="cmd" id="cmd" role="dialog" aria-label="Szukaj"><div class="card cmd-box">
+  <div class="cmd-line"><span id="cmdicon"></span><input id="cmdq" placeholder="Szukaj pomysłów: np. smog, seniorzy, wodór" autocomplete="off"><button class="btn-icon" id="mic" aria-label="Szukaj głosem" hidden></button></div>
+  <div class="chips" id="hints"></div></div></div>
+<div class="tip" id="tip" role="tooltip"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
