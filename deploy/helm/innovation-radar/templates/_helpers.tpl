@@ -53,6 +53,14 @@ amqp://{{ .Values.rabbitmq.user }}:{{ .Values.rabbitmq.password }}@{{ include "r
   value: {{ .Values.config.openaiModel | quote }}
 - name: RADAR_LOG_LEVEL
   value: {{ .Values.config.logLevel | quote }}
+- name: RADAR_EMBEDDER
+  value: {{ .Values.config.embedder | default "hashing" | quote }}
+{{- if .Values.localLLM.enabled }}
+- name: RADAR_LOCAL_LLM_URL
+  value: {{ printf "http://%s-llm:8080/v1" (include "radar.fullname" .) | quote }}
+- name: RADAR_LOCAL_LLM_MODEL
+  value: {{ .Values.localLLM.alias | quote }}
+{{- end }}
 - name: RADAR_DATABASE_URL
   valueFrom:
     secretKeyRef:

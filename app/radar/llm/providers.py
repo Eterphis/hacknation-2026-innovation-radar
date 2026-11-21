@@ -3,6 +3,7 @@
 * anthropic      — Anthropic Messages API
 * openai         — any OpenAI-compatible Chat Completions API (OpenAI, Azure, vLLM, Ollama, LM Studio, Bielik
                    behind an OpenAI-compatible server) via RADAR_OPENAI_BASE_URL
+* local          — small CPU model on the VPS (llama.cpp server with Bielik 1.5B GGUF), RADAR_LOCAL_LLM_URL
 * mock           — deterministic, offline; used in demo mode and tests, and as the last fallback.
                    Its output is labelled `provider: mock` on every card, so nobody mistakes it for a model.
 """
@@ -134,4 +135,18 @@ class MockProvider(Provider):
         }
 
 
-PROVIDERS = {"anthropic": AnthropicProvider, "openai": OpenAICompatProvider, "mock": MockProvider}
+class LocalProvider(OpenAICompatProvider):
+    """Small model on the VPS CPU (llama.cpp `llama-server`, Ollama, vLLM-CPU) via the OpenAI-compatible API.
+    Default: Bielik 1.5B v3.0 Instruct GGUF Q8_0 (Polish, Apache-2.0). Enable with RADAR_LOCAL_LLM_URL."""
+
+    name = "local"
+
+    def __init__(self):
+        s = get_settings()
+        self.key, self.base, self.model, self.timeout = None, s.local_llm_url, s.local_llm_model, max(s.llm_timeout_s, 120)
+
+    def available(self) -> bool:
+        return bool(self.base)
+
+
+PROVIDERS = {"local": LocalProvider, "anthropic": AnthropicProvider, "openai": OpenAICompatProvider, "mock": MockProvider}

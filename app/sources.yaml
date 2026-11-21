@@ -31,6 +31,7 @@ sources:
       url: { expr: relation, transform: first }
       licence: { expr: rights, transform: first }
       language: { expr: language, transform: first }
+      synthetic: synthetic
 
   - id: demo-kohesio
     type: snapshot
@@ -52,6 +53,23 @@ sources:
       end: { expr: endTime, transform: first }
       objective: { expr: objectiveIds, transform: first }
       implementation: { const: true }
+      synthetic: synthetic
+
+  - id: demo-zgloszenia
+    type: snapshot
+    demo: true
+    kind: solution
+    description: "Przykładowe zgłoszenia ze szkół, uczelni, JST i instytucji (dane syntetyczne)"
+    options: { path: samples/zgloszenia.jsonl, min_abstract_chars: 120 }
+    id_path: id
+    mapping:
+      title: title
+      abstract: description
+      affiliations: "[institution]"
+      region: region
+      keywords: keywords
+      institution_type: institution_type
+      synthetic: synthetic
 
   # ------------------------------------------------------------------ PUSH: zgłoszenia ręczne / webhook
   - id: zgloszenia

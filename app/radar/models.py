@@ -7,7 +7,7 @@ stage counters can be reconciled from this table alone.
 
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from radar.db import Base
@@ -62,6 +62,16 @@ class Record(Base):
     status: Mapped[str] = mapped_column(String(20), default="normalized", index=True)
     review_reasons: Mapped[list] = mapped_column(JSON, default=list)
     cluster_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    # Basal result (full) + denormalized labels for filtering and facets
+    basal: Mapped[dict] = mapped_column(JSON, default=dict)
+    sector: Mapped[str | None] = mapped_column(String(40), index=True)
+    tech_area: Mapped[str | None] = mapped_column(String(40), index=True)
+    innovation_type: Mapped[str | None] = mapped_column(String(30), index=True)
+    institution_type: Mapped[str | None] = mapped_column(String(30), index=True)
+    voivodeship: Mapped[str | None] = mapped_column(String(40), index=True)
+    cost_level: Mapped[str | None] = mapped_column(String(20), index=True)
+    priority: Mapped[float | None] = mapped_column(Float)
+    embedding: Mapped[list | None] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     raw: Mapped[RawRecord] = relationship(back_populates="record")
@@ -103,6 +113,11 @@ class Card(Base):
     # ordered reasoning steps shown to the clerk (ustalenia -> kryteria -> ocena -> rozstrzygnięcie)
     reasoning: Mapped[list] = mapped_column(JSON, default=list)
     provenance: Mapped[dict] = mapped_column(JSON, default=dict)
+    # agent output: paths (who does what), risks + mitigations, recipients, criteria scores, metrics, recheck
+    assessment: Mapped[dict] = mapped_column(JSON, default=dict)
+    brief: Mapped[dict] = mapped_column(JSON, default=dict)
+    score: Mapped[float | None] = mapped_column(Float, index=True)
+    likes: Mapped[int] = mapped_column(Integer, default=0)
     # pending | approved | rejected
     decision: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     decision_note: Mapped[str | None] = mapped_column(Text)
@@ -110,6 +125,39 @@ class Card(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     record: Mapped[Record] = relationship(back_populates="card")
+
+
+class Edge(Base):
+    """Graph edge between two records (similar idea). Hub edges (sector, region, org) are derived at query time."""
+
+    __tablename__ = "edges"
+    __table_args__ = (UniqueConstraint("src_id", "dst_id", "kind", name="uq_edge"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    src_id: Mapped[int] = mapped_column(ForeignKey("records.id"), index=True)
+    dst_id: Mapped[int] = mapped_column(ForeignKey("records.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(20))  # similar | possible_duplicate
+    weight: Mapped[float] = mapped_column(Float)
+
+
+class Like(Base):
+    __tablename__ = "likes"
+    __table_args__ = (UniqueConstraint("card_id", "voter", name="uq_like"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    card_id: Mapped[int] = mapped_column(ForeignKey("cards.id"), index=True)
+    voter: Mapped[str] = mapped_column(String(64))  # anonymous browser id (hash); accounts later (D-010)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Setting(Base):
+    """Small shared key/value store (e.g. Basal's learned decision head), visible to every pod."""
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
 class SourceState(Base):

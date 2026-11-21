@@ -26,3 +26,6 @@ Nowy etap Celery `gate` per rekord, po `dedup` i przed `extract`, bez LLM: odsie
 
 ## Out of scope
 Bez LLM i bez klasyfikatora ML (lokalny klasyfikator to osobny krok wieczorem). IdeaTask na klaster to T022.
+
+## Stan (2026-11-21, sesja app/Helm)
+Zrobione w `app/radar/basal/` + etap `gate` w `pipeline/tasks.py`: odsiew z powodami, PII maskowane, 7 osi (sektor PKD, obszar technologii, typ innowacji, typ instytucji, dojrzałość, koszt, województwo), priorytet → RabbitMQ `x-max-priority` na kolejkach link/extract/maturity/score, uczona głowa decyzji (`/api/basal/train`, zapis w tabeli `settings`). Zostało: klasyfikator ML na embeddingach (fastembed) i kalibracja progów na zbiorze testowym.

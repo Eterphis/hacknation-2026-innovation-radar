@@ -26,3 +26,6 @@ Stub `score` i `build_reasoning` w `app/radar/pipeline/tasks.py`, `sources-and-i
 
 ## Out of scope
 Wysyłka do odbiorców (D-008 pkt 5).
+
+## Stan (2026-11-21, sesja app/Helm)
+Częściowo: `app/radar/pipeline/assess.py` liczy 6 kryteriów z wagami, ścieżki z „kto co robi”, ryzyka z mitygacjami, odbiorców (typy + instytucje z danych), mierniki skuteczności; `reassess` codziennie z beat. Zostało: odbiorcy z rejestrów (Kohesio beneficjenci, GUS BDL), kalibracja wag z PCI.

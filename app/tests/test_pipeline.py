@@ -32,7 +32,7 @@ def test_demo_publications_end_to_end():
     with session() as s:
         statuses = dict(s.execute(select(Record.status, func.count()).group_by(Record.status)).all())
         assert statuses.get("duplicate") == 1, statuses  # same DOI, different case/prefix
-        assert statuses.get("not_innovation") == 1, statuses  # history article, no signal words
+        assert statuses.get("rejected") == 1, statuses  # history article: Basal rejects (no solution described)
         assert statuses.get("ready") == 2, statuses
         card = s.scalar(select(Card).join(Record).where(Record.title.contains("kompozytów")))
         assert card.maturity == "tech_ready"  # pilot described

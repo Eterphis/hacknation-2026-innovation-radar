@@ -4,110 +4,562 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Radar Innowacji</title>
+<meta name="description" content="Radar Innowacji: wykrywanie, ocena i kierowanie ukrytych innowacji z instytucji publicznych">
 <style>
-  :root { --bg:#f6f7f9; --panel:#fff; --ink:#1b1f24; --muted:#5f6b7a; --line:#e2e6eb; --accent:#0b5cad;
-          --ok:#1f7a3d; --bad:#b42318; --warn:#9a6700; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#111418; --panel:#1a1f25; --ink:#e7ebf0; --muted:#9aa6b4;
-          --line:#2a313a; --accent:#5aa2f0; --ok:#4cc27a; --bad:#f07a6e; --warn:#e0b44c; } }
-  * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
-  header { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; }
-  header h1 { font-size:18px; margin:0; }
-  nav button { background:none; border:0; padding:8px 10px; font:inherit; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; }
-  nav button.on { color:var(--ink); border-color:var(--accent); }
-  .badge { font-size:12px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
-  .badge.demo { color:var(--warn); border-color:var(--warn); }
-  main { display:grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.4fr); gap:16px; padding:16px 20px; }
-  @media (max-width: 820px) { main { grid-template-columns: 1fr; padding:12px 16px; } }
-  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; min-width:0; }
-  .list { display:flex; flex-direction:column; gap:8px; }
-  .item { border:1px solid var(--line); border-radius:8px; padding:10px 12px; cursor:pointer; }
-  .item:hover, .item.sel { border-color:var(--accent); }
-  .item h3 { margin:0 0 4px; font-size:15px; }
-  .meta { color:var(--muted); font-size:13px; display:flex; gap:8px; flex-wrap:wrap; }
-  .lvl { font-weight:600; }
-  .step { margin:12px 0; } .step h4 { margin:0 0 4px; font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
-  .step ul { margin:0; padding-left:18px; }
-  .actions { display:flex; gap:8px; margin-top:12px; }
-  .actions button, .src button { font:inherit; padding:6px 14px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; }
-  .approve { border-color:var(--ok)!important; color:var(--ok)!important; } .reject { border-color:var(--bad)!important; color:var(--bad)!important; }
-  table { border-collapse:collapse; width:100%; font-size:14px; } td, th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
-  .err { color:var(--bad); font-size:13px; word-break:break-word; }
-  .empty { color:var(--muted); }
-  .wide { grid-column: 1 / -1; }
+/* Design: "Zero Interface" (designmd.app). Spec values: surfaces #FAFAFA / #F0F0F0 / #F5F1E8, system UI stack,
+   JetBrains Mono for metadata, 8px radius, airy density, subtle ease-out motion, no gradients, no emoji, no #000.
+   Our own choices (spec leaves them open): ink #1F1F1C, accent #2A78D6, borders #E7E3DA, dark palette below. */
+:root {
+  --bg:#F5F1E8; --surface:#FAFAFA; --surface-2:#F0F0F0; --ink:#1F1F1C; --ink-2:#55544F; --ink-3:#8A8780;
+  --line:#E7E3DA; --accent:#2A78D6; --accent-ink:#FAFAFA; --accent-soft:#E6EEF8; --bad:#C2413F; --good:#1F7A3D; --warn:#9A6700;
+  --shadow:0 2px 8px rgba(31,31,28,.06); --r:8px;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948; --other:#9a978f;
+  --q1:#86b6ef; --q2:#5598e7; --q3:#2a78d6; --q4:#1c5cab;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#141413; --surface:#1C1C1A; --surface-2:#242422; --ink:#ECEAE4; --ink-2:#B9B6AE; --ink-3:#86837C; --line:#2E2D2A;
+  --accent:#3987E5; --accent-ink:#141413; --accent-soft:#1D2A3A; --bad:#E66767; --good:#4CC27A; --warn:#E0B44C; --shadow:0 2px 8px rgba(0,0,0,.25);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c; --s7:#9085e9; --s8:#e66767; --other:#6f6c66;
+  --q1:#184f95; --q2:#256abf; --q3:#3987e5; --q4:#86b6ef; } }
+:root[data-theme="dark"] {
+  --bg:#141413; --surface:#1C1C1A; --surface-2:#242422; --ink:#ECEAE4; --ink-2:#B9B6AE; --ink-3:#86837C; --line:#2E2D2A;
+  --accent:#3987E5; --accent-ink:#141413; --accent-soft:#1D2A3A; --bad:#E66767; --good:#4CC27A; --warn:#E0B44C; --shadow:0 2px 8px rgba(0,0,0,.25);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c; --s7:#9085e9; --s8:#e66767; --other:#6f6c66;
+  --q1:#184f95; --q2:#256abf; --q3:#3987e5; --q4:#86b6ef; }
+* { box-sizing:border-box; }
+html { background:var(--bg); }
+body { margin:0; min-height:100dvh; background:var(--bg); color:var(--ink); font:400 1rem/1.6 var(--sans); -webkit-font-smoothing:antialiased; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+.mono, code { font-family:var(--mono); font-size:.8125rem; }
+.wrap { max-width:1280px; margin:0 auto; padding:0 1.5rem; }
+/* nav */
+.top { position:sticky; top:0; z-index:100; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:saturate(1.2) blur(8px); border-bottom:1px solid var(--line); }
+.top .wrap { display:flex; align-items:center; gap:1.5rem; height:60px; }
+.brand { font-weight:700; letter-spacing:-.01em; display:flex; align-items:center; gap:.5rem; white-space:nowrap; }
+.brand i { width:10px; height:10px; border-radius:50%; background:var(--accent); display:inline-block; }
+.tabs { display:flex; gap:.25rem; overflow-x:auto; scrollbar-width:none; flex:1; }
+.tabs a { color:var(--ink-2); font-size:.875rem; font-weight:500; padding:.4rem .7rem; border-radius:6px; white-space:nowrap; position:relative; }
+.tabs a:hover { background:var(--surface-2); text-decoration:none; }
+.tabs a.on { color:var(--ink); }
+.tabs a.on::after { content:""; position:absolute; left:.7rem; right:.7rem; bottom:-11px; height:2px; background:var(--accent); border-radius:2px; }
+.iconbtn { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; height:34px; padding:0 .7rem; border-radius:var(--r); border:1.5px solid var(--line); background:transparent; color:var(--ink-2); font:500 .8125rem var(--sans); cursor:pointer; transition:background .2s ease-out, color .2s ease-out; white-space:nowrap; }
+.iconbtn:hover { background:var(--surface-2); color:var(--ink); }
+.iconbtn svg { width:16px; height:16px; }
+kbd { font-family:var(--mono); font-size:.6875rem; border:1px solid var(--line); border-radius:4px; padding:0 .3rem; color:var(--ink-3); }
+.pill { font:500 .75rem var(--sans); letter-spacing:.02em; padding:.15rem .55rem; border-radius:99px; border:1px solid var(--line); color:var(--ink-2); background:var(--surface); white-space:nowrap; }
+.pill.demo { color:var(--warn); border-color:color-mix(in srgb, var(--warn) 45%, transparent); }
+/* layout */
+main { padding:clamp(2rem, 5vw, 4rem) 0 6rem; }
+section.block { margin-top:clamp(4rem, 8vw, 8rem); }
+section.block:first-child { margin-top:0; }
+.eyebrow { font:500 .75rem var(--sans); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:0 0 .5rem; }
+h1 { font-size:clamp(2.5rem, 5vw, 4rem); line-height:1.05; letter-spacing:-.025em; font-weight:700; margin:0 0 1rem; max-width:16ch; }
+h2 { font-size:1.5rem; letter-spacing:-.015em; font-weight:700; margin:0 0 .35rem; }
+h3 { font-size:1rem; font-weight:600; margin:0; line-height:1.35; }
+.lead { font-size:1.125rem; color:var(--ink-2); max-width:60ch; margin:0 0 2rem; }
+.muted { color:var(--ink-2); } .faint { color:var(--ink-3); font-size:.875rem; }
+.split { display:grid; grid-template-columns: 5fr 7fr; gap:clamp(2rem, 4vw, 4rem); align-items:center; }
+.zig { display:grid; grid-template-columns: 4fr 8fr; gap:clamp(1.5rem, 4vw, 4rem); align-items:start; }
+.zig.rev { grid-template-columns: 8fr 4fr; } .zig.rev > :first-child { order:2; }
+@media (max-width: 860px) { .split, .zig, .zig.rev { grid-template-columns:1fr; } .zig.rev > :first-child { order:0; } }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); }
+.pad { padding:1.25rem 1.5rem; }
+.kpis { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; }
+.kpi { background:var(--surface); padding:1rem 1.25rem; }
+.kpi b { display:block; font-size:2rem; letter-spacing:-.02em; line-height:1.1; font-variant-numeric:tabular-nums; }
+.kpi span { font-size:.8125rem; color:var(--ink-2); }
+/* idea rows */
+.rows { display:flex; flex-direction:column; }
+.row { display:grid; grid-template-columns: 1fr auto; gap:.25rem 1rem; padding:.9rem 0; border-top:1px solid var(--line); cursor:pointer; transition:background .2s ease-out; }
+.row:hover { background:color-mix(in srgb, var(--surface-2) 60%, transparent); }
+.row:first-child { border-top:0; }
+.row .meta { grid-column:1; display:flex; gap:.35rem .75rem; flex-wrap:wrap; font-size:.8125rem; color:var(--ink-2); align-items:center; }
+.row .side { grid-row:1 / span 2; grid-column:2; text-align:right; font-family:var(--mono); font-size:.8125rem; color:var(--ink-2); }
+.row .side b { font:700 1.25rem var(--sans); color:var(--ink); display:block; letter-spacing:-.01em; }
+.dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex:none; }
+details.rule { font-size:.8125rem; color:var(--ink-2); margin:.25rem 0 1rem; }
+details.rule summary { cursor:pointer; color:var(--ink-3); list-style:none; } details.rule summary::-webkit-details-marker { display:none; }
+details.rule summary:hover { color:var(--ink); }
+/* charts */
+.chart { position:relative; }
+.chart svg { display:block; width:100%; height:auto; overflow:visible; }
+.chart .axis { font:500 .6875rem var(--sans); fill:var(--ink-3); letter-spacing:.04em; }
+.chart .gridl { stroke:var(--line); stroke-width:1; }
+.chart .ql { font:600 .75rem var(--sans); fill:var(--ink-2); }
+.chart .qd { font:400 .6875rem var(--sans); fill:var(--ink-3); }
+.tip { position:fixed; z-index:500; pointer-events:none; background:var(--surface); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); border-radius:6px; padding:.5rem .7rem; font-size:.8125rem; max-width:280px; opacity:0; transition:opacity .15s ease-out; }
+.legend { display:flex; flex-wrap:wrap; gap:.35rem 1rem; font-size:.75rem; color:var(--ink-2); margin-top:.75rem; }
+.legend span { display:inline-flex; align-items:center; gap:.35rem; }
+.bars { display:flex; flex-direction:column; gap:.6rem; }
+.bar { display:grid; grid-template-columns: minmax(120px, 34%) 1fr 3.5rem; gap:.75rem; align-items:center; font-size:.875rem; cursor:pointer; }
+.bar .track { height:10px; border-radius:0 4px 4px 0; background:var(--surface-2); overflow:hidden; }
+.bar .track i { display:block; height:100%; background:var(--accent); border-radius:0 4px 4px 0; transform-origin:left; animation:grow .6s ease-out both; }
+.bar .v { font-family:var(--mono); font-size:.8125rem; text-align:right; color:var(--ink-2); }
+.seg { display:flex; gap:2px; height:14px; border-radius:4px; overflow:hidden; }
+.seg i { display:block; height:100%; }
+table.t { border-collapse:collapse; width:100%; font-size:.8125rem; } table.t td, table.t th { text-align:left; padding:.45rem .5rem; border-bottom:1px solid var(--line); vertical-align:top; } table.t th { color:var(--ink-3); font-weight:500; }
+/* buttons & inputs */
+.btn { display:inline-flex; align-items:center; gap:.45rem; font:600 .875rem var(--sans); padding:12px 18px; border-radius:.5rem; border:0; background:var(--accent); color:var(--accent-ink); cursor:pointer; transition:filter .2s ease-out, box-shadow .2s ease-out, transform .1s ease-out; }
+.btn:hover { filter:brightness(.92); box-shadow:0 2px 8px rgba(31,31,28,.08); } .btn:active { transform:translateY(1px); }
+.ghost { display:inline-flex; align-items:center; gap:.45rem; font:500 .875rem var(--sans); padding:10px 16px; border-radius:.5rem; border:1.5px solid var(--line); background:transparent; color:var(--ink); cursor:pointer; transition:background .2s ease-out; }
+.ghost:hover { background:var(--surface-2); } .ghost.bad { color:var(--bad); } .ghost.good { color:var(--good); }
+label.f { display:flex; flex-direction:column; gap:.35rem; font-size:.875rem; font-weight:500; }
+input, select, textarea { font:400 1rem var(--sans); color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:.65rem .8rem; width:100%; }
+textarea { min-height:140px; resize:vertical; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, .row:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+/* facets */
+.facets { display:flex; flex-direction:column; gap:1.25rem; }
+.facet .opts { display:flex; flex-wrap:wrap; gap:.35rem; }
+.chip { font:500 .75rem var(--sans); padding:.3rem .6rem; border-radius:99px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); cursor:pointer; transition:background .2s ease-out, color .2s ease-out; }
+.chip:hover { color:var(--ink); } .chip.on { background:var(--ink); color:var(--surface); border-color:var(--ink); }
+.chip .n { font-family:var(--mono); opacity:.7; margin-left:.25rem; }
+.tag { font:500 .75rem var(--sans); color:var(--ink-2); background:var(--surface-2); border-radius:4px; padding:.1rem .45rem; }
+/* drawer */
+.scrim { position:fixed; inset:0; z-index:200; background:rgba(20,20,19,.28); opacity:0; pointer-events:none; transition:opacity .2s ease-out; }
+.scrim.on { opacity:1; pointer-events:auto; }
+.drawer { position:fixed; top:0; right:0; bottom:0; z-index:300; width:min(720px, 100%); background:var(--surface); border-left:1px solid var(--line); overflow-y:auto; transform:translateX(100%); transition:transform .3s ease-out; }
+.drawer.on { transform:none; }
+.drawer .in { padding:2rem clamp(1.25rem, 4vw, 2.5rem) 4rem; }
+.drawer h2 { font-size:1.75rem; line-height:1.2; margin:.5rem 0 .75rem; }
+.sec { margin-top:2rem; } .sec > .eyebrow { margin-bottom:.75rem; }
+.crit { display:grid; grid-template-columns: 9.5rem 1fr 1.75rem; gap:.25rem .75rem; align-items:center; font-size:.875rem; }
+.crit .why { grid-column:2 / 4; font-size:.75rem; color:var(--ink-3); margin-bottom:.35rem; }
+.mini { height:6px; background:var(--surface-2); border-radius:3px; overflow:hidden; } .mini i { display:block; height:100%; background:var(--accent); }
+.steps { list-style:none; padding:0; margin:0; } .steps li { padding:.5rem 0; border-top:1px solid var(--line); font-size:.9375rem; } .steps li:first-child { border-top:0; }
+.who { font-family:var(--mono); font-size:.75rem; color:var(--ink-3); display:block; }
+/* reels */
+.reels { height:calc(100dvh - 60px); overflow-y:auto; scroll-snap-type:y mandatory; margin-top:calc(-1 * clamp(2rem, 5vw, 4rem)); }
+.reel { min-height:calc(100dvh - 60px); scroll-snap-align:start; display:grid; place-items:center; padding:1.5rem 1rem; }
+.reel article { width:min(460px, 100%); min-height:min(760px, calc(100dvh - 110px)); display:flex; flex-direction:column; gap:1rem; padding:2rem 1.75rem 1.5rem; position:relative; }
+.reel .hook { font-size:1.375rem; font-weight:700; line-height:1.3; letter-spacing:-.01em; margin-right:3.5rem; }
+.reel .sol { color:var(--accent); font-weight:600; }
+.reel dl { margin:0; display:grid; gap:.75rem; font-size:.9375rem; } .reel dt { font:500 .6875rem var(--sans); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); } .reel dd { margin:.1rem 0 0; }
+.reel .score { position:absolute; top:1.75rem; right:1.5rem; text-align:right; } .reel .score b { font-size:1.75rem; display:block; line-height:1; }
+.reel .foot { margin-top:auto; display:flex; justify-content:space-between; align-items:center; gap:1rem; }
+.like { display:inline-flex; align-items:center; gap:.45rem; font:600 .875rem var(--sans); border-radius:99px; padding:.55rem 1rem; border:1.5px solid var(--line); background:transparent; color:var(--ink); cursor:pointer; transition:background .2s ease-out, color .2s ease-out, border-color .2s ease-out; }
+.like svg { width:16px; height:16px; } .like.on { background:var(--bad); border-color:var(--bad); color:#FAFAFA; } .like.on svg { fill:currentColor; }
+/* map */
+.tiles { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:6px; }
+.tile { border-radius:var(--r); padding:.6rem; min-height:84px; font-size:.75rem; line-height:1.25; border:1px solid var(--line); cursor:pointer; overflow:hidden; overflow-wrap:anywhere; transition:transform .2s ease-out; }
+.tile:hover { transform:translateY(-1px); }
+.tile b { display:block; font-size:1.375rem; letter-spacing:-.01em; margin-top:.25rem; }
+.heat { overflow-x:auto; } .heat td { text-align:center; font-family:var(--mono); font-size:.75rem; padding:.35rem; min-width:2.2rem; border-bottom:1px solid var(--line); } .heat th { font-size:.75rem; font-weight:500; color:var(--ink-2); text-align:left; padding:.35rem .5rem; white-space:nowrap; border-bottom:1px solid var(--line); }
+#graph { width:100%; height:calc(100dvh - 220px); min-height:460px; display:block; touch-action:none; border-radius:var(--r); }
+/* command bar */
+.cmd { position:fixed; inset:0; z-index:300; display:none; place-items:start center; padding-top:14vh; background:rgba(20,20,19,.28); }
+.cmd.on { display:grid; }
+.cmd .box { width:min(640px, calc(100% - 2rem)); padding:.75rem; }
+.cmd .line { display:flex; gap:.5rem; align-items:center; }
+.cmd input { border:0; font-size:1.125rem; background:transparent; }
+.cmd input:focus-visible { outline:none; }
+.cmd .hints { display:flex; flex-wrap:wrap; gap:.35rem; padding:.5rem .25rem .25rem; }
+.mic.on { color:var(--bad); border-color:var(--bad); }
+/* motion */
+.reveal { opacity:0; transform:translateY(16px); animation:rise .42s ease-out forwards; }
+@keyframes rise { to { opacity:1; transform:none; } }
+@keyframes grow { from { transform:scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .reveal, .bar .track i { animation:none; opacity:1; transform:none; } * { transition:none !important; } }
+.skel { background:var(--surface-2); border-radius:var(--r); height:1rem; margin:.5rem 0; animation:shim 1.2s ease-in-out infinite; } @keyframes shim { 50% { opacity:.5; } }
+.empty { text-align:center; padding:3rem 1rem; color:var(--ink-2); } .empty svg { width:28px; height:28px; color:var(--ink-3); }
+@media (max-width: 640px) { .top .wrap { gap:.75rem; } .brand span { display:none; } .hide-sm { display:none; } .kpi b { font-size:1.6rem; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>Radar Innowacji</h1>
-  <nav id="nav">
-    <button data-v="queue" class="on">Kolejka</button>
-    <button data-v="review">Do przeglądu</button>
-    <button data-v="sources">Źródła</button>
-    <button data-v="stats">Liczniki</button>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#/" aria-label="Radar Innowacji — przegląd"><i></i><span>Radar Innowacji</span></a>
+  <nav class="tabs" id="tabs">
+    <a href="#/">Przegląd</a><a href="#/odkrywaj">Odkrywaj</a><a href="#/graf">Graf</a><a href="#/mapa">Mapa</a>
+    <a href="#/rolki">Rolki</a><a href="#/zglos">Zgłoś</a><a href="#/operator">Operator</a>
   </nav>
-  <span id="mode" class="badge"></span>
-</header>
-<main id="main"></main>
+  <button class="iconbtn" id="cmdbtn" aria-label="Szukaj (klawisz /)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="hide-sm">Szukaj</span> <kbd class="hide-sm">/</kbd></button>
+  <span id="mode" class="pill hide-sm"></span>
+</div></header>
+<main><div class="wrap" id="view"></div></main>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Karta innowacji"><div class="in" id="drawer-in"></div></aside>
+<div class="cmd" id="cmd" role="dialog" aria-label="Szukaj"><div class="box card">
+  <div class="line"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--ink-3)"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+  <input id="cmdq" placeholder="Czego szukasz? np. smog, seniorzy, kompozyty" autocomplete="off">
+  <button class="iconbtn mic" id="mic" aria-label="Szukaj głosem" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button></div>
+  <div class="hints" id="hints"></div></div></div>
+<div class="tip" id="tip"></div>
 <script>
-const $ = (s, el=document) => el.querySelector(s);
+"use strict";
+const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const api = (p, o) => fetch(p, o).then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)));
-const LVL = {exploring:"badania", tech_ready:"technologia gotowa", business_ready:"gotowe do wdrożenia", market_ready:"na rynku"};
-let view = "queue", selected = null;
+const qs = o => new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== "")).toString();
+const LVL = ["badania", "technologia gotowa", "gotowe do wdrożenia", "na rynku"];
+const LVLK = {exploring:0, tech_ready:1, business_ready:2, market_ready:3};
+const COST = ["niski", "średni", "wysoki", "b. wysoki"];
+const CRIT = {dojrzalosc:"Dojrzałość", przenaszalnosc:"Przenaszalność", skala_problemu:"Skala problemu", koszt_wdrozenia:"Koszt wdrożenia", sila_dowodow:"Siła dowodów", nowosc:"Nowość"};
+// Sector -> categorical slot: fixed by entity (never by rank). 7 slots + "inne".
+const SECTOR_SLOT = {P_edukacja:1, Q_zdrowie:2, J_ict:3, O_administracja:4, C_przemysl:5, D_energetyka:6, H_transport:7};
+const secColor = k => SECTOR_SLOT[k] ? `var(--s${SECTOR_SLOT[k]})` : "var(--other)";
+const ICON = {
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7-4.4-9.3-8.7C1 8 3 4.5 6.5 4.5c2 0 3.5 1.2 5.5 3.2 2-2 3.5-3.2 5.5-3.2C21 4.5 23 8 21.3 11.3 19 15.6 12 20 12 20Z"/></svg>',
+  x: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"><path d="M3 13h5l1.5 3h5L16 13h5M5 5h14l2 8v6H3v-6l2-8Z"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+};
+let LABELS = {}, F = {}, CFG = {};
+let voter; try { voter = localStorage.getItem("radar-voter") || crypto.randomUUID(); localStorage.setItem("radar-voter", voter); } catch (e) { voter = "anon-" + Math.random().toString(36).slice(2, 12); }
+let liked = new Set(); try { liked = new Set(JSON.parse(localStorage.getItem("radar-liked") || "[]")); } catch (e) {}
+const saveLiked = () => { try { localStorage.setItem("radar-liked", JSON.stringify([...liked])); } catch (e) {} };
+const lp = (axis, v) => (LABELS[axis] && !Array.isArray(LABELS[axis]) && LABELS[axis][v]) || v || "—";
+const pln = n => n == null ? "—" : n >= 1e6 ? (n / 1e6).toLocaleString("pl-PL", {maximumFractionDigits: 1}) + " mln zł" : Math.round(n).toLocaleString("pl-PL") + " zł";
+const stagger = root => { const els = $$(".reveal", root); els.forEach((el, i) => el.style.animationDelay = Math.min(i, 12) * 80 + "ms");
+  // content must never stay invisible if animations are paused (background tab, print, screenshot)
+  setTimeout(() => els.forEach(el => el.classList.remove("reveal")), 1600); };
+const empty = (msg, action = "") => `<div class="empty">${ICON.inbox}<p>${esc(msg)}</p>${action}</div>`;
+const demoPill = s => s ? '<span class="pill demo">dane przykładowe</span>' : "";
 
-document.getElementById("nav").onclick = e => { if (e.target.dataset.v) { view = e.target.dataset.v;
-  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b === e.target)); render(); } };
+// ------------------------------------------------------------------ router
+const ROUTES = {"": pageHome, "odkrywaj": pageExplore, "graf": pageGraph, "mapa": pageMap, "rolki": pageReels, "zglos": pageSubmit, "operator": pageOperator};
+async function route() {
+  const [path, query] = location.hash.replace(/^#\/?/, "").split("?");
+  if (query) F = Object.fromEntries(new URLSearchParams(query));
+  $$("#tabs a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#/" + path));
+  const v = $("#view"); v.style.opacity = 0;
+  v.innerHTML = '<div class="skel" style="width:40%;height:2.5rem"></div><div class="skel"></div><div class="skel" style="width:70%"></div>';
+  v.style.transition = "opacity .2s ease-out"; requestAnimationFrame(() => v.style.opacity = 1);
+  try { await (ROUTES[path] || pageHome)(v); } catch (e) { v.innerHTML = empty("Nie udało się wczytać widoku: " + e); }
+  stagger(v);
+}
+const go = (path, filters) => { F = filters || {}; const q = qs(F); location.hash = "#/" + path + (q ? "?" + q : ""); };
+window.addEventListener("hashchange", route);
 
-api("/api/config").then(c => { const m = $("#mode"); m.textContent = c.demo_mode ? "tryb demo (snapshoty)" : "LLM: " + c.llm_providers.join(" → ");
-  m.classList.toggle("demo", c.demo_mode); });
+// ------------------------------------------------------------------ shared pieces
+function ideaRow(i, extra = "") {
+  return `<div class="row reveal" tabindex="0" data-card="${i.card_id}"><h3>${esc(i.title)}</h3>
+    <div class="side"><b>${Math.round(i.score ?? 0)}</b>/100</div>
+    <div class="meta"><span class="dot" style="background:${secColor(i.sector || i.labels?.sector?.value)}"></span>
+      <span>${esc(i.sector_pl || i.labels?.sector?.pl || "")}</span><span>${esc(LVL[i.maturity_i ?? LVLK[i.maturity]] || "")}</span>
+      <span>${esc(i.voivodeship || i.labels?.voivodeship?.value || "")}</span>${extra}${demoPill(i.synthetic)}</div></div>`;
+}
+function bindRows(root) { $$("[data-card]", root).forEach(el => { el.onclick = () => openCard(+el.dataset.card); el.onkeydown = e => { if (e.key === "Enter") openCard(+el.dataset.card); }; }); }
+function tip(html, e) { const t = $("#tip"); if (!html) { t.style.opacity = 0; return; } t.innerHTML = html; t.style.opacity = 1;
+  const x = Math.min(e.clientX + 14, innerWidth - t.offsetWidth - 8), y = Math.min(e.clientY + 14, innerHeight - t.offsetHeight - 8); t.style.left = x + "px"; t.style.top = y + "px"; }
 
-async function render() {
-  const main = $("#main");
-  if (view === "queue") {
-    const cards = await api("/api/cards?decision=pending");
-    main.innerHTML = `<section class="panel"><h2>Znalezione innowacje (${cards.length})</h2><div class="list">${
-      cards.map(c => `<div class="item ${c.id===selected?'sel':''}" data-id="${c.id}"><h3>${esc(c.solution_name || c.record.title)}</h3>
-        <div class="meta"><span class="lvl">${esc(LVL[c.maturity] || c.maturity)}</span><span>${esc(c.innovation_type)}</span>
-        <span>${esc(c.record.source_id)}</span>${c.hidden?'<span>ukryta</span>':''}${c.provider==='mock'?'<span>ekstrakcja: heurystyka</span>':''}</div></div>`).join("")
-      || '<p class="empty">Brak kart. Uruchom źródło w zakładce „Źródła”.</p>'}</div></section><section class="panel" id="detail"><p class="empty">Wybierz kartę.</p></section>`;
-    main.querySelectorAll(".item").forEach(el => el.onclick = () => { selected = +el.dataset.id; showCard(selected);
-      main.querySelectorAll(".item").forEach(x => x.classList.toggle("sel", x === el)); });
-    if (selected) showCard(selected);
-  } else if (view === "review") {
+// ------------------------------------------------------------------ PRZEGLĄD (insights)
+async function pageHome(v) {
+  const d = await api("/api/insights");
+  if (d.empty) { v.innerHTML = empty("Brak ocenionych pomysłów. Pobierz dane w panelu operatora.", `<a class="btn" href="#/operator">Przejdź do źródeł</a>`); return; }
+  const k = d.kpi;
+  const list = (key, extra) => `<div class="rows">${(d[key] || []).map(i => ideaRow(i, extra ? extra(i) : "")).join("") || `<p class="faint">Brak pozycji spełniających regułę.</p>`}</div>`;
+  const rule = key => `<details class="rule"><summary>Jak liczymy</summary>${esc(d.rules[key])}</details>`;
+  const block = (eyebrow, title, lead, key, body, rev) => `<section class="block zig ${rev ? "rev" : ""}"><div class="reveal"><p class="eyebrow">${eyebrow}</p><h2>${title}</h2><p class="muted">${lead}</p>${rule(key)}</div><div class="card pad reveal">${body}</div></section>`;
+  const maxHeat = Math.max(...d.trends.map(t => t.heat), 1);
+  v.innerHTML = `
+  <section class="block split">
+    <div class="reveal"><p class="eyebrow">Radar innowacji · ${esc(CFG.demo_mode ? "tryb demo" : "dane na żywo")}</p>
+      <h1>Ukryte innowacje, ocenione i gotowe do przeniesienia.</h1>
+      <p class="lead">${k.ideas} pomysłów z ${k.institutions} instytucji w ${k.voivodeships} województwach. Każdy przeszedł Basala, agenta wdrożeniowego i jawne kryteria oceny.</p>
+      <div class="kpis">
+        <div class="kpi"><b>${k.ready_to_copy}</b><span>gotowe do powielenia w innej instytucji</span></div>
+        <div class="kpi"><b>${k.cheap_wins}</b><span>szybkie wdrożenia przy małym budżecie</span></div>
+        <div class="kpi"><b>${k.need_budget}</b><span>czeka na duże finansowanie${k.budget_needed_pln ? " · " + pln(k.budget_needed_pln) : ""}</span></div>
+        <div class="kpi"><b>${k.nontech_share}%</b><span>innowacji nietechnologicznych (organizacja, edukacja, usługi)</span></div>
+      </div>
+      ${k.synthetic_share ? `<p class="faint" style="margin-top:1rem">${k.synthetic_share}% pozycji to dane przykładowe (syntetyczne), oznaczone przy każdej karcie.</p>` : ""}
+    </div>
+    <div class="card pad reveal"><p class="eyebrow">Portfel: koszt × dojrzałość</p><div class="chart" id="portfolio"></div><div class="legend" id="plegend"></div>
+      <details class="rule"><summary>Pokaż jako tabelę</summary><div id="ptable"></div></details></div>
+  </section>
+  ${block("Co jest gorące", "Trendy technologiczne", "Obszary, w których powstaje najwięcej dobrych pomysłów i które najbardziej interesują ludzi.", "trends",
+    `<div class="bars">${d.trends.map(t => `<div class="bar reveal" data-tech="${esc(t.key)}"><span>${esc(t.pl)}</span><div class="track"><i style="width:${Math.round(t.heat / maxHeat * 100)}%"></i></div><span class="v">${t.heat}</span></div>`).join("")}</div>
+     <p class="faint" style="margin-top:1rem">Liczba = indeks trendu 0–100. Najedź, by zobaczyć składowe; kliknij, by przejść do pomysłów.</p>`)}
+  ${block("Co się wyróżnia", "Najmocniejsze i najbardziej oryginalne", "Wysoki wynik i brak bliskich odpowiedników w bazie.", "standouts", list("standouts"), true)}
+  ${block("Co jest najdalej", "Najbardziej zaawansowane", "Rozwiązania z najmocniejszymi dowodami dojrzałości: wdrożenia, patenty, pilotaże.", "advanced",
+    `<div id="matbar"></div>` + list("advanced"))}
+  ${block("Co już działa", "Gotowe do powielenia", "Działa u twórcy, nie wymaga nowej technologii. Najkrótsza droga do efektu w kolejnej gminie, szkole czy szpitalu.", "realized", list("realized", i => i.path ? `<span class="tag">${esc(i.path)}</span>` : ""), true)}
+  ${block("Gdzie jest tanio", "Szybkie wygrane przy małym budżecie", "Niski lub średni koszt, gotowy co najmniej prototyp, wysoki wynik.", "cheap", list("cheap", i => `<span class="tag">koszt: ${esc(COST[["niski","sredni","wysoki","bardzo_wysoki"].indexOf(i.cost)] || "—")}</span>`))}
+  ${block("Gdzie brakuje pieniędzy", "Wymaga dużego budżetu", "Wysoki koszt, a rozwiązanie jeszcze nie jest wdrożone na skalę. Kandydaci do funduszy UE, NCBR i partnerstw.", "budget",
+    list("budget", i => `<span class="tag">${esc(i.amount ? pln(i.amount) : "koszt: " + (i.cost === "bardzo_wysoki" ? "b. wysoki" : "wysoki"))}</span>`), true)}
+  ${block("Czego nikt jeszcze nie widzi", "Ukryte perełki", "Szkoły, uczelnie i instytuty z gotowym rozwiązaniem, o którym jeszcze mało kto wie.", "hidden", list("hidden"))}
+  ${block("Gdzie dublujemy pracę", "Podobne rozwiązania w różnych instytucjach", "Te zespoły rozwiązują ten sam problem. Lepiej je połączyć niż finansować dwa razy.", "duplicates",
+    `<div class="rows">${d.duplicates.map(p => `<div class="row reveal" data-card="${p.a.card_id}"><h3>${esc(p.a.title)} <span class="faint">↔</span> ${esc(p.b.title)}</h3><div class="side"><b>${Math.round(p.similarity * 100)}%</b>podobieństwa</div>
+      <div class="meta"><span>${esc(p.a.institution)} (${esc(p.a.voivodeship || "—")})</span><span>${esc(p.b.institution)} (${esc(p.b.voivodeship || "—")})</span></div></div>`).join("") || '<p class="faint">Brak par powyżej progu.</p>'}</div>`, true)}
+  ${block("Gdzie przenieść", "Luki regionalne", "Sektory, w których istnieją sprawdzone pomysły, ale w części województw nie ma żadnego. Tam warto zanieść rozwiązania.", "gaps",
+    `<table class="t"><tr><th>Sektor</th><th>Pomysły</th><th>Źródło (najwięcej)</th><th>Województwa bez podaży</th></tr>${d.gaps.map(g => `<tr class="reveal"><td><span class="dot" style="background:${secColor(g.sector)}"></span> ${esc(g.pl)}</td><td class="mono">${g.ideas}</td><td>${esc(g.source_regions.join(", "))}</td><td class="faint">${g.missing.length} z 16 <a href="#/mapa?mapSector=${esc(g.sector)}">mapa</a></td></tr>`).join("")}</table>`)}
+  <section class="block"><div class="card pad reveal" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+    <div><h2>Masz rozwiązanie, które działa u Ciebie?</h2><p class="muted" style="margin:0">Zgłoś je. Basal oceni je od razu, bez czekania na model językowy.</p></div><a class="btn" href="#/zglos">Zgłoś innowację ${ICON.arrow}</a></div></section>`;
+  drawPortfolio($("#portfolio"), d.portfolio);
+  $("#matbar").innerHTML = maturityBar(d.portfolio);
+  $$(".bar[data-tech]", v).forEach(b => { const t = d.trends.find(x => x.key === b.dataset.tech);
+    b.onmousemove = e => tip(`<b>${esc(t.pl)}</b><br>${t.ideas} pomysłów · ${t.likes} polubień<br>średnia ocena ${t.avg_score} · ${t.regions} woj. · ${t.ready} gotowych`, e);
+    b.onmouseleave = () => tip(); b.onclick = () => go("odkrywaj", {tech_area: t.key}); });
+  bindRows(v);
+}
+
+function maturityBar(rows) {
+  const c = [0, 0, 0, 0]; rows.forEach(r => c[r.maturity_i]++); const n = rows.length || 1;
+  return `<div style="margin-bottom:1rem"><div class="seg" role="img" aria-label="Rozkład dojrzałości">${c.map((x, i) => x ? `<i style="width:${x / n * 100}%;background:var(--q${i + 1})" title="${LVL[i]}: ${x}"></i>` : "").join("")}</div>
+    <div class="legend">${c.map((x, i) => `<span><i class="dot" style="background:var(--q${i + 1})"></i>${LVL[i]} <span class="mono">${x}</span></span>`).join("")}</div></div>`;
+}
+
+function drawPortfolio(el, pts) {
+  // x: cost (ordinal 0..3), y: maturity (0..3); bubble = score; colour = sector (fixed slots). Quadrants named for decisions.
+  const W = 640, H = 420, L = 56, R = 12, T = 16, B = 44, cw = (W - L - R) / 4, ch = (H - T - B) / 4;
+  const cell = {}, r = s => 4 + Math.max(0, (s - 40)) / 12;
+  const pos = pts.map(p => { const key = p.cost_i + ":" + p.maturity_i, i = cell[key] = (cell[key] || 0) + 1;
+    const ang = i * 2.399, rad = Math.min(11 * Math.sqrt(i - 1), Math.min(cw, ch) / 2 - 10);   // sunflower packing inside the cell, deterministic
+    return {...p, x: L + (p.cost_i + .5) * cw + Math.cos(ang) * rad, y: T + (3 - p.maturity_i + .5) * ch + Math.sin(ang) * rad}; });
+  const Q = [["Szybkie wygrane", "tanio i już działa", L + 4, T + 14], ["Do skalowania", "działa, ale drogo", L + 2 * cw + 4, T + 14],
+             ["Do przetestowania", "tanio, wczesny etap", L + 4, T + 2 * ch + 14], ["Duże zakłady", "drogo i wcześnie", L + 2 * cw + 4, T + 2 * ch + 14]];
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Portfel pomysłów: koszt wdrożenia na osi poziomej, dojrzałość na pionowej">
+    ${[0,1,2,3,4].map(i => `<line class="gridl" x1="${L + i * cw}" x2="${L + i * cw}" y1="${T}" y2="${H - B}"/><line class="gridl" x1="${L}" x2="${W - R}" y1="${T + i * ch}" y2="${T + i * ch}"/>`).join("")}
+    <line x1="${L + 2 * cw}" x2="${L + 2 * cw}" y1="${T}" y2="${H - B}" stroke="var(--ink-3)" stroke-dasharray="3 4"/><line x1="${L}" x2="${W - R}" y1="${T + 2 * ch}" y2="${T + 2 * ch}" stroke="var(--ink-3)" stroke-dasharray="3 4"/>
+    ${Q.map(q => `<text class="ql" x="${q[2]}" y="${q[3]}">${q[0]}</text><text class="qd" x="${q[2]}" y="${q[3] + 14}">${q[1]}</text>`).join("")}
+    ${COST.map((c, i) => `<text class="axis" x="${L + (i + .5) * cw}" y="${H - B + 18}" text-anchor="middle">${c}</text>`).join("")}
+    <text class="axis" x="${L + 2 * cw}" y="${H - 6}" text-anchor="middle">KOSZT WDROŻENIA →</text>
+    ${LVL.map((l, i) => `<text class="axis" x="${L - 8}" y="${T + (3 - i + .5) * ch + 4}" text-anchor="end">${["bad.", "techn.", "wdroż.", "rynek"][i]}</text>`).join("")}
+    <text class="axis" transform="translate(12 ${T + 2 * ch}) rotate(-90)" text-anchor="middle">DOJRZAŁOŚĆ →</text>
+    ${pos.map((p, i) => `<circle data-i="${i}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r(p.score).toFixed(1)}" fill="${secColor(p.sector)}" stroke="var(--surface)" stroke-width="2" style="cursor:pointer"/>`).join("")}
+  </svg>`;
+  $$("circle", el).forEach(c => { const p = pos[+c.dataset.i];
+    c.onmousemove = e => tip(`<b>${esc(p.title)}</b><br>${esc(p.sector_pl)} · ${esc(p.voivodeship || "—")}<br>wynik ${Math.round(p.score)} · koszt ${COST[p.cost_i]} · ${LVL[p.maturity_i]}`, e);
+    c.onmouseleave = () => tip(); c.onclick = () => openCard(p.card_id); });
+  const used = [...new Set(pts.map(p => SECTOR_SLOT[p.sector] ? p.sector : "_"))].sort((a, b) => (SECTOR_SLOT[a] || 9) - (SECTOR_SLOT[b] || 9));
+  $("#plegend").innerHTML = used.map(s => `<span><i class="dot" style="background:${s === "_" ? "var(--other)" : secColor(s)}"></i>${esc(s === "_" ? "inne sektory" : lp("sector", s))}</span>`).join("") + `<span class="faint">wielkość = wynik</span>`;
+  $("#ptable").innerHTML = `<table class="t"><tr><th>Pomysł</th><th>Koszt</th><th>Dojrzałość</th><th>Wynik</th></tr>${pts.slice().sort((a, b) => b.score - a.score).map(p => `<tr><td><a href="#" data-card="${p.card_id}">${esc(p.title)}</a></td><td>${COST[p.cost_i]}</td><td>${LVL[p.maturity_i]}</td><td class="mono">${Math.round(p.score)}</td></tr>`).join("")}</table>`;
+  $$("#ptable [data-card]").forEach(a => a.onclick = e => { e.preventDefault(); openCard(+a.dataset.card); });
+}
+
+// ------------------------------------------------------------------ ODKRYWAJ
+async function pageExplore(v) {
+  v.innerHTML = `<section class="block"><p class="eyebrow">Odkrywaj</p><h2>Wszystkie pomysły, filtrowane po każdej osi Basala</h2>
+    <div class="zig" style="margin-top:2rem"><aside class="facets" id="facets"></aside><div><div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+    <input type="search" id="q" placeholder="Szukaj w tytułach i opisach" value="${esc(F.q || "")}" style="flex:1;min-width:200px">
+    <select id="sort" style="width:auto"><option value="score">najlepsze</option><option value="likes">najczęściej lubiane</option><option value="priority">priorytet Basala</option><option value="newest">najnowsze</option></select></div>
+    <div id="results"></div></div></div></section>`;
+  $("#sort").value = F.sort || "score";
+  $("#q").oninput = debounce(e => { F.q = e.target.value; loadExplore(); }, 300);
+  $("#sort").onchange = e => { F.sort = e.target.value; loadExplore(); };
+  await loadExplore();
+}
+async function loadExplore() {
+  const r = await api("/api/ideas?" + qs({...F, sort: F.sort || "score"}));
+  const names = {sector: "Sektor gospodarki", tech_area: "Obszar technologii", maturity: "Dojrzałość", cost_level: "Koszt", innovation_type: "Typ innowacji", institution_type: "Typ instytucji", voivodeship: "Województwo"};
+  $("#facets").innerHTML = Object.entries(names).map(([ax, nm]) => `<div class="facet"><p class="eyebrow">${nm}</p><div class="opts">${(r.facets[ax] || []).map(o =>
+    `<button class="chip ${(F[ax] || "").split(",").includes(o.value) ? "on" : ""}" data-ax="${ax}" data-v="${esc(o.value)}">${esc(ax === "maturity" ? LVL[LVLK[o.value]] : o.pl)}<span class="n">${o.count}</span></button>`).join("")}</div></div>`).join("")
+    + `<div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="ghost" id="fclear">Wyczyść</button><button class="ghost" id="fgraph">Na grafie</button></div>`;
+  $$("[data-ax]", $("#facets")).forEach(b => b.onclick = () => { const ax = b.dataset.ax, val = b.dataset.v, cur = new Set((F[ax] || "").split(",").filter(Boolean));
+    cur.has(val) ? cur.delete(val) : cur.add(val); F[ax] = [...cur].join(","); history.replaceState(null, "", "#/odkrywaj?" + qs(F)); loadExplore(); });
+  $("#fclear").onclick = () => { F = {sort: F.sort}; history.replaceState(null, "", "#/odkrywaj"); loadExplore(); };
+  $("#fgraph").onclick = () => go("graf", F);
+  $("#results").innerHTML = `<p class="faint">${r.total} pomysłów</p><div class="card pad"><div class="rows">${r.items.map(i => ideaRow(i, i.path ? `<span class="tag">${esc(i.path)}</span>` : "")).join("") || empty("Nic nie pasuje do filtrów.")}</div></div>`;
+  bindRows($("#results")); stagger($("#results"));
+}
+
+// ------------------------------------------------------------------ GRAF
+async function pageGraph(v) {
+  const g = await api("/api/graph?" + qs({sector: F.sector, tech_area: F.tech_area, voivodeship: F.voivodeship, innovation_type: F.innovation_type, maturity: F.maturity}));
+  const active = Object.entries(F).filter(([k, x]) => x && k !== "sort" && k !== "q");
+  v.innerHTML = `<section class="block"><div style="display:flex;justify-content:space-between;gap:1rem;align-items:end;flex-wrap:wrap"><div><p class="eyebrow">Graf wiedzy</p><h2>Jak pomysły łączą się ze sobą</h2>
+    <p class="muted" style="margin:0">Kropki to pomysły (kolor = sektor), większe węzły to huby: sektor, obszar technologii, województwo. Linie między pomysłami = podobna treść.</p></div>
+    ${active.length ? `<button class="ghost" id="clearf">Wyczyść filtry: ${esc(active.map(([, x]) => lp("sector", x) || x).join(", "))}</button>` : ""}</div>
+    <div class="card" style="margin-top:1.5rem"><canvas id="graph" aria-label="Graf pomysłów"></canvas></div><div class="legend" id="glegend"></div>
+    <p class="faint">Przeciągnij węzeł, przewiń, by przybliżyć. Kliknij pomysł, by otworzyć kartę; kliknij hub, by filtrować.</p></section>`;
+  if ($("#clearf")) $("#clearf").onclick = () => go("graf", {});
+  if (!g.nodes.length) { $("#graph").replaceWith(Object.assign(document.createElement("div"), {innerHTML: empty("Brak pomysłów dla tych filtrów.")})); return; }
+  drawGraph(g);
+}
+function drawGraph(g) {
+  const cv = $("#graph"), ctx = cv.getContext("2d"), dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement), C = n => css.getPropertyValue(n).trim();
+  const color = n => n.type === "idea" ? C(SECTOR_SLOT[n.sector] ? `--s${SECTOR_SLOT[n.sector]}` : "--other") : C("--ink-3");
+  const idx = new Map(g.nodes.map((n, i) => [n.id, i]));
+  const N = g.nodes.map((n, i) => ({...n, x: W / 2 + Math.cos(i * 2.399) * 12 * Math.sqrt(i + 1), y: H / 2 + Math.sin(i * 2.399) * 12 * Math.sqrt(i + 1), vx: 0, vy: 0, deg: 0}));
+  const Lk = g.links.filter(l => idx.has(l.source) && idx.has(l.target)).map(l => ({...l, s: N[idx.get(l.source)], t: N[idx.get(l.target)]}));
+  Lk.forEach(l => { l.s.deg++; l.t.deg++; });
+  const sim = l => l.kind === "similar" || l.kind === "possible_duplicate";
+  const rad = n => n.type === "idea" ? 4 + (n.score || 40) / 22 : 5 + Math.sqrt(n.deg) * 2.4;
+  let alpha = 1, drag = null, hover = null, ox = 0, oy = 0, sc = 1, fitted = false, pan = null, moved = false;
+  function tick() {
+    for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) { const a = N[i], b = N[j]; let dx = b.x - a.x, dy = b.y - a.y; const d2 = dx * dx + dy * dy + .01; if (d2 > 90000) continue;
+      const f = 1100 / d2 * alpha; dx *= f; dy *= f; a.vx -= dx; a.vy -= dy; b.vx += dx; b.vy += dy; }
+    for (const l of Lk) { const dx = l.t.x - l.s.x, dy = l.t.y - l.s.y, d = Math.hypot(dx, dy) || 1, k = (d - (sim(l) ? 60 : 105)) / d * .045 * alpha * (sim(l) ? 1.5 : 1);
+      l.s.vx += dx * k; l.s.vy += dy * k; l.t.vx -= dx * k; l.t.vy -= dy * k; }
+    for (const n of N) { if (n === drag) continue; n.vx += (W / 2 - n.x) * .006 * alpha; n.vy += (H / 2 - n.y) * .006 * alpha; n.x += n.vx; n.y += n.vy; n.vx *= .6; n.vy *= .6; }
+    alpha = Math.max(alpha * .985, .02); if (!fitted && alpha < .15) { fit(); fitted = true; }
+  }
+  function fit() { const xs = N.map(n => n.x), ys = N.map(n => n.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    sc = Math.min((W - 220) / Math.max(x1 - x0, 1), (H - 60) / Math.max(y1 - y0, 1), 2.4); ox = (W - 150) / 2 - (x0 + x1) / 2 * sc; oy = H / 2 - (y0 + y1) / 2 * sc; }
+  const near = n => hover && (n === hover || Lk.some(l => (l.s === hover && l.t === n) || (l.t === hover && l.s === n)));
+  function paint() {
+    ctx.clearRect(0, 0, W, H); ctx.save(); ctx.translate(ox, oy); ctx.scale(sc, sc);
+    for (const l of Lk) { const hot = hover && (l.s === hover || l.t === hover);
+      ctx.strokeStyle = hot ? C("--ink") : sim(l) ? C("--accent") : C("--line"); ctx.globalAlpha = hot ? .9 : sim(l) ? .45 : 1; ctx.lineWidth = (sim(l) ? 1 + l.weight * 2 : .8) / Math.sqrt(sc);
+      ctx.beginPath(); ctx.moveTo(l.s.x, l.s.y); ctx.lineTo(l.t.x, l.t.y); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    for (const n of N) { ctx.globalAlpha = hover && !near(n) ? .3 : 1; ctx.beginPath(); ctx.arc(n.x, n.y, rad(n), 0, 7);
+      ctx.fillStyle = n.type === "idea" ? color(n) : C("--surface"); ctx.fill(); ctx.lineWidth = n.type === "idea" ? 2 / sc : 1.5 / sc; ctx.strokeStyle = n.type === "idea" ? C("--surface") : C("--ink-3"); ctx.stroke();
+      if (n.type !== "idea" || n === hover || sc > 1.4) { ctx.fillStyle = n.type === "idea" ? C("--ink") : C("--ink-2"); ctx.font = `${n.type === "idea" ? 400 : 600} ${12 / Math.sqrt(sc)}px system-ui`; ctx.fillText(n.label.slice(0, 46), n.x + rad(n) + 4, n.y + 4); } }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  (function loop() { if (alpha > .021 || drag) tick(); paint(); if (document.body.contains(cv)) requestAnimationFrame(loop); })();
+  const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / sc, (e.clientY - r.top - oy) / sc]; };
+  const hit = (x, y) => N.find(n => (n.x - x) ** 2 + (n.y - y) ** 2 < (rad(n) + 4) ** 2);
+  cv.onpointerdown = e => { const [x, y] = pt(e); drag = hit(x, y); moved = false; if (!drag) pan = [e.clientX - ox, e.clientY - oy]; cv.setPointerCapture(e.pointerId); };
+  cv.onpointermove = e => { const [x, y] = pt(e);
+    if (drag) { drag.x = x; drag.y = y; alpha = Math.max(alpha, .3); moved = true; } else if (pan) { ox = e.clientX - pan[0]; oy = e.clientY - pan[1]; moved = true; }
+    else { hover = hit(x, y) || null; cv.style.cursor = hover ? "pointer" : "grab"; tip(hover ? `<b>${esc(hover.label)}</b>${hover.type === "idea" ? `<br>${esc(lp("sector", hover.sector))} · ${esc(hover.voivodeship || "—")}${hover.score ? " · wynik " + Math.round(hover.score) : ""}` : `<br>${hover.deg} powiązań`}` : "", e); } };
+  cv.onpointerleave = () => { hover = null; tip(); };
+  cv.onpointerup = () => { if (drag && !moved) { const n = drag; if (n.type === "idea" && n.card_id) openCard(n.card_id); else if (n.type !== "idea") go("graf", {[n.type]: n.id.split(":").slice(1).join(":")}); } drag = null; pan = null; };
+  cv.onwheel = e => { e.preventDefault(); const k = e.deltaY < 0 ? 1.1 : .9, r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; ox = mx - (mx - ox) * k; oy = my - (my - oy) * k; sc *= k; };
+  const used = [...new Set(N.filter(n => n.type === "idea").map(n => SECTOR_SLOT[n.sector] ? n.sector : "_"))].sort((a, b) => (SECTOR_SLOT[a] || 9) - (SECTOR_SLOT[b] || 9));
+  $("#glegend").innerHTML = used.map(s => `<span><i class="dot" style="background:${s === "_" ? "var(--other)" : secColor(s)}"></i>${esc(s === "_" ? "inne sektory" : lp("sector", s))}</span>`).join("") +
+    `<span><i class="dot" style="background:var(--surface);border:1.5px solid var(--ink-3)"></i>hub</span><span><i class="dot" style="background:var(--accent);height:2px;width:14px;border-radius:1px"></i>podobna treść</span>`;
+}
+
+// ------------------------------------------------------------------ MAPA
+async function pageMap(v) {
+  const r = await api("/api/regions?" + qs({sector: F.mapSector}));
+  const max = Math.max(1, ...r.regions.map(x => x.selected)), mmax = Math.max(1, ...Object.values(r.matrix).flatMap(o => Object.values(o)));
+  const GRID = {"zachodniopomorskie":[0,0],"pomorskie":[1,0],"warmińsko-mazurskie":[2,0],"podlaskie":[3,0],"kujawsko-pomorskie":[1,1],"mazowieckie":[2,1],"lubuskie":[0,2],"wielkopolskie":[1,2],"łódzkie":[2,2],"lubelskie":[3,2],"dolnośląskie":[0,3],"opolskie":[1,3],"świętokrzyskie":[2,3],"podkarpackie":[3,3],"śląskie":[1,4],"małopolskie":[2,4]};
+  const fill = t => t ? `color-mix(in srgb, var(--accent) ${Math.round(14 + 76 * t)}%, var(--surface))` : "var(--surface)";
+  const sel = F.mapSector ? lp("sector", F.mapSector) : null;
+  v.innerHTML = `<section class="block split"><div class="reveal"><p class="eyebrow">Mapa</p><h2>Gdzie powstają pomysły i gdzie ich brakuje</h2>
+      <p class="muted">${sel ? `Sektor: <b>${esc(sel)}</b>. ` : ""}Kolor = liczba pomysłów${sel ? " w sektorze" : ""}. <b>Luka</b> = mniej niż średnio w kraju (${r.national_avg} na województwo): tam warto przenieść rozwiązania z innych regionów albo wesprzeć słabo rozwinięty sektor.</p>
+      <label class="f" style="max-width:360px">Sektor gospodarki<select id="msec"><option value="">wszystkie sektory</option>${r.sectors.map(s => `<option value="${s.key}">${esc(s.pl)}</option>`).join("")}</select></label>
+      <div class="rows" style="margin-top:1.5rem">${r.regions.filter(x => sel ? x.gap > 0 : true).sort((a, b) => sel ? b.gap - a.gap : b.ideas - a.ideas).slice(0, 6).map(x =>
+        `<div class="row" data-v="${esc(x.voivodeship)}"><h3>${esc(x.voivodeship)}</h3><div class="side"><b>${x.selected}</b>${sel ? "luka " + x.gap : "pomysłów"}</div><div class="meta">${esc(x.top_sectors.map(t => t.pl).join(" · ") || "brak pomysłów")}</div></div>`).join("")}</div></div>
+    <div class="card pad reveal"><div class="tiles">${r.regions.map(x => { const [c, rw] = GRID[x.voivodeship], t = x.selected / max;
+      return `<div class="tile" data-v="${esc(x.voivodeship)}" style="grid-column:${c + 1};grid-row:${rw + 1};background:${fill(t)};color:${t > .55 ? "var(--accent-ink)" : "var(--ink)"}">${esc(x.voivodeship)}<b>${x.selected}</b>${sel && x.gap > 0 ? "luka" : ""}</div>`; }).join("")}</div>
+      <p class="faint" style="margin-top:.75rem">Kartogram: każde województwo to jeden kafel w przybliżonym położeniu. Kliknij, by zobaczyć pomysły.</p></div></section>
+    <section class="block"><p class="eyebrow">Macierz</p><h2>Województwo × sektor gospodarki</h2><p class="muted">Gdzie dany sektor jest mocny, a gdzie pusty. Kliknij komórkę, by zobaczyć pomysły.</p>
+      <div class="card pad heat reveal"><table><tr><th></th>${r.sectors.map(s => `<th title="${esc(s.pl)}">${esc(s.key.split("_")[0])}</th>`).join("")}</tr>${r.regions.map(x => `<tr><th>${esc(x.voivodeship)}</th>${r.sectors.map(s => { const n = r.matrix[x.voivodeship]?.[s.key] || 0;
+        return `<td data-v="${esc(x.voivodeship)}" data-s="${s.key}" style="background:${n ? fill(n / mmax) : "transparent"};color:${n / mmax > .55 ? "var(--accent-ink)" : "var(--ink-2)"};cursor:${n ? "pointer" : "default"}">${n || ""}</td>`; }).join("")}</tr>`).join("")}</table>
+      <p class="faint">${r.sectors.map(s => `${esc(s.key.split("_")[0])} ${esc(s.pl)}`).join(" · ")}</p></div></section>`;
+  $("#msec").value = F.mapSector || "";
+  $("#msec").onchange = e => go("mapa", e.target.value ? {mapSector: e.target.value} : {});
+  $$("[data-v]", v).forEach(t => t.onclick = () => { if (t.tagName === "TD" && !t.textContent) return; go("odkrywaj", {voivodeship: t.dataset.v, sector: t.dataset.s || F.mapSector}); });
+}
+
+// ------------------------------------------------------------------ ROLKI
+async function pageReels(v) {
+  const items = await api("/api/feed?limit=50");
+  v.innerHTML = `<div class="reels" id="reels">${items.map(i => { const b = i.brief || {};
+    return `<section class="reel"><article class="card"><div class="score"><b>${Math.round(b.score ?? 0)}</b><span class="faint">/100</span></div>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-right:4rem"><span class="pill">${esc(LVL[LVLK[b.maturity]] || "")}</span>${b.where ? `<span class="pill">${esc(b.where)}</span>` : ""}${i.decision === "approved" ? '<span class="pill">zatwierdzone przez PCI</span>' : ""}${demoPill(i.synthetic)}</div>
+      <div class="hook">${esc(b.hook)}</div><div class="sol">${esc(b.solution)}</div>
+      <dl><div><dt>Kto</dt><dd>${esc(b.who)}</dd></div><div><dt>Dla kogo</dt><dd>${esc((b.for_whom || []).join(" · "))}</dd></div>
+        <div><dt>Ścieżka i pierwszy krok</dt><dd>${esc(b.path || "")}: ${esc(b.next_step || "")}</dd></div><div><dt>Koszt</dt><dd>${esc(b.cost || "")}</dd></div><div><dt>Miernik sukcesu</dt><dd>${esc(b.metric || "")}</dd></div></dl>
+      <div style="display:flex;gap:.35rem;flex-wrap:wrap">${(b.tags || []).filter(t => t && t !== "—").map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+      <div class="foot"><a href="#" data-card="${i.card_id}">Pełna karta ${ICON.arrow}</a><button class="like ${liked.has(i.card_id) ? "on" : ""}" data-like="${i.card_id}" aria-pressed="${liked.has(i.card_id)}">${ICON.heart}<span>${i.likes}</span></button></div></article></section>`; }).join("") || empty("Brak briefów.")}</div>`;
+  $$("[data-like]", v).forEach(b => b.onclick = async () => { const r = await api(`/api/cards/${b.dataset.like}/like`, {method: "POST", headers: {"X-Voter": voter}});
+    r.liked ? liked.add(r.card_id) : liked.delete(r.card_id); saveLiked(); b.classList.toggle("on", r.liked); b.setAttribute("aria-pressed", r.liked); $("span", b).textContent = r.likes; });
+  $$("[data-card]", v).forEach(a => a.onclick = e => { e.preventDefault(); openCard(+a.dataset.card); });
+}
+
+// ------------------------------------------------------------------ ZGŁOŚ
+async function pageSubmit(v) {
+  v.innerHTML = `<section class="block split" style="align-items:start"><div class="reveal"><p class="eyebrow">Zgłoś innowację</p><h2>Opisz, co działa u Ciebie</h2><p class="muted">Rozwiązanie nie musi być technologiczne. Liczy się, czy ktoś inny może je przejąć. Nie wpisuj danych osobowych, Basal i tak je zamaskuje.</p>
+    <form id="sf" style="display:flex;flex-direction:column;gap:1rem;margin-top:1.5rem">
+      <label class="f">Tytuł<input name="title" required></label>
+      <label class="f">Opis: problem, rozwiązanie, co już działa<textarea name="description" required></textarea></label>
+      <label class="f">Instytucja<input name="institution"></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem"><label class="f">Typ instytucji<select name="institution_type"><option value="">—</option><option>szkoła</option><option>uczelnia</option><option>instytut</option><option>JST</option><option>inna instytucja publiczna</option></select></label>
+      <label class="f">Województwo<select name="region"><option value="">—</option>${(LABELS.voivodeship || []).map(x => `<option>${esc(x)}</option>`).join("")}</select></label></div>
+      <div><button class="btn" type="submit">Wyślij do radaru ${ICON.arrow}</button></div><div id="sres"></div></form></div>
+    <div class="card pad reveal" style="position:sticky;top:84px"><p class="eyebrow">Podgląd Basala · na żywo, bez LLM</p><div id="preview" class="faint">Zacznij pisać, a Basal sklasyfikuje zgłoszenie.</div></div></section>`;
+  const f = $("#sf"), data = () => Object.fromEntries(new FormData(f).entries());
+  const AX = {sector: "Sektor", tech_area: "Obszar technologii", innovation_type: "Typ innowacji", institution_type: "Typ instytucji", maturity_hint: "Dojrzałość", cost_level: "Koszt", voivodeship: "Województwo"};
+  f.oninput = debounce(async () => { const d = data(); if (!d.title || !d.description) return;
+    const b = await api("/api/basal/classify", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(d)});
+    const dec = {accept: ["przyjęte", "var(--good)"], hold: ["do przeglądu", "var(--warn)"], reject: ["odrzucone", "var(--bad)"]}[b.decision];
+    $("#preview").className = ""; $("#preview").innerHTML = `<h2 style="color:${dec[1]}">${dec[0]}</h2><p class="faint">priorytet w kolejce ${Math.round(b.priority * 100)}/100${b.learned_accept != null ? " · model decyzji operatora " + Math.round(b.learned_accept * 100) + "%" : ""}</p>
+      ${b.reject_reasons.length ? `<p style="color:var(--bad)">${esc(b.reject_reasons.join("; "))}</p>` : ""}${b.hold_reasons.length ? `<p class="faint">${esc(b.hold_reasons.join("; "))}</p>` : ""}
+      <table class="t">${Object.entries(AX).map(([a, nm]) => { const x = b[a]; const val = a === "maturity_hint" ? LVL[LVLK[x.value]] : a === "voivodeship" ? x.value : lp(a, x.value);
+        return `<tr><th>${nm}</th><td><b>${esc(val ?? "—")}</b><span class="who">${Math.round(x.confidence * 100)}% · ${esc(x.by)}${x.evidence?.length ? " · " + esc(x.evidence.join(", ")) : ""}</span></td></tr>`; }).join("")}</table>`; }, 350);
+  f.onsubmit = async e => { e.preventDefault(); try { const r = await api("/api/ingest/zgloszenia/manual", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(data())});
+      $("#sres").innerHTML = `<p class="muted">Przyjęto${r.new ? "" : " (bez zmian)"}. Karta pojawi się w panelu operatora po przetworzeniu.</p>`; f.reset(); }
+    catch (err) { $("#sres").innerHTML = `<p style="color:var(--bad)">${esc(err)}</p>`; } };
+}
+
+// ------------------------------------------------------------------ OPERATOR
+async function pageOperator(v) {
+  const sub = F.tab || "kolejka";
+  const T = {kolejka: "Kolejka", przeglad: "Do przeglądu", zrodla: "Źródła", liczniki: "Liczniki"};
+  v.innerHTML = `<section class="block"><p class="eyebrow">Panel operatora PCI</p><h2>Decyzje, źródła i stan potoku</h2>
+    <div style="display:flex;gap:.35rem;margin:1.25rem 0 1.5rem;flex-wrap:wrap">${Object.entries(T).map(([k, n]) => `<button class="chip ${k === sub ? "on" : ""}" data-sub="${k}">${n}</button>`).join("")}</div><div id="op"></div></section>`;
+  $$("[data-sub]", v).forEach(b => b.onclick = () => go("operator", {tab: b.dataset.sub}));
+  const op = $("#op");
+  if (sub === "kolejka") {
+    const cards = (await api("/api/cards?decision=pending&limit=200")).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+    op.innerHTML = `<p class="faint">${cards.length} kart czeka na decyzję · od najlepszych</p><div class="card pad"><div class="rows">${cards.map(c => ideaRow({card_id: c.id, title: c.solution_name || c.record.title, score: c.score, sector: c.record.sector, maturity: c.maturity, voivodeship: c.record.voivodeship, synthetic: c.synthetic, sector_pl: lp("sector", c.record.sector)}, `<span class="mono">${esc(c.record.source_id)}</span>`)).join("") || empty("Kolejka jest pusta.")}</div></div>`;
+    bindRows(op);
+  } else if (sub === "przeglad") {
     const rows = await api("/api/review");
-    main.innerHTML = `<section class="panel wide"><h2>Do przeglądu (${rows.length})</h2><table><tr><th>#</th><th>Źródło</th><th>Tytuł</th><th>Powody</th></tr>${
-      rows.map(r => `<tr><td>${r.id}</td><td>${esc(r.source_id)}</td><td>${esc(r.title)}</td><td>${esc((r.reasons||[]).join("; "))}</td></tr>`).join("")}</table></section>`;
-  } else if (view === "sources") {
+    op.innerHTML = `<div class="card pad"><table class="t"><tr><th>#</th><th>Źródło</th><th>Tytuł</th><th>Powody</th></tr>${rows.map(r => `<tr><td class="mono">${r.id}</td><td class="mono">${esc(r.source_id)}</td><td>${esc(r.title)}</td><td class="faint">${esc((r.reasons || []).join("; "))}</td></tr>`).join("")}</table>${rows.length ? "" : empty("Nic nie czeka na przegląd.")}</div>`;
+  } else if (sub === "zrodla") {
     const src = await api("/api/sources");
-    main.innerHTML = `<section class="panel wide"><h2>Źródła danych</h2><table><tr><th>Źródło</th><th>Typ</th><th>Rekordy</th><th>Ostatnie pobranie</th><th></th></tr>${
-      src.map(s => `<tr class="src"><td><b>${esc(s.id)}</b><br><span class="meta">${esc(s.description)}</span>${s.last_error?`<div class="err">${esc(s.last_error)}</div>`:''}</td>
-        <td>${esc(s.type)} · ${esc(s.mode)}${s.demo?' · demo':''}${s.active?'':' · nieaktywne'}</td><td>${s.records}</td>
-        <td>${s.last_run_at ? esc(new Date(s.last_run_at).toLocaleString("pl-PL")) + " · " + esc(s.last_status) : "—"}</td>
-        <td>${s.mode==='pull' && s.active ? `<button data-run="${esc(s.id)}">Pobierz</button>` : (s.type==='webhook' ? `<code>/api/ingest/webhook/${esc(s.id)}</code>` : '')}</td></tr>`).join("")}</table></section>`;
-    main.querySelectorAll("[data-run]").forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = "…";
-      try { await api(`/api/sources/${b.dataset.run}/run`, {method:"POST"}); } catch (e) { alert(e); } setTimeout(render, 1500); });
+    op.innerHTML = `<div class="card pad"><table class="t"><tr><th>Źródło</th><th>Typ</th><th>Rekordy</th><th>Ostatnie pobranie</th><th></th></tr>${src.map(s => `<tr><td><b>${esc(s.id)}</b><br><span class="faint">${esc(s.description)}</span>${s.last_error ? `<div style="color:var(--bad);font-size:.75rem">${esc(s.last_error)}</div>` : ""}</td>
+      <td class="mono">${esc(s.type)} · ${esc(s.mode)}${s.demo ? " · demo" : ""}${s.active ? "" : " · off"}</td><td class="mono">${s.records}</td><td class="faint">${s.last_run_at ? esc(new Date(s.last_run_at).toLocaleString("pl-PL")) + " · " + esc(s.last_status) : "—"}</td>
+      <td>${s.mode === "pull" && s.active ? `<button class="ghost" data-run="${esc(s.id)}">Pobierz</button>` : s.type === "webhook" ? `<code>/api/ingest/webhook/${esc(s.id)}</code>` : ""}</td></tr>`).join("")}</table></div>`;
+    $$("[data-run]", op).forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = "Pobieram…"; try { await api(`/api/sources/${b.dataset.run}/run`, {method: "POST"}); } catch (e) { alert(e); } setTimeout(route, 2500); });
   } else {
     const s = await api("/api/stats");
-    const t = o => Object.entries(o).map(([k,v]) => `<tr><td>${esc(k)}</td><td>${typeof v === 'object' ? esc(Object.entries(v).map(([a,b])=>a+": "+b).join(", ")) : v}</td></tr>`).join("");
-    main.innerHTML = `<section class="panel"><h2>Rekordy wg statusu</h2><table>${t(s.records_by_status)}</table><h2>Pobrane wg kanału</h2><table>${t(s.raw_by_transport)}</table></section>
-      <section class="panel"><h2>Etapy potoku</h2><table>${t(s.stages)}</table><h2>Decyzje</h2><table>${t(s.cards_by_decision)}</table></section>`;
+    const t = o => Object.entries(o).map(([k, x]) => `<tr><th>${esc(k)}</th><td class="mono">${typeof x === "object" ? esc(Object.entries(x).map(([a, b]) => a + " " + b).join(" · ")) : x}</td></tr>`).join("");
+    op.innerHTML = `<div class="zig"><div class="card pad"><p class="eyebrow">Rekordy</p><table class="t">${t(s.records_by_status)}</table><p class="eyebrow" style="margin-top:1.5rem">Kanały wejścia</p><table class="t">${t(s.raw_by_transport)}</table></div>
+      <div class="card pad"><p class="eyebrow">Etapy potoku</p><table class="t">${t(s.stages)}</table><p class="eyebrow" style="margin-top:1.5rem">Decyzje</p><table class="t">${t(s.cards_by_decision)}</table>
+      <div style="margin-top:1.5rem"><button class="ghost" id="train">Ucz Basala na decyzjach operatora</button><p class="faint" id="trainres"></p></div></div></div>`;
+    $("#train").onclick = async () => { const r = await api("/api/basal/train", {method: "POST"}); $("#trainres").textContent = r.trained ? `Wytrenowano na ${r.n} decyzjach, trafność ${r.train_acc}.` : r.reason; };
   }
 }
 
-async function showCard(id) {
-  const c = await api(`/api/cards/${id}`), d = $("#detail"); if (!d) return;
-  d.innerHTML = `<h2>${esc(c.solution_name || c.record.title)}</h2>
-    <div class="meta"><span class="lvl">${esc(LVL[c.maturity] || c.maturity)}</span><span>${esc(c.innovation_type)}</span>
-    <span>${esc(c.record.source_id)}</span>${c.record.year?`<span>${c.record.year}</span>`:''}${c.record.url?`<a href="${esc(c.record.url)}" target="_blank" rel="noopener">źródło</a>`:''}</div>
-    <p>${esc(c.summary_pl)}</p>
-    ${(c.reasoning||[]).map(s => `<div class="step"><h4>${esc(s.step)}</h4><ul>${s.items.map(i=>`<li>${esc(i)}</li>`).join("")}</ul></div>`).join("")}
-    <div class="actions"><button class="approve" data-d="approved">Zatwierdź</button><button class="reject" data-d="rejected">Odrzuć</button></div>`;
-  d.querySelectorAll("[data-d]").forEach(b => b.onclick = async () => {
-    await api(`/api/cards/${id}/decision`, {method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({decision: b.dataset.d})});
-    selected = null; render(); });
+// ------------------------------------------------------------------ CARD drawer (progressive disclosure)
+async function openCard(id) {
+  $("#scrim").classList.add("on"); $("#drawer").classList.add("on"); $("#drawer-in").innerHTML = '<div class="skel" style="height:2rem;width:60%"></div><div class="skel"></div><div class="skel"></div>';
+  const c = await api(`/api/cards/${id}`), a = c.assessment || {}, L = a.levels || {};
+  $("#drawer-in").innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><p class="eyebrow" style="margin:0">Karta innowacji · ${esc(c.record.source_id)}</p><button class="iconbtn" id="dclose" aria-label="Zamknij">${ICON.x}</button></div>
+    <h2>${esc(c.solution_name || c.record.title)}</h2>
+    <div style="display:flex;gap:.4rem;flex-wrap:wrap"><span class="pill" style="font-weight:700">${Math.round(a.total ?? 0)}/100</span><span class="pill">${esc(LVL[LVLK[c.maturity]] || "")}</span>${L.sector ? `<span class="pill">${esc(L.sector)}</span>` : ""}${L.tech_area ? `<span class="pill">${esc(L.tech_area)}</span>` : ""}${L.cost ? `<span class="pill">koszt ${esc(L.cost)}</span>` : ""}${c.record.voivodeship ? `<span class="pill">${esc(c.record.voivodeship)}</span>` : ""}${demoPill(c.synthetic)}</div>
+    <p class="muted" style="margin-top:1rem">${esc(a.summary || c.summary_pl || "")}</p>
+    ${c.record.affiliations?.length ? `<p class="faint">${esc(c.record.affiliations.join("; "))}${c.record.url ? ` · <a href="${esc(c.record.url)}" target="_blank" rel="noopener">źródło</a>` : ""}</p>` : ""}
+    ${a.scores ? `<div class="sec"><p class="eyebrow">Ocena wg jawnych kryteriów</p><div class="crit">${Object.entries(a.scores).map(([k, x]) => `<span>${esc(CRIT[k] || k)} <span class="faint">${Math.round((a.criteria?.[k]?.weight || 0) * 100)}%</span></span><div class="mini"><i style="width:${x.score * 20}%"></i></div><b class="mono">${x.score}</b><span class="why">${esc(x.why)}</span>`).join("")}</div></div>` : ""}
+    ${a.paths ? `<div class="sec"><p class="eyebrow">Ścieżki wdrożenia · kto co robi</p>${a.paths.map(p => `<p style="margin:.75rem 0 .25rem"><b>${esc(p.path)}</b> <span class="faint">${esc(p.why)}</span></p><ul class="steps">${p.steps.map(s => `<li>${esc(s.step)}<span class="who">${esc(s.who)}${s.time ? " · " + esc(s.time) : ""}</span></li>`).join("")}</ul>`).join("")}</div>` : ""}
+    ${a.recipients ? `<div class="sec"><p class="eyebrow">Odbiorcy i partnerzy</p><ul class="steps">${a.recipients.map(r => `<li><b>${esc(r.name)}</b><span class="who">${esc(r.kind)} · ${esc(r.why)}</span></li>`).join("")}</ul></div>` : ""}
+    ${a.risks ? `<div class="sec"><p class="eyebrow">Ryzyka i mitygacje</p><ul class="steps">${a.risks.map(r => `<li>${esc(r.risk)} <span class="faint">(${esc(r.level || "")})</span><span class="who">mitygacja: ${esc(r.mitigation)} · ${esc(r.owner)}</span></li>`).join("")}</ul></div>` : ""}
+    ${a.metrics ? `<div class="sec"><p class="eyebrow">Oczekiwane mierniki skuteczności</p><ul class="steps">${a.metrics.map(m => `<li>${esc(m)}</li>`).join("")}</ul></div>` : ""}
+    <details class="rule sec"><summary>Podobne rozwiązania, kontekst regionu i dowody</summary>
+      ${a.similar?.length ? `<p class="eyebrow" style="margin-top:1rem">Podobne (ryzyko dublowania)</p><ul class="steps">${a.similar.map(s => `<li>${s.card_id ? `<a href="#" data-card="${s.card_id}">${esc(s.title)}</a>` : esc(s.title)}<span class="who">podobieństwo ${s.similarity}${s.voivodeship ? " · " + esc(s.voivodeship) : ""}</span></li>`).join("")}</ul>` : ""}
+      ${a.regional_context ? `<p class="eyebrow" style="margin-top:1rem">Region</p><p>${esc(a.regional_context.voivodeship || "—")}: ${a.regional_context.ideas_in_region_sector ?? 0} pomysłów w sektorze (średnio ${a.regional_context.national_avg_per_region} na województwo); ${a.regional_context.regions_without_supply?.length || 0} województw bez podobnej podaży.</p>` : ""}
+      ${(c.reasoning || []).slice(0, 1).map(s => `<p class="eyebrow" style="margin-top:1rem">${esc(s.step)}</p><ul class="steps">${s.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`).join("")}
+      ${a.recheck?.length ? `<p class="eyebrow" style="margin-top:1rem">Basal: kontrola spójności</p><ul class="steps">${a.recheck.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+      <p class="who" style="margin-top:1rem">ocena: ${esc(a.by || "")} · ekstrakcja: ${esc(c.provenance?.provider)}/${esc(c.provenance?.model)} · basal: ${esc(c.basal?.version)} (${esc(c.basal?.embedder)})</p></details>
+    <div style="display:flex;gap:.5rem;margin-top:2rem;flex-wrap:wrap"><button class="ghost good" data-d="approved">Zatwierdź</button><button class="ghost bad" data-d="rejected">Odrzuć</button><span class="faint" style="align-self:center">decyzja: ${esc(c.decision)}</span></div>`;
+  $("#dclose").onclick = closeCard;
+  $$("[data-card]", $("#drawer-in")).forEach(x => x.onclick = e => { e.preventDefault(); openCard(+x.dataset.card); });
+  $$("[data-d]", $("#drawer-in")).forEach(b => b.onclick = async () => { await api(`/api/cards/${id}/decision`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({decision: b.dataset.d})}); closeCard(); route(); });
 }
-render();
+function closeCard() { $("#scrim").classList.remove("on"); $("#drawer").classList.remove("on"); }
+$("#scrim").onclick = closeCard;
+
+// ------------------------------------------------------------------ command bar + voice (progressive, feature-detected)
+const cmd = $("#cmd"), cq = $("#cmdq");
+function openCmd() { cmd.classList.add("on"); cq.value = ""; cq.focus();
+  $("#hints").innerHTML = ["seniorzy", "smog", "kompozyty", "e-usługi", "edukacja", "wodór"].map(h => `<button class="chip" data-h="${h}">${h}</button>`).join("") +
+    Object.entries({"": "Przegląd", odkrywaj: "Odkrywaj", graf: "Graf", mapa: "Mapa", rolki: "Rolki", zglos: "Zgłoś"}).map(([p, n]) => `<button class="chip" data-p="${p}">${n}</button>`).join("");
+  $$("[data-h]", cmd).forEach(b => b.onclick = () => search(b.dataset.h)); $$("[data-p]", cmd).forEach(b => b.onclick = () => { cmd.classList.remove("on"); go(b.dataset.p, {}); }); }
+function search(q) { cmd.classList.remove("on"); go("odkrywaj", {q}); }
+$("#cmdbtn").onclick = openCmd;
+cmd.onclick = e => { if (e.target === cmd) cmd.classList.remove("on"); };
+cq.onkeydown = e => { if (e.key === "Enter" && cq.value.trim()) search(cq.value.trim()); if (e.key === "Escape") cmd.classList.remove("on"); };
+document.addEventListener("keydown", e => { if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); openCmd(); } if (e.key === "Escape") { closeCard(); cmd.classList.remove("on"); } });
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SR) { const mic = $("#mic"); mic.hidden = false; mic.onclick = () => { const r = new SR(); r.lang = "pl-PL"; r.interimResults = false; mic.classList.add("on");
+  r.onresult = e => { const t = e.results[0][0].transcript; cq.value = t; search(t); }; r.onend = () => mic.classList.remove("on"); r.start(); }; }
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+// ------------------------------------------------------------------ boot
+Promise.all([api("/api/config").then(c => CFG = c).catch(() => {}), api("/api/labels").then(l => LABELS = l).catch(() => {})]).then(() => {
+  const m = $("#mode"); m.textContent = CFG.demo_mode ? "tryb demo" : "LLM: " + (CFG.llm_providers || []).join(" → "); m.classList.toggle("demo", !!CFG.demo_mode);
+  route(); });
 </script>
 </body>
 </html>

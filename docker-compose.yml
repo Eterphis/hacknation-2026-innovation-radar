@@ -8,7 +8,9 @@ x-radar: &radar
     RADAR_DATABASE_URL: postgresql+psycopg://radar:radar@postgres:5432/radar
     RADAR_BROKER_URL: amqp://radar:radar@rabbitmq:5672//
     RADAR_DEMO_MODE: ${RADAR_DEMO_MODE:-1}
-    RADAR_LLM_PROVIDERS: ${RADAR_LLM_PROVIDERS:-anthropic,openai,mock}
+    RADAR_LLM_PROVIDERS: ${RADAR_LLM_PROVIDERS:-local,anthropic,openai,mock}
+    # set to http://llm:8080/v1 when running with `--profile local-llm`
+    RADAR_LOCAL_LLM_URL: ${RADAR_LOCAL_LLM_URL:-}
   depends_on:
     postgres: { condition: service_healthy }
     rabbitmq: { condition: service_healthy }
@@ -33,7 +35,7 @@ services:
 
   worker-ingest:
     <<: *radar
-    command: celery -A radar.pipeline.celery_app worker -Q harvest,normalize,resolve_org,dedup,link -c 4 -n ingest@%h --loglevel=INFO
+    command: celery -A radar.pipeline.celery_app worker -Q harvest,normalize,resolve_org,dedup,gate,link -c 4 -n ingest@%h --loglevel=INFO
 
   worker-llm:
     <<: *radar
@@ -43,5 +45,16 @@ services:
     <<: *radar
     command: celery -A radar.pipeline.celery_app beat --loglevel=INFO -s /tmp/celerybeat-schedule
 
+  # Small Polish LLM on CPU (no GPU): `RADAR_LOCAL_LLM_URL=http://llm:8080/v1 docker compose --profile local-llm up`
+  # First start downloads the GGUF (~1.7 GB for Q8_0) into the llm-cache volume.
+  llm:
+    profiles: [local-llm]
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command: ["-hf", "${RADAR_LOCAL_GGUF:-speakleash/Bielik-1.5B-v3.0-Instruct-GGUF:Q8_0}", "--host", "0.0.0.0", "--port", "8080",
+              "-c", "4096", "-t", "${RADAR_LOCAL_THREADS:-4}", "--alias", "bielik-1.5b-v3.0-instruct"]
+    volumes: [llm-cache:/root/.cache]
+    ports: ["8081:8080"]
+
 volumes:
   pgdata:
+  llm-cache:

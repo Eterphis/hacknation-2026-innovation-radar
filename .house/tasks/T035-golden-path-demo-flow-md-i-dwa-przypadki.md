@@ -23,3 +23,6 @@ D-008, `.house/playbooks/build.md` (Flow 3); dziś w `app/samples/` są dane syn
 
 ## Out of scope
 Pitch i film.
+
+## Stan (2026-11-21, sesja app/Helm)
+UI: strona „Przegląd” odpowiada na pytania biznesowe (trendy, wyróżniające się, zaawansowane, gotowe do powielenia, tanie, wymagające budżetu, perełki, dublowanie, luki regionalne). Zostało: demo-flow.md i dwa prawdziwe przypadki.

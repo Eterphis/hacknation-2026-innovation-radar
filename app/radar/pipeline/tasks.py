@@ -13,7 +13,6 @@ is not terminal and re-enqueues them. Nothing is lost silently; counters come fr
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -39,8 +38,14 @@ def _mark(s, raw_id: int, stage: str, h: str, outcome: str = "ok", detail: str |
     s.add(StageRun(raw_id=raw_id, stage=stage, content_hash=h, outcome=outcome, detail=detail))
 
 
-def _next(stage: str, raw_id: int, h: str) -> None:
-    globals()[stage].apply_async((raw_id, h), queue=stage, routing_key=stage)
+def _next(stage: str, raw_id: int, h: str, priority: int | None = None) -> None:
+    kw = {"priority": priority} if priority is not None else {}
+    globals()[stage].apply_async((raw_id, h), queue=stage, routing_key=stage, **kw)
+
+
+def _priority(rec: Record) -> int:
+    """Basal priority 0..1 -> RabbitMQ priority 0..9 (LLM queues have x-max-priority)."""
+    return int(round(9 * float((rec.basal or {}).get("priority") or 0)))
 
 
 def enqueue_normalize(raw_id: int, h: str) -> None:
@@ -156,8 +161,44 @@ def dedup(self, raw_id: int, h: str) -> str:
             return "duplicate"
         rec.cluster_id = rec.id
         _mark(s, raw_id, "dedup", h)
-    _next("link", raw_id, h)
+    _next("gate", raw_id, h)
     return "ok"
+
+
+# ---------------------------------------------------------------- gate (Basal)
+@app.task(**RETRY)
+def gate(self, raw_id: int, h: str) -> str:
+    """Basal before any LLM: reject / hold / accept with reasons, multi-axis labels, priority. No LLM."""
+    from radar.basal.classifier import classify, mask_pii
+
+    with session() as s:
+        if _done(s, raw_id, "gate", h):
+            return "duplicate-delivery"
+        rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        spec = get_source(rec.source_id)
+        b = classify(title=rec.title, abstract=rec.abstract, keywords=rec.keywords, affiliations=rec.affiliations,
+                     region=rec.region, kind=rec.kind, amounts=rec.amounts,
+                     declared_institution=(rec.extra or {}).get("institution_type"),
+                     min_chars=int(spec.options.get("min_abstract_chars", 200)))
+        rec.basal = b
+        for axis in ("sector", "tech_area", "innovation_type", "institution_type", "voivodeship", "cost_level"):
+            setattr(rec, axis, b[axis]["value"])
+        rec.priority = b["priority"]
+        if b["pii"]:
+            rec.abstract, _ = mask_pii(rec.abstract)
+            rec.title, _ = mask_pii(rec.title)
+        if b["decision"] == "reject":
+            rec.status, rec.review_reasons = "rejected", b["reject_reasons"]
+            _mark(s, raw_id, "gate", h, "skipped", "; ".join(b["reject_reasons"])[:2000])
+            return "rejected"
+        if b["decision"] == "hold":
+            rec.status, rec.review_reasons = "needs_review", ["Basal: " + r for r in b["hold_reasons"]]
+            _mark(s, raw_id, "gate", h, "needs_review", "; ".join(b["hold_reasons"]))
+            return "hold"
+        _mark(s, raw_id, "gate", h, "ok", b["routing_key"])
+        prio = _priority(rec)
+    _next("link", raw_id, h, prio)
+    return "accept"
 
 
 # ---------------------------------------------------------------- link
@@ -169,27 +210,20 @@ def link(self, raw_id: int, h: str) -> str:
         if _done(s, raw_id, "link", h):
             return "duplicate-delivery"
         _mark(s, raw_id, "link", h, "ok", "pass-through (łańcuch dowodów: T024)")
-    _next("extract", raw_id, h)
+        prio = _priority(s.scalar(select(Record).where(Record.raw_id == raw_id)))
+    _next("extract", raw_id, h, prio)
     return "ok"
 
 
 # ---------------------------------------------------------------- extract
-PREFILTER = re.compile(r"opracow|wdroż|prototyp|metod|system|program|pilota|model|rozwiąz|aplikac|narzędz|"
-                       r"technolog|innowac|develop|method|prototype|implement|platform|tool|device|urządz", re.I)
-
-
 @app.task(**RETRY)
 def extract(self, raw_id: int, h: str) -> str:
+    """LLM extraction. The pre-filter that used to live here is now Basal (`gate`)."""
     with session() as s:
         if _done(s, raw_id, "extract", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
         text = ex.source_text(rec.title, rec.abstract, rec.keywords or [])
-        if rec.kind == "publication" and not PREFILTER.search(text):
-            rec.status = "not_innovation"
-            rec.review_reasons = ["filtr regułowy: brak słów sygnałowych (opracowano, wdrożenie, prototyp…)"]
-            _mark(s, raw_id, "extract", h, "skipped", "prefilter")
-            return "not_innovation"
 
     out, errors, prov = ex.extract(text)  # outside the transaction: the LLM call can take a while
 
@@ -208,7 +242,12 @@ def extract(self, raw_id: int, h: str) -> str:
         val = lambda f: (out.get(f) or {}).get("value")  # noqa: E731
         card.solution_name, card.problem_solved, card.what_is_new = val("solution_name"), val("problem_solved"), val("what_is_new")
         card.target_users = val("target_users") or []
-        card.innovation_type = val("innovation_type")
+        # A real model's type (with a verified quote) wins over Basal; the offline heuristic never overrides Basal.
+        # ...but when Basal had no confident label, any validated extraction value is better than none.
+        llm_type = val("innovation_type") if (prov.get("provider") != "mock" or rec.innovation_type is None) else None
+        if llm_type in ex.INNOVATION_TYPES:
+            rec.innovation_type = {"społeczna": "spoleczna", "usługowa": "uslugowa"}.get(llm_type, llm_type)
+        card.innovation_type = rec.innovation_type or val("innovation_type")
         card.summary_pl = out.get("summary_pl")
         card.evidence = {f: {"quote": (out.get(f) or {}).get("quote"), "confidence": (out.get(f) or {}).get("confidence")}
                          for f in ex.QUOTED_FIELDS}
@@ -216,7 +255,8 @@ def extract(self, raw_id: int, h: str) -> str:
         card.decision = "pending" if card.decision is None else card.decision
         rec.status = "extracted"
         _mark(s, raw_id, "extract", h, "ok", f"{prov.get('provider')}/{prov.get('model')}")
-    _next("maturity", raw_id, h)
+        prio = _priority(rec)
+    _next("maturity", raw_id, h, prio)
     return "ok"
 
 
@@ -237,8 +277,11 @@ def maturity_for(rec: Record) -> tuple[str, str]:
         return "tech_ready", "patent"
     if rec.kind in ("project", "solution") and rec.extra.get("implementation"):
         return "business_ready", "projekt wdrożeniowy / inwestycyjny"
-    if any(w in text for w in ("pilotaż", "pilotaz", "prototyp", "prototype", "pilot ")):
+    if any(w in text for w in ("pilotaż", "pilotaz", "prototyp", "prototype", "pilot ", "demonstrator")):
         return "tech_ready", "opis prototypu lub pilotażu"
+    hint = (rec.basal or {}).get("maturity_hint") or {}
+    if rec.kind == "solution" and hint.get("value") in ("business_ready", "market_ready") and hint.get("confidence", 0) >= 0.6:
+        return hint["value"], "zgłoszenie opisuje działające wdrożenie (" + ", ".join(hint.get("evidence", [])[:2]) + ")"
     return "exploring", "publikacja lub projekt badawczy"
 
 
@@ -257,7 +300,8 @@ def maturity(self, raw_id: int, h: str) -> str:
         card.reasoning = build_reasoning(rec, card, why)
         rec.status = "ready"
         _mark(s, raw_id, "maturity", h, "ok", level)
-    _next("score", raw_id, h)
+        prio = _priority(rec)
+    _next("score", raw_id, h, prio)
     return level
 
 
@@ -284,19 +328,57 @@ def build_reasoning(rec: Record, card: Card, why: str) -> list[dict]:
 # ---------------------------------------------------------------- score
 @app.task(**RETRY)
 def score(self, raw_id: int, h: str) -> str:
-    """TODO(T026): transparent scoring by criteria + route recommendation (rozwój/transfer/komercjalizacja/wdrożenie)
-    and matching of recipients (Kohesio beneficiaries, gminy via GUS BDL)."""
+    """Graph index (embedding + similarity edges) -> implementation agent with tools -> Basal recheck ->
+    weighted criteria score -> one-page brief for the reels feed. Recipient matching from registries: T026."""
+    from radar.basal.graph import index_record
+    from radar.pipeline.assess import assess, brief
+
     with session() as s:
         if _done(s, raw_id, "score", h):
             return "duplicate-delivery"
-        _mark(s, raw_id, "score", h, "ok", "placeholder (T026)")
+        rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        card = rec.card
+        index_record(s, rec)
+        s.flush()
+        a = assess(s, rec, card)
+        card.assessment, card.score, card.brief = a, a["total"], brief(rec, card, a)
+        card.reasoning = (card.reasoning or [])[:3] + [
+            {"step": "Ocena wg kryteriów", "items": [f"{k}: {v['score']}/5 — {v['why']}" for k, v in a["scores"].items()]
+             + [f"Wynik łączny: {a['total']}/100"]},
+            {"step": "Rekomendowana ścieżka", "items": [f"{p['path']}: {p['why']}" for p in a["paths"]]},
+            {"step": "Co przemawia przeciw (ryzyka)", "items": [f"{r['risk']} → {r['mitigation']} ({r['owner']})" for r in a["risks"]] or ["—"]},
+            {"step": "Mierniki skuteczności", "items": a["metrics"]},
+        ] + (card.reasoning or [])[3:]
+        _mark(s, raw_id, "score", h, "ok", f"{a['total']} ({a['by']})")
     return "ok"
+
+
+# ---------------------------------------------------------------- reassess
+@app.task(bind=True, max_retries=2)
+def reassess(self) -> int:
+    """Re-index and re-assess every ready card. Novelty, recipients and regional gaps depend on the whole
+    collection, so cards scored early go stale as new ideas arrive. Runs daily from beat and after `radar demo`."""
+    from radar.basal.graph import index_record
+    from radar.pipeline.assess import assess, brief
+
+    with session() as s:
+        ids = s.scalars(select(Record.id).where(Record.status == "ready")).all()
+        for rid in ids:
+            index_record(s, s.get(Record, rid))
+        s.flush()
+        for rid in ids:
+            rec = s.get(Record, rid)
+            if rec.card is None:
+                continue
+            a = assess(s, rec, rec.card)
+            rec.card.assessment, rec.card.score, rec.card.brief = a, a["total"], brief(rec, rec.card, a)
+    return len(ids)
 
 
 # ---------------------------------------------------------------- reconcile
 def reconcile_all() -> int:
     """Re-enqueue records whose pipeline stopped mid-way (publish lost after commit). Safe: stages are idempotent."""
-    order = ["normalize", "resolve_org", "dedup", "link", "extract", "maturity", "score"]
+    order = ["normalize", "resolve_org", "dedup", "gate", "link", "extract", "maturity", "score"]
     todo = []
     with session() as s:
         raws = s.execute(select(RawRecord.id, RawRecord.content_hash).where(RawRecord.status != "deleted")).all()
@@ -313,5 +395,5 @@ def reconcile_all() -> int:
     return len(todo)
 
 
-__all__ = ["harvest", "normalize", "resolve_org", "dedup", "link", "extract", "maturity", "score",
+__all__ = ["harvest", "normalize", "resolve_org", "dedup", "gate", "link", "extract", "maturity", "score",
            "reconcile_all"]

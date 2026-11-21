@@ -5,6 +5,7 @@
   harvest <source_id>       pull one source now (inline when RADAR_EAGER=1, else via the broker)
   consume <source_id>       run the consumer of a push source (amqp | gcp_pubsub | kafka)
   reconcile                 re-enqueue records whose pipeline stopped mid-way
+  reassess                  re-index the graph and re-score all ready cards (also daily via beat)
   demo                      eager run of all demo sources into the local DB (no broker, no keys)
 """
 
@@ -27,6 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     c = sub.add_parser("consume"); c.add_argument("source_id")
     sub.add_parser("reconcile")
     sub.add_parser("demo")
+    sub.add_parser("reassess")
     a = p.parse_args(argv)
 
     if a.cmd == "demo":
@@ -74,6 +76,14 @@ def main(argv: list[str] | None = None) -> int:
         for s in active_sources().values():
             if s.mode == "pull":
                 print(s.id, harvest.apply((s.id,)).get())
+        from radar.pipeline.tasks import reassess
+
+        print("reassessed", reassess.apply().get())
+    elif a.cmd == "reassess":
+        create_all()
+        from radar.pipeline.tasks import reassess
+
+        print("reassessed", reassess.apply().get())
     return 0
 
 

@@ -30,3 +30,6 @@ Znany błąd do naprawy w tym zadaniu (wykryty 2026-11-21 na docker compose): pr
 
 ## Out of scope
 Łączenie dowodów różnego typu (T024).
+
+## Stan (2026-11-21, sesja app/Helm)
+Częściowo: embeddingi (`hashing-stem6+char4`, opcjonalnie fastembed e5-small) i krawędzie podobieństwa w tabeli `edges`; lista „podobne rozwiązania” na karcie i para „dublowanie prac” w /api/insights. Zostało: warstwy MinHash/pary z decyzją i wybór rekordu kanonicznego (błąd opisany wyżej).

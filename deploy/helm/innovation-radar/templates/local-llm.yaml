@@ -1,0 +1,47 @@
+{{- if .Values.localLLM.enabled }}
+{{- $c := dict "root" . "component" "llm" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "radar.fullname" . }}-llm
+  labels: {{- include "radar.labels" . | nindent 4 }}
+    app.kubernetes.io/component: llm
+spec:
+  replicas: {{ .Values.localLLM.replicas }}
+  selector:
+    matchLabels: {{- include "radar.selector" $c | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "radar.selector" $c | nindent 8 }}
+    spec:
+      containers:
+        - name: llama
+          image: {{ .Values.localLLM.image }}
+          args: ["-hf", {{ .Values.localLLM.hfModel | quote }}, "--host", "0.0.0.0", "--port", "8080",
+                 "-c", "{{ .Values.localLLM.contextSize }}", "-t", "{{ .Values.localLLM.threads }}", "--alias", {{ .Values.localLLM.alias | quote }}]
+          ports: [{ name: http, containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 10, failureThreshold: 60 }
+          volumeMounts: [{ name: cache, mountPath: /root/.cache }]
+          resources: {{- toYaml .Values.localLLM.resources | nindent 12 }}
+      volumes:
+        - name: cache
+          persistentVolumeClaim: { claimName: {{ include "radar.fullname" . }}-llm-cache }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "radar.fullname" . }}-llm-cache
+  labels: {{- include "radar.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: {{ .Values.localLLM.cacheSize }} } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "radar.fullname" . }}-llm
+  labels: {{- include "radar.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "radar.selector" $c | nindent 4 }}
+  ports: [{ name: http, port: 8080, targetPort: http }]
+{{- end }}

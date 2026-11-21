@@ -13,7 +13,9 @@ from kombu import Exchange, Queue
 
 from radar.config import get_settings
 
-STAGES = ["harvest", "normalize", "resolve_org", "dedup", "link", "extract", "maturity", "score"]
+STAGES = ["harvest", "normalize", "resolve_org", "dedup", "gate", "link", "extract", "maturity", "score"]
+# Queues after Basal carry its priority (0-9); RabbitMQ serves higher first.
+PRIORITY_QUEUES = {"link", "extract", "maturity", "score"}
 
 settings = get_settings()
 app = Celery("radar", broker=settings.broker_url, include=["radar.pipeline.tasks"])
@@ -22,7 +24,8 @@ dlx = Exchange("radar.dlx", type="direct", durable=True)
 queues = []
 for q in STAGES:
     queues.append(Queue(q, Exchange("radar", type="direct", durable=True), routing_key=q, durable=True,
-                        queue_arguments={"x-dead-letter-exchange": "radar.dlx", "x-dead-letter-routing-key": q}))
+                        queue_arguments={"x-dead-letter-exchange": "radar.dlx", "x-dead-letter-routing-key": q,
+                                         **({"x-max-priority": 9} if q in PRIORITY_QUEUES else {})}))
     queues.append(Queue(f"{q}.dlq", dlx, routing_key=q, durable=True))
 
 app.conf.update(
@@ -50,11 +53,15 @@ def beat_schedule() -> dict:
     """Scheduled pulls from sources.yaml (`schedule_s`). Evaluated when beat starts."""
     from radar.sources.registry import active_sources
 
-    return {
+    sched = {
         f"harvest-{s.id}": {"task": "radar.pipeline.tasks.harvest", "schedule": float(s.schedule_s), "args": (s.id,)}
         for s in active_sources().values()
         if s.mode == "pull" and s.schedule_s
     }
+    # novelty, recipients and regional gaps depend on the whole collection: refresh all scores daily
+    sched["reassess-daily"] = {"task": "radar.pipeline.tasks.reassess", "schedule": 86400.0,
+                               "options": {"queue": "score", "routing_key": "score"}}
+    return sched
 
 
 @app.on_after_configure.connect

@@ -7,7 +7,8 @@ imagePullSecrets: []
 # Common env for every role (api, workers, beat, consumers).
 config:
   demoMode: true
-  llmProviders: "anthropic,openai,mock"
+  llmProviders: "local,anthropic,openai,mock"
+  embedder: hashing      # or fastembed:intfloat/multilingual-e5-small (ONNX on CPU, image built with [embed])
   anthropicModel: claude-sonnet-5-5
   openaiBaseUrl: https://api.openai.com/v1
   openaiModel: gpt-4o-mini
@@ -43,7 +44,7 @@ ingress:
 # One Deployment per entry; each consumes the listed Celery queues (stages scale independently).
 workers:
   - name: ingest
-    queues: [harvest, normalize, resolve_org, dedup, link]
+    queues: [harvest, normalize, resolve_org, dedup, gate, link]
     concurrency: 4
     replicas: 1
     resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } }
@@ -88,6 +89,19 @@ rabbitmq:
 externalBroker:
   url: ""
   existingSecret: ""     # secret with key RADAR_BROKER_URL
+
+# Small LLM on the cluster's CPU nodes (llama.cpp server, OpenAI-compatible). Default: Bielik 1.5B v3.0 Instruct
+# GGUF Q8_0 (Polish, Apache-2.0, ~1.7 GB). 4.5B needs ~6 GB RAM. Scale by replicas; no GPU required.
+localLLM:
+  enabled: false
+  image: ghcr.io/ggml-org/llama.cpp:server
+  hfModel: speakleash/Bielik-1.5B-v3.0-Instruct-GGUF:Q8_0
+  alias: bielik-1.5b-v3.0-instruct
+  contextSize: 4096
+  threads: 4
+  replicas: 1
+  cacheSize: 5Gi
+  resources: { requests: { cpu: "2", memory: 3Gi }, limits: { memory: 4Gi } }
 
 migrations:
   enabled: true          # pre-install/pre-upgrade Job: radar initdb (T030: Alembic)

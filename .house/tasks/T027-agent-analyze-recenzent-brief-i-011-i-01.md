@@ -26,3 +26,6 @@ Agent z narzędziami (get_record, lookup_registry, find_similar, find_duplicates
 
 ## Out of scope
 Feed i filmy (D-009, D-010: po golden path).
+
+## Stan (2026-11-21, sesja app/Helm)
+Częściowo: agent = narzędzia w kodzie (podobne, kontekst regionu, odbiorcy) → wersja regułowa → opcjonalne doprecyzowanie przez LLM (także lokalny Bielik) → Basal-recheck. Zostało: pętla tool-calling z prawdziwym LLM, recenzent „co przemawia przeciw” jako osobne przejście, walidacja cytatów w Assessment.

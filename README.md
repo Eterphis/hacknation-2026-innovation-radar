@@ -51,3 +51,22 @@ helm install radar deploy/helm/innovation-radar --set image.repository=<registry
 `values.yaml`: `workers[]` (grupy kolejek i współbieżność), `sources:` (treść sources.yaml → ConfigMap; źródła push dostają konsumentów), `secrets:` / `existingSecret`, `postgresql.enabled` / `rabbitmq.enabled` (wbudowane albo zewnętrzne), `ingress`, `api.autoscaling`.
 
 Zadania do zrobienia: [`.house/tasks/`](.house/tasks/) (T020–T036).
+
+### Główne flow (szczegóły: [`.house/reports/main-flow.md`](.house/reports/main-flow.md))
+
+1. **Wejście danych:** pull/push/formularz, jak wyżej.
+2. **Basal** (`app/radar/basal/`, bez LLM, milisekundy na rekord, zwykły vCPU): jedna decyzja *przyjmij / do przeglądu / odrzuć* z powodem oraz etykiety na 7 osiach (sektor PKD, obszar technologii, typ innowacji, typ instytucji, dojrzałość, koszt, województwo) i priorytet w kolejce (`x-max-priority`). Słowniki + podobieństwo do prototypów etykiet w przestrzeni embeddingów + głowa decyzji uczona na decyzjach operatora (`POST /api/basal/train`).
+3. **Agent wdrożeniowy** (`app/radar/pipeline/assess.py`): narzędzia (podobne pomysły z grafu, kontekst regionu, odbiorcy) → ścieżki „kto co robi”, ryzyka z mitygacjami, odbiorcy, 6 jawnych kryteriów z wagami, mierniki skuteczności → Basal sprawdza spójność → wynik 0–100 do rankingu. Bez klucza działa wersja regułowa; z LLM (chmura albo lokalny model) agent dopisuje uzasadnienia na faktach z narzędzi.
+4. **Prezentacja** (UI w stylu „Zero Interface”): *Przegląd* (trendy, wyróżniające się, najbardziej zaawansowane, gotowe do powielenia, tanie wdrożenia, wymagające dużego budżetu, ukryte perełki, dublowanie prac, luki regionalne, portfel koszt × dojrzałość), *Odkrywaj* (fasety), *Graf* (jak w Obsidianie), *Mapa* (kartogram + macierz województwo × sektor), *Rolki* (jednostronicowe briefy z polubieniami), *Zgłoś* (podgląd Basala na żywo), *Operator*. Wyszukiwanie klawiszem `/`, także głosem tam, gdzie przeglądarka wspiera Web Speech API.
+
+### Lekki model na VPS (bez GPU)
+
+```bash
+RADAR_LOCAL_LLM_URL=http://llm:8080/v1 docker compose --profile local-llm up --build
+```
+llama.cpp server z **Bielik 1.5B v3.0 Instruct GGUF Q8_0** (polski, Apache-2.0, ~1,7 GB, pobierany przy pierwszym starcie). W Helm: `--set localLLM.enabled=true`. Embeddingi: domyślnie `hashing` (numpy, zero pobierań); `RADAR_EMBEDDER=fastembed` = `multilingual-e5-small` na ONNX/CPU (`pip install .[embed]`).
+
+### Aktualizacja istniejącej instalacji
+- Kolejki dostały argument `x-max-priority`: przy aktualizacji usuń stare kolejki `link`, `extract`, `maturity`, `score` w RabbitMQ (albo jego wolumen), inaczej broker odrzuci deklarację (`PRECONDITION_FAILED`).
+- Schemat bazy rozszerzony (Basal, embeddingi, krawędzie, polubienia); do czasu migracji Alembic (T030) nowa baza albo `radar initdb` na pustej.
+- `radar reassess` przelicza graf i oceny (też codziennie z beat).

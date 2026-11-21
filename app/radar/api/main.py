@@ -39,6 +39,12 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="Radar Innowacji", version=__version__, lifespan=lifespan)
+from radar.api.explore import router as explore_router  # noqa: E402
+
+from radar.api.insights import router as insights_router  # noqa: E402
+
+app.include_router(explore_router)
+app.include_router(insights_router)
 
 
 @app.get("/healthz")
@@ -93,7 +99,12 @@ def run_source(source_id: str):
     spec = _spec(source_id)
     if spec.mode != "pull":
         raise HTTPException(400, "push source: send data to its webhook / topic instead")
-    res = harvest.apply_async((source_id,), queue="harvest", routing_key="harvest")
+    from kombu.exceptions import OperationalError
+
+    try:
+        res = harvest.apply_async((source_id,), queue="harvest", routing_key="harvest")
+    except OperationalError as e:  # broker restarting: tell the caller to retry instead of a bare 500
+        raise HTTPException(503, f"kolejka (broker) chwilowo niedostępna, spróbuj za chwilę: {e}") from e
     return {"task_id": res.id, "source_id": source_id}
 
 
@@ -144,13 +155,15 @@ def card_dict(c: Card, full: bool = False) -> dict:
         "id": c.id, "decision": c.decision, "solution_name": c.solution_name, "summary_pl": c.summary_pl,
         "innovation_type": c.innovation_type, "maturity": c.maturity, "hidden": c.hidden, "missing": c.missing,
         "target_users": c.target_users, "provider": (c.provenance or {}).get("provider"),
+        "score": c.score, "likes": c.likes, "synthetic": bool((r.extra or {}).get("synthetic")),
         "record": {"id": r.id, "source_id": r.source_id, "kind": r.kind, "title": r.title, "year": r.year,
-                   "doi": r.doi, "url": r.url, "affiliations": r.affiliations, "region": r.region},
+                   "doi": r.doi, "url": r.url, "affiliations": r.affiliations, "region": r.region,
+                   "voivodeship": r.voivodeship, "sector": r.sector, "tech_area": r.tech_area},
     }
     if full:
         d.update(problem_solved=c.problem_solved, what_is_new=c.what_is_new, evidence=c.evidence,
                  reasoning=c.reasoning, provenance=c.provenance, decision_note=c.decision_note,
-                 decided_at=c.decided_at)
+                 decided_at=c.decided_at, assessment=c.assessment, brief=c.brief, basal=r.basal)
         d["record"].update(abstract=r.abstract, authors=r.authors, keywords=r.keywords, licence=r.licence,
                            amounts=r.amounts, extra=r.extra)
     return d
@@ -213,7 +226,8 @@ def stats():
 
 @app.get("/")
 def index():
-    return FileResponse(STATIC / "index.html")
+    # no-cache: the single-page UI changes with every deploy; browsers must revalidate
+    return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
