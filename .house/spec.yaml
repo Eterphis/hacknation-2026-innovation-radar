@@ -14,7 +14,18 @@ kind: build         # build | optimize — człowiek
 goal: "Wsrod lokalnych pomyslow ze szkol, uczelni, samorzadow i instytucji publicznych znalezc te, ktore moga miec znaczenie daleko poza miejscem, w ktorym powstaly, i ustalic, co je wyroznia. (teaser ze strony; pelna tresc zadania 21.11 11:00)"
 
 scoring:            # build: rubryka; optimize: metryka + sprawdzarka — z regulaminu
-  rubric: null      # build: lista kryteriów {name, what, levels 1-5, weight}
+  rubric:           # proposed: z pełnej treści zadania §8 i regulaminu zadania §2 (etap I, 0-5 pkt każde, max 25)
+    - {name: "Związek z wyzwaniem i jakość rozwiązania problemu", what: "prowadzi od identyfikacji pomysłu do ścieżki rozwoju/wdrożenia (scenariusz a-e, min. 2 przypadki)", weight: 0.2}
+    - {name: "Pomysł i oryginalność", what: "nowe podejście do wykrywania, oceny i łączenia innowacji", weight: 0.2}
+    - {name: "Użyteczność dla użytkowników i jakość doświadczenia", what: "pracownicy szkół, uczelni, JST, instytucji publicznych oraz szukający rozwiązań", weight: 0.2}
+    - {name: "Kompletność oraz jakość prototypu/demonstracji", what: "działający prototyp, film, demo", weight: 0.2}
+    - {name: "Potencjał wdrożeniowy, skalowalność i możliwość transferu", what: "wiele organizacji, bezpieczeństwo danych, integracje, przejrzystość kryteriów, rozwój po hackathonie", weight: 0.2}
+  rubric_stage2:    # proposed: regulamin zadania §2 ust. 9 (top 3, pitch 5 min, 0-5 pkt każde)
+    - {name: "Spójność prezentacji", weight: 0.2}
+    - {name: "Jasność przekazu", weight: 0.2}
+    - {name: "Umiejętność zainteresowania odbiorcy", weight: 0.2}
+    - {name: "Pomysłowość w zaprezentowaniu rozwiązania", weight: 0.2}
+    - {name: "Charyzma w wystąpieniu", weight: 0.2}
   metric: null      # optimize: nazwa metryki i kierunek (max/min)
   direction: null   # optimize: max | min (house exp; bez tego bierze max/min ze słów w metric)
   local_scorer: null   # optimize: komenda lokalnej sprawdzarki; drukuje `score: <liczba>`
@@ -36,14 +47,17 @@ rules:              # sprawdza researcher PRZED startem
   url: https://hacknation.pl/api/public/dokumenty/28c74284-6390-4665-b8aa-bf4367db79c0/regulamin-hacknation_19.11.pdf
   allowed_ai: null              # general rules say nothing; check the task's own regulamin at 11:00
   allowed_autonomous_agents: null
+  task_notes: "proposed: Regulamin zadania (PCI) ma pierwszeństwo nad regulaminem wydarzenia (§5 ust. 2): do etapu II przechodzą TOP 3, pitch 5 min oceniany tylko za wystąpienie. Nagroda 11 111 zł brutto, wypłata po przekazaniu pełnego kodu i dokumentacji na EUPL-1.2. Bez elementów, których licencja blokuje publikację (§4 ust. 8). Niespójności: Q-003."
   notes: "Teams up to 6. Per-task criteria come with the full brief (Sat 11:00). Stage I = jury (3+) scores Hacktribe submissions, top 5 per task go to Stage II = 5 min pitch + 5 min Q&A. Jury may award nothing below 50% of points. Prize per task 11-34k PLN. Task regulamin may transfer IP to the partner (art. 921 par. 3 kc): check it."
 
 deliverables:       # co trzeba oddać — researcher sprawdza w regulaminie; nie zakładaj niczego (null = nieznane)
-  video_required: null
-  video_max_seconds: null
+  video_required: true          # proposed: treść zadania §4, film w otwartym repozytorium (link)
+  video_max_seconds: 180        # proposed: treść zadania §4
   live_demo: true              # Stage II is a live pitch to the jury
-  slides: null
-  repo_submission: null
+  slides: "PDF, max 10 slajdów" # proposed: treść zadania §4
+  repo_submission: optional     # proposed: §4 „dodatkowo może zawierać”; zwycięzca musi oddać pełny kod + dokumentację na EUPL-1.2 (regulamin §3 ust. 5, §4)
+  license: EUPL-1.2             # proposed: regulamin zadania §1 ust. 10, §4 ust. 5 (repo Ministerstwa Cyfryzacji na GitHubie)
+  required_texts: [tytuł, opis problemu i rozwiązania, opis działania i głównych funkcji, źródła danych + założenia + ograniczenia AI]  # proposed: §4, §5
   starter_code_allowed: null    # czy wolno użyć kodu przygotowanego przed eventem
   ai_apis_allowed: null
   external_data_allowed: null
