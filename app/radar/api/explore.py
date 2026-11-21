@@ -54,7 +54,7 @@ def idea_dict(r: Record) -> dict:
         "maturity": c.maturity, "score": c.score, "priority": r.priority, "likes": c.likes, "decision": c.decision,
         "path": ((c.assessment or {}).get("paths") or [{}])[0].get("path"),
         # plate data for components (location, budget, institution)
-        "city": city(*(r.affiliations or []), r.abstract), "voivodeship": r.voivodeship, "sector": r.sector,
+        "city": city(*(r.affiliations or []), r.abstract, voivodeship=r.voivodeship), "voivodeship": r.voivodeship, "sector": r.sector,
         "tech_area": r.tech_area, "institution_type": r.institution_type, "cost_level": r.cost_level,
         "cost_range": T.COST_RANGE.get(r.cost_level or ""),
         "amount": max([v for v in (r.amounts or {}).values() if isinstance(v, (int, float))] or [0]) or None,
@@ -204,3 +204,115 @@ def basal_train():
                                    .where(Card.decision.in_(("approved", "rejected"))))
                 if r.basal and r.basal.get("features")]
     return train_head(rows)
+
+
+# ---------------------------------------------------------------- audiences (personas) + business case
+@router.get("/personas")
+def personas():
+    from radar.business import PERSONAS
+
+    return [{"key": k, **{f: v[f] for f in ("name", "icon", "promise", "cta", "metric")}} for k, v in PERSONAS.items()]
+
+
+@router.get("/personas/{key}")
+def persona(key: str, voivodeship: str | None = None, limit: int = 24):
+    """Ideas matched to one audience, ranked by its money metric x quality, with deterministic business cases."""
+    from radar.business import PERSONAS, business_case, dedup_key, is_infrastructure, metric_value
+
+    p = PERSONAS.get(key)
+    if p is None:
+        raise HTTPException(404, "unknown audience")
+    f = dict(p["filters"])
+    with session() as s:
+        recs = s.scalars(select(Record).join(Card, Card.record_id == Record.id)
+                         .where(_filters(**f, voivodeship=voivodeship), Card.decision != "rejected")
+                         .order_by(Card.score.desc().nulls_last()).limit(400)).all()
+        rows, seen = [], set()
+        for r in recs:  # recs are best-first, so the first of a programme/title group wins
+            if is_infrastructure(r) or r.source_id in p.get("skip_sources", ()):
+                continue
+            k = dedup_key(r)
+            if k in seen:
+                continue
+            seen.add(k)
+            bc = business_case(r, r.card)
+            d = idea_dict(r)
+            d["business"] = {"metric": metric_value(bc, p["metric"]), "deploy_cost_pln": bc["deploy_cost_pln"],
+                             "adopters": bc["adopters"], "som_3y_pln": bc["market"]["som_3y_pln"],
+                             "funding": [x["programme"] for x in bc["funding"][:2]], "payback": bc["payback"]}
+            rows.append(d)
+    import math
+
+    rows.sort(key=lambda d: -((d["score"] or 0) * .75 + min(25, 25 * math.log10(1 + d["business"]["metric"]) / 8)))
+    top = rows[:min(limit, 60)]
+    return {"key": key, **{k: p[k] for k in ("name", "icon", "promise", "cta", "metric")},
+            "total": len(rows),
+            "summary": {"ideas": len(rows), "metric_sum_pln": round(sum(d["business"]["metric"] for d in rows)),
+                        "som_3y_sum_pln": round(sum(d["business"]["som_3y_pln"] for d in rows)),
+                        "regions": len({d["voivodeship"] for d in rows if d["voivodeship"]})},
+            "items": top}
+
+
+# ---------------------------------------------------------------- personalization: a few answers -> a tailored list
+COSTS = ["niski", "sredni", "wysoki", "bardzo_wysoki"]
+STAGES = ["exploring", "tech_ready", "business_ready", "market_ready"]
+
+
+@router.get("/match")
+def match(role: str = "innowatorzy", voivodeship: str | None = None, sectors: str | None = None,
+          budget: str = "wysoki", stage: str = "exploring", goal: str = "wdrozenie", limit: int = 20):
+    """Rank ideas for one person's profile. Deterministic, explainable: every % comes with the reasons behind it.
+    goal: zysk (return on investment) | wdrozenie (deploy at my institution) | partner (find a partner) | finansowanie."""
+    import math
+
+    from radar.business import PERSONAS, business_case, dedup_key, is_infrastructure, metric_value
+
+    p = PERSONAS.get(role, PERSONAS["innowatorzy"])
+    want_sectors = set(filter(None, (sectors or "").split(",")))
+    bmax = COSTS.index(budget) if budget in COSTS else 2
+    smin = STAGES.index(stage) if stage in STAGES else 0
+    metric = {"zysk": "licence_or_spinoff_pln", "wdrozenie": "savings_per_adopter_pln", "partner": "som_3y_pln",
+              "finansowanie": "deploy_cost_pln"}.get(goal, p["metric"])
+    with session() as s:
+        recs = s.scalars(select(Record).join(Card, Card.record_id == Record.id)
+                         .where(_filters(), Card.decision != "rejected").order_by(Card.score.desc().nulls_last()).limit(600)).all()
+        out, seen = [], set()
+        for r in recs:
+            if is_infrastructure(r) or r.source_id in p.get("skip_sources", ()):
+                continue
+            k = dedup_key(r)
+            if k in seen:
+                continue
+            seen.add(k)
+            bc = business_case(r, r.card)
+            lvl = STAGES.index(r.card.maturity) if r.card.maturity in STAGES else 0
+            cost_i = COSTS.index(r.cost_level) if r.cost_level in COSTS else 1
+            why, pts = [], 0.0
+            if want_sectors:
+                if r.sector in want_sectors:
+                    pts += 30; why.append(f"sektor: {label_pl('sector', r.sector)}")
+            else:
+                pts += 15
+            if voivodeship:
+                if r.voivodeship == voivodeship:
+                    pts += 20; why.append(f"Twój region: {voivodeship}")
+                elif goal == "wdrozenie" and r.voivodeship:
+                    pts += 8; why.append(f"sprawdzone w: {r.voivodeship}")
+            else:
+                pts += 10
+            if cost_i <= bmax:
+                pts += 20; why.append(f"mieści się w budżecie ({bc['deploy_cost_pln']:,} zł)".replace(",", " "))
+            if lvl >= smin:
+                pts += 15; why.append("dojrzałość: " + {"exploring": "badania", "tech_ready": "technologia gotowa", "business_ready": "gotowe do wdrożenia", "market_ready": "na rynku"}.get(r.card.maturity, "—"))
+            pts += 15 * (r.card.score or 0) / 100
+            if goal == "finansowanie" and bc["funding"]:
+                why.append("finansowanie: " + bc["funding"][0]["programme"])
+            d = idea_dict(r)
+            d["match"] = round(min(100, pts))
+            d["why"] = why[:4]
+            d["business"] = {"metric": metric_value(bc, metric), "deploy_cost_pln": bc["deploy_cost_pln"],
+                             "adopters": bc["adopters"], "payback": bc["payback"], "funding": [x["programme"] for x in bc["funding"][:2]]}
+            out.append(d)
+    out.sort(key=lambda d: (-d["match"], -math.log10(1 + d["business"]["metric"])))
+    return {"profile": {"role": role, "voivodeship": voivodeship, "sectors": sorted(want_sectors), "budget": budget,
+                        "stage": stage, "goal": goal}, "metric": metric, "total": len(out), "items": out[:min(limit, 60)]}

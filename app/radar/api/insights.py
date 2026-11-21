@@ -39,7 +39,7 @@ def _row(r: Record) -> dict:
         "novelty": g("nowosc"), "transfer": g("przenaszalnosc"), "evidence": g("sila_dowodow"),
         "path": ((c.assessment or {}).get("paths") or [{}])[0].get("path"),
         "synthetic": bool((r.extra or {}).get("synthetic")), "year": r.year,
-        "city": city(*(r.affiliations or [])), "cost_level": r.cost_level,
+        "city": city(*(r.affiliations or []), voivodeship=r.voivodeship), "cost_level": r.cost_level,
     }
 
 

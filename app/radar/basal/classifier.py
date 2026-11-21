@@ -146,11 +146,12 @@ def voivodeship(*texts: str | None) -> Label:
     return Label(None, 0.0, "brak")
 
 
-def city(*texts: str | None) -> str | None:
-    """Display name of the first known city in the texts (affiliations first), for location plates."""
+def city(*texts: str | None, voivodeship: str | None = None) -> str | None:
+    """Display name of the first known city in the texts (affiliations first), for location plates.
+    With `voivodeship`, only a city in that voivodeship is returned (no "Poznań · opolskie" plates)."""
     t = fold(" ".join(x for x in texts if x))
     for key, name in T.CITY_NAME.items():
-        if re.search(r"\b" + key, t):
+        if re.search(r"\b" + key, t) and (voivodeship is None or T.CITY_VOIV.get(key) == voivodeship):
             return name
     return None
 

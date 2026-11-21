@@ -63,17 +63,20 @@ function applyTheme(t) {
   try { localStorage.setItem("radar-theme", t); } catch (e) {}
 }
 let THEME = "system"; try { THEME = localStorage.getItem("radar-theme") || "system"; } catch (e) {}
+const QT = new URLSearchParams(location.search).get("theme");  // ?theme=dark|light|system for shared links and screenshots
+if (["dark", "light", "system"].includes(QT)) THEME = QT;
 $$("#theme button").forEach(b => { b.innerHTML = icon({light: "sun", system: "monitor", dark: "moon"}[b.dataset.t]); b.onclick = () => { THEME = b.dataset.t; applyTheme(THEME); if (location.hash.startsWith("#/graf")) route(); }; });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => THEME === "system" && applyTheme("system"));
 applyTheme(THEME);
 
 // ------------------------------------------------------------------ router
-const ROUTES = {"": pageHome, mapa: pageMap, odkrywaj: pageExplore, graf: pageGraph, rolki: pageReels, zrodla: pageSources};
+const ROUTES = {"": pageHome, dla: pageAudience, dopasuj: pageMatch, mapa: pageMap, odkrywaj: pageExplore, graf: pageGraph, rolki: pageReels, zrodla: pageSources};
 $$("#nav a").forEach(a => a.innerHTML = icon(a.dataset.i) + `<span>${a.textContent}</span>`);
 $("#cmdbtn").innerHTML = icon("search"); $("#cmdicon").innerHTML = icon("search", "faint");
 async function route() {
-  const [path, query] = location.hash.replace(/^#\/?/, "").split("?");
-  F = Object.fromEntries(new URLSearchParams(query || ""));
+  const [full, query] = location.hash.replace(/^#\/?/, "").split("?");
+  const [path, sub] = full.split("/");  // #/dla/samorzady -> path "dla", sub "samorzady"
+  F = {...Object.fromEntries(new URLSearchParams(query || "")), ...(sub ? {_sub: sub} : {})};
   $$("#nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#/" + path));
   document.body.classList.toggle("reels-on", path === "rolki");
   const v = $("#view");
@@ -90,12 +93,18 @@ async function pageHome(v) {
   const live = src.filter(s => s.active && s.mode === "pull"), records = src.reduce((a, s) => a + s.records, 0);
   if (d.empty) { v.innerHTML = header("Radar innowacji", "radar", "Radar czeka na pierwsze pobranie", "Uruchom źródła w zakładce Źródła.") + `<a class="btn" href="#/zrodla">${icon("radar")}Źródła</a>`; return; }
   const k = d.kpi, maxHeat = Math.max(...d.trends.map(t => t.heat), 1);
-  const list = (key, extra) => `<div class="items">${(d[key] || []).map(i => ideaItem(i, extra ? extra(i) : "")).join("") || `<p class="faint">Brak pozycji spełniających regułę.</p>`}</div>`;
-  const how = key => `<details class="how"><summary>${icon("filter")}Jak liczymy</summary>${esc(d.rules[key])}</details>`;
-  const section = (ic, title, sub, key, body, red) => `<div class="card reveal">${cardH(ic, title, sub, "", red)}<div class="card-b">${body}${how(key)}</div></div>`;
+  // Readability: 4 items per insight + "Więcej" into Explore with the matching filter; the rule hides behind an (i) button.
+  const MORE = {standouts: {sort: "score"}, advanced: {maturity: "business_ready,market_ready"}, realized: {maturity: "business_ready,market_ready", innovation_type: "organizacyjna,edukacyjna,spoleczna,procesowa,uslugowa"},
+    cheap: {cost_level: "niski,sredni", maturity: "tech_ready,business_ready,market_ready"}, budget: {cost_level: "wysoki,bardzo_wysoki"}, hidden: {institution_type: "szkola,uczelnia,instytut"}};
+  const list = (key, extra) => { const all = d[key] || [];
+    return `<div class="items">${all.slice(0, 4).map(i => ideaItem(i, extra ? extra(i) : "")).join("") || `<p class="faint">Brak pozycji spełniających regułę.</p>`}</div>` +
+      (MORE[key] && all.length ? `<a class="more" href="#/odkrywaj?${qs(MORE[key])}">Więcej ${icon("arrow-right")}</a>` : ""); };
+  const info = key => `<button class="info" data-info="${key}" aria-expanded="false" aria-label="Jak liczymy">${icon("filter")}</button>`;
+  const section = (ic, title, sub, key, body, red) => `<div class="card reveal">${cardH(ic, title, sub, info(key), red)}<div class="card-b"><p class="info-pop" id="pop-${key}">${esc(d.rules[key])}</p>${body}</div></div>`;
   v.innerHTML = header(`Radar sam przeszukuje ${live.length} źródeł · ${records.toLocaleString("pl-PL")} rekordów`, "radar", "Ukryte innowacje z instytucji publicznych",
     "Pomysły z publikacji, projektów, patentów i inwestycji: odsiane przez Basala, ocenione przez agenta wdrożeniowego według jawnych kryteriów i skierowane do odbiorców.",
-    `<a class="btn" href="#/mapa">${icon("map")}Zobacz mapę</a>`) + `
+    `<div class="chips"><a class="btn" href="#/dopasuj">${icon("target")}Dopasuj radar do mnie</a><a class="btn-soft" href="#/dla">${icon("users")}Wybierz grupę</a></div>`) + `
+  <div id="who"></div>
   <div class="grid g-4">${[
     ["copy", k.ready_to_copy, "gotowych do powielenia w innej instytucji", true],
     ["piggy-bank", k.cheap_wins, "szybkich wdrożeń przy małym budżecie"],
@@ -122,8 +131,11 @@ async function pageHome(v) {
     <div class="card-b"><div class="grid g-2">${d.gaps.map(g => `<a class="item reveal" href="#/mapa?sector=${esc(g.sector)}&mode=gap">${avatar(SECTOR_ICON[g.sector] || "layers")}<h3>${esc(g.pl)}</h3>
       <span class="plate sm red"><span class="pi">${icon("map-pin")}</span>${g.missing.length}/16 bez podaży</span><div class="plates">${plate("trending-up", g.source_regions.join(", "), "", "sm")}${plate("lightbulb", g.ideas + " pomysłów", "", "sm")}</div></a>`).join("")}</div></div></section>`;
   drawPortfolio($("#portfolio"), d.portfolio);
+  $("#who").innerHTML = await audienceTiles();
   const reg = await api("/api/regions");
   await drawPoland($("#minimap"), reg, {compact: true});
+  $$("[data-info]", v).forEach(b => b.onclick = () => { const open = b.getAttribute("aria-expanded") !== "true";
+    b.setAttribute("aria-expanded", open); $("#pop-" + b.dataset.info).classList.toggle("on", open); });
   $$(".bar[data-tech]", v).forEach(b => { const t = d.trends.find(x => x.key === b.dataset.tech);
     b.onmousemove = e => tip(`<b>${esc(t.pl)}</b><br>${t.ideas} pomysłów · ${t.likes} polubień<br>średnia ocena ${t.avg_score} · ${t.regions} woj. · ${t.ready} gotowych`, e);
     b.onmouseleave = () => tip(); b.onclick = () => go("odkrywaj", {tech_area: t.key}); });
@@ -159,7 +171,7 @@ function drawPortfolio(el, pts) {
     c.onmouseleave = () => tip(); c.onclick = () => openCard(p.card_id); });
   const used = [...new Set(pts.map(p => SECTOR_SLOT[p.sector] ? p.sector : "_"))].sort((a, b) => (SECTOR_SLOT[a] || 9) - (SECTOR_SLOT[b] || 9));
   $("#plegend").innerHTML = used.map(s => `<span><i class="dot" style="background:${s === "_" ? "var(--other)" : secColor(s)}"></i>${esc(s === "_" ? "inne sektory" : lp("sector", s))}</span>`).join("");
-  $("#ptable").innerHTML = `<table class="t"><tr><th>Pomysł</th><th>Koszt</th><th>Dojrzałość</th><th>Wynik</th></tr>${pts.slice().sort((a, b) => b.score - a.score).map(p => `<tr><td><a href="#" data-card="${p.card_id}">${esc(p.title)}</a></td><td>${["niski", "średni", "wysoki", "b. wysoki"][p.cost_i]}</td><td>${LVL[p.maturity_i]}</td><td class="mono">${Math.round(p.score)}</td></tr>`).join("")}</table>`;
+  $("#ptable").innerHTML = `<div class="table-wrap"><table class="t"><tr><th>Pomysł</th><th>Koszt</th><th>Dojrzałość</th><th>Wynik</th></tr>${pts.slice().sort((a, b) => b.score - a.score).map(p => `<tr><td><a href="#" data-card="${p.card_id}">${esc(p.title)}</a></td><td>${["niski", "średni", "wysoki", "b. wysoki"][p.cost_i]}</td><td>${LVL[p.maturity_i]}</td><td class="mono">${Math.round(p.score)}</td></tr>`).join("")}</table></div>`;
   bindCards($("#ptable"));
 }
 
@@ -171,15 +183,20 @@ async function drawPoland(el, reg, opts = {}) {
   const max = Math.max(0.0001, ...reg.regions.map(val));
   const fill = r => { const t = val(r) / max; return t <= 0 ? "var(--white)" : `color-mix(in srgb, var(--red) ${Math.round(12 + 88 * t)}%, var(--white))`; };
   el.innerHTML = `<svg class="pl-map" viewBox="${POLAND.viewBox}" role="img" aria-label="Mapa Polski: ${mode === "gap" ? "luki" : "liczba pomysłów"} w województwach">
-    ${POLAND.regions.map(p => { const r = by[p.name] || {selected: 0, gap: 0, ideas: 0}; return `<path d="${p.d}" fill="${fill(r)}" data-v="${esc(p.name)}" class="${opts.selected === p.name ? "sel" : ""}"/>`; }).join("")}
+    ${POLAND.regions.map(p => { const r = by[p.name] || {selected: 0, gap: 0, ideas: 0};
+      const lab = `${p.name}: ${r.selected} pomysłów${mode === "gap" && r.gap > 0 ? ", luka " + r.gap : ""}`;
+      return `<path d="${p.d}" fill="${fill(r)}" data-v="${esc(p.name)}" class="${opts.selected === p.name ? "sel" : ""}" tabindex="0" role="button" aria-label="${esc(lab)}"/>`; }).join("")}
     ${POLAND.regions.map(p => { const r = by[p.name] || {selected: 0, gap: 0}; const t = val(r) / max, n = mode === "gap" ? (r.gap > 0 ? "luka" : "") : r.selected;
       return n || n === 0 && !opts.compact ? `<text x="${p.cx}" y="${p.cy}" text-anchor="middle" class="${t > .6 ? "on-red" : ""}">${n}</text>` : ""; }).join("")}</svg>
     <div class="map-scale"><span>${mode === "gap" ? "brak luki" : "0"}</span><i></i><span>${mode === "gap" ? "największa luka" : Math.round(max) + " pomysłów"}</span></div>
-    <p class="faint" style="margin:.5rem 0 0">${icon("map")} Granice: ppatrzyk/polska-geojson (MIT), uproszczone.</p>`;
+    ${opts.compact ? "" : `<div class="map-legend"><span><i style="background:var(--white)"></i>${mode === "gap" ? "brak luki" : "brak pomysłów"}</span><span><i style="background:var(--red)"></i>${mode === "gap" ? "największa luka" : "najwięcej"}</span><span>${icon("map-pin")}klik lub Enter: pomysły województwa</span></div>`}
+    <p class="faint" style="margin:.5rem 0 0">Granice: ppatrzyk/polska-geojson (MIT), uproszczone.</p>`;
   $$("path[data-v]", el).forEach(p => { const r = by[p.dataset.v] || {selected: 0, ideas: 0, gap: 0, top_sectors: []};
-    p.onmousemove = e => tip(`<b>${esc(p.dataset.v)}</b><br>${r.selected} pomysłów${reg.national_avg != null ? ` · średnio ${reg.national_avg}/woj.` : ""}${r.top_sectors?.length ? "<br>" + esc(r.top_sectors.map(t => t.pl).join(", ")) : ""}`, e);
-    p.onmouseleave = () => tip();
-    p.onclick = () => opts.onPick ? opts.onPick(p.dataset.v) : go("mapa", {voivodeship: p.dataset.v}); });
+    const html = `<b>${esc(p.dataset.v)}</b><br>${r.selected} pomysłów${reg.national_avg != null ? ` · średnio ${reg.national_avg}/woj.` : ""}${r.top_sectors?.length ? "<br>" + esc(r.top_sectors.map(t => t.pl).join(", ")) : ""}`;
+    const pick = () => opts.onPick ? opts.onPick(p.dataset.v) : go("mapa", {voivodeship: p.dataset.v});
+    p.onmousemove = e => tip(html, e); p.onmouseleave = () => tip();
+    p.onfocus = () => { const b = p.getBoundingClientRect(); tip(html, {clientX: b.left + b.width / 2, clientY: b.top + b.height / 2}); }; p.onblur = () => tip();
+    p.onclick = pick; p.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } }; });
 }
 async function pageMap(v) {
   const sector = F.sector || "", mode = F.mode || "count", sel = F.voivodeship || "";
@@ -188,7 +205,7 @@ async function pageMap(v) {
     "Kolor = liczba pomysłów albo wielkość luki względem średniej krajowej. Kliknij województwo, by zobaczyć jego pomysły.") + `
   <div class="grid g-7-5"><div class="card reveal"><div class="card-h">${avatar("map", "red")}<div class="chips" style="margin-left:auto">
       <button class="chip ${mode === "count" ? "on" : ""}" data-mode="count">${icon("lightbulb")}Pomysły</button><button class="chip ${mode === "gap" ? "on" : ""}" data-mode="gap">${icon("target")}Luki</button></div></div>
-    <div class="card-b"><div class="chips" style="margin-bottom:1rem"><button class="chip ${!sector ? "on" : ""}" data-sec="">${icon("layers")}Wszystkie</button>${reg.sectors.map(s => `<button class="chip ${sector === s.key ? "on" : ""}" data-sec="${s.key}" title="${esc(s.pl)}">${icon(SECTOR_ICON[s.key] || "layers")}${esc(s.pl.split(",")[0])}</button>`).join("")}</div>
+    <div class="card-b"><div class="chips sec-row" style="margin-bottom:1rem"><button class="chip ${!sector ? "on" : ""}" data-sec="">${icon("layers")}Wszystkie</button>${reg.sectors.map(s => `<button class="chip ${sector === s.key ? "on" : ""}" data-sec="${s.key}" title="${esc(s.pl)}">${icon(SECTOR_ICON[s.key] || "layers")}${esc(s.pl.split(",")[0])}</button>`).join("")}</div>
       <div id="bigmap"></div></div></div>
     <div class="card reveal" id="side">${cardH(sel ? "map-pin" : "trending-up", sel || "Najwięcej i najmniej", sel ? "pomysły w województwie" : (sector ? lp("sector", sector) : "wszystkie sektory"))}<div class="card-b" id="sidelist"></div></div></div>`;
   await drawPoland($("#bigmap"), reg, {mode, selected: sel, onPick: name => go("mapa", {...F, voivodeship: name})});
@@ -235,11 +252,13 @@ async function loadExplore() {
 
 // ------------------------------------------------------------------ GRAF
 async function pageGraph(v) {
-  const g = await api("/api/graph?" + qs({sector: F.sector, tech_area: F.tech_area, voivodeship: F.voivodeship, innovation_type: F.innovation_type, maturity: F.maturity}));
+  // 120 best ideas: enough to read the structure, small enough to stay calm and fast on a phone
+  const g = await api("/api/graph?" + qs({sector: F.sector, tech_area: F.tech_area, voivodeship: F.voivodeship, innovation_type: F.innovation_type, maturity: F.maturity, limit: 120,
+    hubs: F.voivodeship ? "sector,tech_area" : "sector,tech_area"}));  // 16 voivodeship hubs crowd the picture; the Map covers regions
   const active = ["sector", "tech_area", "voivodeship", "innovation_type", "maturity"].filter(k => F[k]);
   v.innerHTML = header("Graf wiedzy", "network", "Jak pomysły łączą się ze sobą", "Kropki to pomysły (kolor = sektor). Białe węzły z ikoną to huby: sektor, obszar technologii, województwo. Czerwone linie = podobna treść.",
     active.length ? `<button class="btn-soft" id="clearf">${icon("x")}Wyczyść filtry</button>` : "") +
-    `<div class="card reveal"><canvas id="graph" aria-label="Graf pomysłów"></canvas></div><div class="legend" id="glegend"></div>`;
+    `<div class="card reveal"><canvas id="graph" role="img" aria-label="Graf pomysłów; ta sama treść jest dostępna jako lista poniżej"></canvas></div><div class="legend" id="glegend"></div><div id="gtext"></div>`;
   if ($("#clearf")) $("#clearf").onclick = () => go("graf", {});
   if (!g.nodes.length) { $("#graph").outerHTML = empty("Brak pomysłów dla tych filtrów."); return; }
   drawGraph(g);
@@ -249,7 +268,12 @@ function drawGraph(g) {
   cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
   const css = getComputedStyle(document.documentElement), C = n => css.getPropertyValue(n).trim();
   const idx = new Map(g.nodes.map((n, i) => [n.id, i]));
-  const N = g.nodes.map((n, i) => ({...n, x: W / 2 + Math.cos(i * 2.399) * 12 * Math.sqrt(i + 1), y: H / 2 + Math.sin(i * 2.399) * 12 * Math.sqrt(i + 1), vx: 0, vy: 0, deg: 0}));
+  // Seeded layout: hubs on a circle, each idea starts next to its sector hub (no random explosion from the centre).
+  const hubs = g.nodes.filter(n => n.type !== "idea"), R0 = Math.min(W, H) * .38;
+  const hubPos = new Map(hubs.map((h, i) => [h.id, {x: W / 2 + Math.cos(i / hubs.length * 2 * Math.PI) * R0, y: H / 2 + Math.sin(i / hubs.length * 2 * Math.PI) * R0}]));
+  const N = g.nodes.map((n, i) => { let p = hubPos.get(n.id);
+    if (!p) { const h = hubPos.get("sector:" + n.sector) || {x: W / 2, y: H / 2}; p = {x: h.x * .6 + W / 2 * .4 + Math.cos(i * 2.399) * 30, y: h.y * .6 + H / 2 * .4 + Math.sin(i * 2.399) * 30}; }
+    return {...n, x: p.x, y: p.y, vx: 0, vy: 0, deg: 0}; });
   const Lk = g.links.filter(l => idx.has(l.source) && idx.has(l.target)).map(l => ({...l, s: N[idx.get(l.source)], t: N[idx.get(l.target)]}));
   Lk.forEach(l => { l.s.deg++; l.t.deg++; });
   const sim = l => l.kind === "similar" || l.kind === "possible_duplicate";
@@ -260,43 +284,67 @@ function drawGraph(g) {
   N.filter(n => n.type !== "idea").forEach(n => { const name = hubIcon(n); if (!imgs[name]) { const img = new Image(); fetch("/static/icons.svg").then(r => r.text()).then(t => {
     const m = t.match(new RegExp(`<symbol id="i-${name}" viewBox="0 0 24 24">([\\s\\S]*?)</symbol>`)); if (!m) return;
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${C("--ink-3")}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m[1]}</svg>`); }); imgs[name] = img; } });
-  let alpha = 1, drag = null, hover = null, ox = 0, oy = 0, sc = 1, fitted = false, pan = null, moved = false;
+  let alpha = 1, drag = null, hover = null, ox = 0, oy = 0, sc = 1, pan = null, moved = false, dirty = true;
+  const VMAX = 6, FMAX = 4;  // bounded forces and speed: the layout can never blow up to Infinity/NaN
   function tick() {
-    for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) { const a = N[i], b = N[j]; let dx = b.x - a.x, dy = b.y - a.y; const d2 = dx * dx + dy * dy + .01; if (d2 > 90000) continue;
-      const f = 1300 / d2 * alpha; dx *= f; dy *= f; a.vx -= dx; a.vy -= dy; b.vx += dx; b.vy += dy; }
-    for (const l of Lk) { const dx = l.t.x - l.s.x, dy = l.t.y - l.s.y, d = Math.hypot(dx, dy) || 1, k = (d - (sim(l) ? 60 : 110)) / d * .045 * alpha * (sim(l) ? 1.5 : 1);
+    for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) { const a = N[i], b = N[j]; let dx = b.x - a.x, dy = b.y - a.y; const d2 = dx * dx + dy * dy;
+      if (d2 > 62500) continue; const d = Math.sqrt(d2) || .5, f = Math.min(FMAX, 900 / Math.max(d2, 25)) * alpha;
+      dx = dx / d * f; dy = dy / d * f; a.vx -= dx; a.vy -= dy; b.vx += dx; b.vy += dy; }
+    for (const l of Lk) { const dx = l.t.x - l.s.x, dy = l.t.y - l.s.y, d = Math.hypot(dx, dy) || 1;
+      const k = (d - (sim(l) ? 50 : 120)) / d * (sim(l) ? .05 : .012) * alpha;  // hub springs are weak: hubs have hundreds of links
       l.s.vx += dx * k; l.s.vy += dy * k; l.t.vx -= dx * k; l.t.vy -= dy * k; }
-    for (const n of N) { if (n === drag) continue; n.vx += (W / 2 - n.x) * .006 * alpha; n.vy += (H / 2 - n.y) * .006 * alpha; n.x += n.vx; n.y += n.vy; n.vx *= .6; n.vy *= .6; }
-    alpha = Math.max(alpha * .985, .02); if (!fitted && alpha < .15) { fit(); fitted = true; }
+    for (const n of N) { if (n === drag) continue; n.vx += (W / 2 - n.x) * .004 * alpha; n.vy += (H / 2 - n.y) * .004 * alpha;
+      const v = Math.hypot(n.vx, n.vy); if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
+      n.x += n.vx; n.y += n.vy; n.vx *= .55; n.vy *= .55;
+      if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) { n.x = W / 2; n.y = H / 2; n.vx = n.vy = 0; } }
+    alpha = Math.max(alpha * .97, .02); dirty = true;
   }
   function fit() { const xs = N.map(n => n.x), ys = N.map(n => n.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    sc = Math.min((W - 240) / Math.max(x1 - x0, 1), (H - 70) / Math.max(y1 - y0, 1), 2.4); ox = (W - 160) / 2 - (x0 + x1) / 2 * sc; oy = H / 2 - (y0 + y1) / 2 * sc; }
+    const mx = W < 600 ? 24 : 200, lab = W < 600 ? 0 : 140;  // room for labels on the right only where there is space
+    sc = Math.max(.2, Math.min((W - mx) / Math.max(x1 - x0, 1), (H - 60) / Math.max(y1 - y0, 1), 2.2));
+    ox = (W - lab) / 2 - (x0 + x1) / 2 * sc; oy = H / 2 - (y0 + y1) / 2 * sc; dirty = true; }
+  for (let i = 0; i < 260; i++) tick();  // settle before the first frame: the user sees a calm graph, not the simulation
+  alpha = .02; fit();
   const near = n => hover && (n === hover || Lk.some(l => (l.s === hover && l.t === n) || (l.t === hover && l.s === n)));
   function paint() {
     ctx.clearRect(0, 0, W, H); ctx.save(); ctx.translate(ox, oy); ctx.scale(sc, sc);
     for (const l of Lk) { const hot = hover && (l.s === hover || l.t === hover);
       ctx.strokeStyle = hot ? C("--ink") : sim(l) ? C("--red") : C("--line"); ctx.globalAlpha = hot ? .9 : sim(l) ? .55 : 1; ctx.lineWidth = (sim(l) ? 1 + l.weight * 3 : 1) / Math.sqrt(sc);
       ctx.beginPath(); ctx.moveTo(l.s.x, l.s.y); ctx.lineTo(l.t.x, l.t.y); ctx.stroke(); }
+    const placed = [];  // label boxes already drawn: skip a label that would overlap (hover always wins)
+    const free = (x, y, w, h) => !placed.some(b => x < b[0] + b[2] && b[0] < x + w && y < b[1] + b[3] && b[1] < y + h);
     for (const n of N) { ctx.globalAlpha = hover && !near(n) ? .28 : 1; const rr = rad(n);
       if (n.type === "idea") { ctx.beginPath(); ctx.arc(n.x, n.y, rr, 0, 7); ctx.fillStyle = C(SECTOR_SLOT[n.sector] ? `--s${SECTOR_SLOT[n.sector]}` : "--other"); ctx.fill(); ctx.lineWidth = 2 / sc; ctx.strokeStyle = C("--bg"); ctx.stroke(); }
       else { ctx.save(); ctx.shadowColor = C("--dk"); ctx.shadowBlur = 8; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2; ctx.beginPath(); ctx.arc(n.x, n.y, rr, 0, 7); ctx.fillStyle = C("--white"); ctx.fill(); ctx.restore();
         ctx.lineWidth = 1.5 / sc; ctx.strokeStyle = C("--ink"); ctx.stroke(); const img = imgs[hubIcon(n)]; if (img && img.complete && img.naturalWidth) ctx.drawImage(img, n.x - rr * .55, n.y - rr * .55, rr * 1.1, rr * 1.1); }
-      if (n.type !== "idea" || n === hover || sc > 1.4) { ctx.fillStyle = n.type === "idea" ? C("--ink") : C("--ink-2"); ctx.font = `${n.type === "idea" ? 500 : 700} ${12 / Math.sqrt(sc)}px system-ui`; ctx.fillText(n.label.slice(0, 46), n.x + rr + 5, n.y + 4); } }
+      if (n.type !== "idea" || n === hover || sc > 1.4) { const fs = 12 / Math.sqrt(sc), txt = n.label.slice(0, 46);
+        ctx.font = `${n.type === "idea" ? 500 : 700} ${fs}px system-ui`; const tw = ctx.measureText(txt).width, lx = n.x + rr + 5, ly = n.y - fs * .7;
+        if (n === hover || free(lx, ly, tw, fs * 1.3)) { placed.push([lx, ly, tw, fs * 1.3]);
+          ctx.lineJoin = "round"; ctx.lineWidth = 4 / sc; ctx.strokeStyle = C("--bg"); ctx.strokeText(txt, lx, n.y + 4);  // halo keeps labels readable over dots
+          ctx.fillStyle = n.type === "idea" ? C("--ink") : C("--ink-2"); ctx.fillText(txt, lx, n.y + 4); } } }
     ctx.restore(); ctx.globalAlpha = 1;
   }
-  (function loop() { if (alpha > .021 || drag) tick(); paint(); if (document.body.contains(cv)) requestAnimationFrame(loop); })();
+  // repaint only when something changed (drag, pan, zoom, hover, icon load): no busy loop
+  (function loop() { if (drag) tick(); else if (alpha > .021) tick(); if (dirty) { paint(); dirty = false; } if (document.body.contains(cv)) requestAnimationFrame(loop); })();
+  Object.values(imgs).forEach(img => img.addEventListener("load", () => dirty = true));
   const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - ox) / sc, (e.clientY - r.top - oy) / sc]; };
   const hit = (x, y) => N.find(n => (n.x - x) ** 2 + (n.y - y) ** 2 < (rad(n) + 4) ** 2);
   cv.onpointerdown = e => { const [x, y] = pt(e); drag = hit(x, y); moved = false; if (!drag) pan = [e.clientX - ox, e.clientY - oy]; cv.setPointerCapture(e.pointerId); };
   cv.onpointermove = e => { const [x, y] = pt(e);
-    if (drag) { drag.x = x; drag.y = y; alpha = Math.max(alpha, .3); moved = true; } else if (pan) { ox = e.clientX - pan[0]; oy = e.clientY - pan[1]; moved = true; }
-    else { hover = hit(x, y) || null; cv.style.cursor = hover ? "pointer" : "grab"; tip(hover ? `<b>${esc(hover.label)}</b>${hover.type === "idea" ? `<br>${esc(lp("sector", hover.sector))} · ${esc(hover.voivodeship || "—")}${hover.score ? " · wynik " + Math.round(hover.score) : ""}` : `<br>${hover.deg} powiązań · kliknij, by filtrować`}` : "", e); } };
-  cv.onpointerleave = () => { hover = null; tip(); };
+    if (drag) { drag.x = x; drag.y = y; alpha = Math.max(alpha, .15); moved = true; } else if (pan) { ox = e.clientX - pan[0]; oy = e.clientY - pan[1]; moved = true; dirty = true; }
+    else { const h = hit(x, y) || null; if (h !== hover) dirty = true; hover = h; cv.style.cursor = hover ? "pointer" : "grab"; tip(hover ? `<b>${esc(hover.label)}</b>${hover.type === "idea" ? `<br>${esc(lp("sector", hover.sector))} · ${esc(hover.voivodeship || "—")}${hover.score ? " · wynik " + Math.round(hover.score) : ""}` : `<br>${hover.deg} powiązań · kliknij, by filtrować`}` : "", e); } };
+  cv.onpointerleave = () => { hover = null; dirty = true; tip(); };
   cv.onpointerup = () => { if (drag && !moved) { const n = drag; if (n.type === "idea" && n.card_id) openCard(n.card_id); else if (n.type !== "idea") go("graf", {[n.type]: n.id.split(":").slice(1).join(":")}); } drag = null; pan = null; };
-  cv.onwheel = e => { e.preventDefault(); const k = e.deltaY < 0 ? 1.1 : .9, r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; ox = mx - (mx - ox) * k; oy = my - (my - oy) * k; sc *= k; };
+  cv.onwheel = e => { e.preventDefault(); const k = e.deltaY < 0 ? 1.1 : .9, r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; ox = mx - (mx - ox) * k; oy = my - (my - oy) * k; sc = Math.max(.15, Math.min(6, sc * k)); dirty = true; };
   const used = [...new Set(N.filter(n => n.type === "idea").map(n => SECTOR_SLOT[n.sector] ? n.sector : "_"))].sort((a, b) => (SECTOR_SLOT[a] || 9) - (SECTOR_SLOT[b] || 9));
   $("#glegend").innerHTML = used.map(s => `<span><i class="dot" style="background:${s === "_" ? "var(--other)" : secColor(s)}"></i>${esc(s === "_" ? "inne sektory" : lp("sector", s))}</span>`).join("") +
     `<span>${icon("map-pin")}hub (sektor, obszar, województwo)</span><span><i class="dot" style="background:var(--red);width:16px;height:3px;border-radius:2px"></i>podobna treść</span>`;
+  // text alternative for screen readers and keyboard users: the strongest ideas and their closest neighbours
+  const ideas = N.filter(n => n.type === "idea").sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 25);
+  const nb = n => Lk.filter(l => sim(l) && (l.s === n || l.t === n)).map(l => (l.s === n ? l.t : l.s).label).slice(0, 2);
+  $("#gtext").innerHTML = `<details class="how"><summary>${icon("layers")}Graf jako lista (${ideas.length} najlepszych)</summary><div class="items" style="margin-top:.75rem">${ideas.map(n =>
+    `<div class="item" tabindex="0" data-card="${n.card_id}">${avatar(SECTOR_ICON[n.sector] || "lightbulb")}<h3>${esc(n.label)}</h3>${ring(n.score, "sm")}<div class="plates">${n.voivodeship ? plate("map-pin", n.voivodeship, "", "sm red") : ""}${nb(n).map(t => plate("git-compare-arrows", t.slice(0, 40), "", "sm")).join("")}</div></div>`).join("")}</div></details>`;
+  bindCards($("#gtext"));
 }
 
 // ------------------------------------------------------------------ ROLKI (component-built briefs)
@@ -306,7 +354,8 @@ const saveLiked = () => { try { localStorage.setItem("radar-liked", JSON.stringi
 async function pageReels(v) {
   const items = await api("/api/feed?limit=50");
   v.innerHTML = `<div class="reels" id="reels">${items.map((i, n) => { const b = i.brief || {}, lvl = LVLK[b.maturity] ?? 0;
-    return `<section class="reel" data-n="${n}"><article class="reel-card">
+    const bgKey = {szkola: "szkoly", uczelnia: "uczelnie", instytut: "inwestorzy", jst: "samorzady", inna_publiczna: "samorzady", firma: "startupy"}[i.institution_type] || "innowatorzy";
+    return `<section class="reel" data-n="${n}" aria-label="Pomysł ${n + 1} z ${items.length}" style="--reel-bg:url('${heroImg(bgKey)}')"><span class="reel-ai">${icon("sparkles")}ilustracja AI</span><article class="reel-card"><div class="reel-progress" aria-hidden="true"><i></i></div>
       <div class="reel-top">${avatar(INST_ICON[i.institution_type] || "building-2")}<div class="who"><b>${esc(i.institution || INST_PL[i.institution_type] || "Instytucja")}</b><small>${esc(INST_PL[i.institution_type] || "")} ${demo(i.synthetic)}</small></div>${ring(b.score)}</div>
       <div class="plates">${locPlate(i)}${sectorPlate(i.sector)}</div>
       <div class="reel-title">${esc(b.solution)}</div>
@@ -320,10 +369,22 @@ async function pageReels(v) {
       </div>
       <div class="reel-foot"><button class="like ${liked.has(i.card_id) ? "on" : ""}" data-like="${i.card_id}" aria-pressed="${liked.has(i.card_id)}" aria-label="Lubię to">${icon("heart")}</button>
         <span class="likes-n" id="ln-${i.card_id}">${i.likes}</span><a class="btn-soft" style="margin-left:auto" href="#" data-card="${i.card_id}">${icon("arrow-right")}Karta</a></div>
-    </article></section>`; }).join("") || empty("Brak briefów.")}</div><div class="reel-dots" id="dots">${items.map(() => "<i></i>").join("")}</div>`;
-  const reels = $$(".reel", v), dots = $$("#dots i");
-  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("active"); dots.forEach((d, k) => d.classList.toggle("on", k === +e.target.dataset.n)); } else e.target.classList.remove("active"); }), {threshold: .6});
+    </article></section>`; }).join("") || empty("Brak briefów.")}</div><div class="reel-dots" id="dots">${items.map(() => "<i></i>").join("")}</div>
+    <div class="reel-nav"><button class="btn-icon" id="rprev" aria-label="Poprzedni pomysł (strzałka w górę)">${icon("chevron-down", "flip")}</button>
+      <button class="btn-icon" id="rnext" aria-label="Następny pomysł (strzałka w dół)">${icon("chevron-down")}</button><span class="kbd-hint">↑ ↓ · L</span></div>`;
+  const box = $("#reels"), reels = $$(".reel", v), dots = $$("#dots i");
+  let cur = 0;
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("active"); cur = +e.target.dataset.n;
+    dots.forEach((d, k) => d.classList.toggle("on", k === cur)); } else e.target.classList.remove("active"); }), {root: box, threshold: .6});
   reels.forEach(r => io.observe(r)); if (reels[0]) reels[0].classList.add("active");
+  const goTo = n => { n = Math.max(0, Math.min(reels.length - 1, n)); reels[n]?.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"}); };
+  $("#rprev").onclick = () => goTo(cur - 1); $("#rnext").onclick = () => goTo(cur + 1);
+  const onKey = e => { if (!document.body.contains(box)) { document.removeEventListener("keydown", onKey); return; }
+    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || $("#drawer").classList.contains("on")) return;
+    if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); goTo(cur + 1); }
+    else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); goTo(cur - 1); }
+    else if (e.key === "l" || e.key === "L") { const b = $("[data-like]", reels[cur]); if (b) toggleLike(b); } };
+  document.addEventListener("keydown", onKey);
   async function toggleLike(btn, force) {
     const id = +btn.dataset.like; if (force && liked.has(id)) return;
     const r = await api(`/api/cards/${id}/like`, {method: "POST", headers: {"X-Voter": voter}});
@@ -389,6 +450,94 @@ async function pageSources(v) {
   bindCards(op); stagger(op);
 }
 
+// ------------------------------------------------------------------ AUDIENCES ("Dla mnie")
+let PERSONAS = null;
+const heroImg = key => `/static/hero/${key}.webp`;  // Higgsfield-generated backgrounds; the page works without them
+const short = (t, n) => { t = t.split(":")[0]; return t.length <= n ? t : t.slice(0, t.lastIndexOf(" ", n)) + "…"; };
+async function audienceTiles() {
+  PERSONAS = PERSONAS || await api("/api/personas");
+  return `<section class="who reveal"><p class="pretitle">${icon("users")}Kim jesteś?</p><div class="who-grid">${PERSONAS.map(p =>
+    `<a class="who-tile" href="#/dla/${p.key}" style="--hero:url('${heroImg(p.key)}')">${avatar(p.icon, "red")}<b>${esc(p.name)}</b><span>${esc(short(p.promise, 72))}</span>${icon("arrow-right", "go")}</a>`).join("")}</div></section>`;
+}
+const METRIC_PL = {licence_or_spinoff_pln: "wartość licencji / spin-off", savings_per_adopter_pln: "oszczędność na odbiorcę", royalty_3y_pln: "tantiemy w 3 lata",
+  som_3y_pln: "rynek osiągalny w 3 lata", deploy_cost_pln: "koszt wdrożenia"};
+const money = n => n == null ? "—" : n >= 1e9 ? (n / 1e9).toLocaleString("pl-PL", {maximumFractionDigits: 1}) + " mld zł" : pln(n);
+async function pageAudience(v) {
+  const key = F._sub;
+  if (!key) { v.innerHTML = header("Dla mnie", "users", "Radar dopasowany do Ciebie", "Wybierz, kim jesteś. Pokażemy pomysły, które mają dla Ciebie sens biznesowy, z wyceną i pierwszym krokiem.") + await audienceTiles(); return; }
+  const d = await api("/api/personas/" + key + (F.voivodeship ? "?voivodeship=" + encodeURIComponent(F.voivodeship) : ""));
+  const s = d.summary;
+  v.innerHTML = `<section class="aud-hero reveal" style="--hero:url('${heroImg(key)}')"><div class="aud-in"><p class="pretitle">${icon(d.icon)}${esc(d.name)}</p>
+      <h1>${esc(d.promise.split(":")[0])}</h1><p class="lead">${esc(d.promise.split(":").slice(1).join(":") || d.promise)}</p>
+      <div class="plates">${plate("lightbulb", s.ideas + " pomysłów")}${plate("banknote", money(s.metric_sum_pln), METRIC_PL[d.metric])}${plate("trending-up", money(s.som_3y_sum_pln), "rynek w 3 lata")}${plate("map-pin", s.regions + " województw", "", "red")}</div></div></section>
+    <div class="chips reveal" style="margin:1.5rem 0">${(PERSONAS || await api("/api/personas")).map(p => `<a class="chip ${p.key === key ? "on" : ""}" href="#/dla/${p.key}">${icon(p.icon)}${esc(p.name.split(" ")[0])}</a>`).join("")}</div>
+    <div class="grid g-2">${d.items.map(i => bizCard(i, d)).join("") || empty("Brak dopasowanych pomysłów.")}</div>`;
+  bindCards(v);
+}
+function bizCard(i, d) {
+  const b = i.business, lvl = LVLK[i.maturity] ?? 0;
+  return `<article class="card biz reveal" data-card="${i.card_id}" tabindex="0"><div class="card-h">${avatar(SECTOR_ICON[i.sector] || "lightbulb")}<div><h3>${esc(i.title)}</h3><div class="faint">${esc(i.institution || "")}</div></div>${ring(i.score, "sm")}</div>
+    <div class="card-b"><div class="biz-value"><small>${esc(METRIC_PL[d.metric] || "wartość")}</small><b>${money(b.metric)}</b></div>
+      <div class="plates">${locPlate(i, "sm")}${plate("banknote", money(b.deploy_cost_pln), "", "sm")}${plate("users", b.adopters.count.toLocaleString("pl-PL") + " odbiorców", "", "sm")}${plate("clock", b.payback, "", "sm")}<span class="plate sm"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}</span></div>
+      ${b.funding.length ? `<div class="plates" style="margin-top:.5rem">${b.funding.map(f => plate("piggy-bank", f, "", "sm")).join("")}</div>` : ""}
+      <div class="biz-cta">${icon("arrow-right")}${esc(d.cta)}</div></div></article>`;
+}
+function bizSection(b) {
+  if (!b) return "";
+  const m = b.market, max = Math.max(m.tam_pln, 1), bar = (lab, val, cls) => `<div class="mk"><span>${lab}</span><div class="mini"><i style="width:${Math.max(2, val / max * 100)}%"></i></div><b class="mono">${money(val)}</b></div>`;
+  return `<div class="sec"><p class="pretitle">${icon("briefcase")}Model biznesowy i wycena</p>
+    <div class="biz-kpis">${[["banknote", money(b.deploy_cost_pln), "koszt wdrożenia u odbiorcy"], ["trending-up", money(b.valuation.licence_or_spinoff_pln), "wartość licencji / spin-off"],
+      ["piggy-bank", money(b.savings_per_adopter_pln), "oszczędność vs budowa od zera"], ["clock", b.payback, "zwrot"]].map(([ic, v, t]) => `<div class="tile">${icon(ic)}<div><small>${t}</small><b>${v}</b></div></div>`).join("")}</div>
+    <div class="market">${bar("TAM (cały rynek)", m.tam_pln)}${bar("SAM (region)", m.sam_pln)}${bar("SOM (3 lata)", m.som_3y_pln)}</div>
+    <div class="plates" style="margin-top:.75rem">${plate("users", b.adopters.count.toLocaleString("pl-PL") + " " + b.adopters.who)}${plate("briefcase", b.model)}${b.funding.map(f => plate("piggy-bank", f.programme, f.for)).join("")}</div>
+    <details class="how"><summary>${icon("filter")}Założenia wyceny (bez AI, jawne reguły)</summary><ul class="steps" style="margin-top:.5rem">${b.assumptions.map(a => `<li>${icon("chevron-right")}<span>${esc(a)}</span></li>`).join("")}</ul></details></div>`;
+}
+
+// ------------------------------------------------------------------ PERSONALIZATION ("Dopasuj radar")
+const MQ = [
+  {k: "role", q: "Kim jesteś?", opts: () => (PERSONAS || []).map(p => [p.key, p.name, p.icon])},
+  {k: "voivodeship", q: "Gdzie działasz?", opts: () => [["", "Cała Polska", "map"], ...(LABELS.voivodeship || []).map(v => [v, v, "map-pin"])]},
+  {k: "sectors", q: "Jakie obszary Cię interesują?", multi: true, opts: () => Object.entries(LABELS.sector || {}).map(([k, v]) => [k, v.split(",")[0], SECTOR_ICON[k] || "layers"])},
+  {k: "budget", q: "Jaki budżet na wdrożenie?", opts: () => [["niski", "do 100 tys. zł", "piggy-bank"], ["sredni", "do 2 mln zł", "banknote"], ["wysoki", "do 20 mln zł", "wallet"], ["bardzo_wysoki", "bez limitu", "trending-up"]]},
+  {k: "goal", q: "Czego szukasz?", opts: () => [["zysk", "Zwrotu z inwestycji", "trending-up"], ["wdrozenie", "Rozwiązania do wdrożenia u siebie", "circle-check"], ["partner", "Partnera do współpracy", "users"], ["finansowanie", "Finansowania dla pomysłu", "piggy-bank"]]},
+];
+const loadProfile = () => { try { return JSON.parse(localStorage.getItem("radar-profile") || "null"); } catch (e) { return null; } };
+const saveProfile = p => { try { localStorage.setItem("radar-profile", JSON.stringify(p)); } catch (e) {} };
+async function pageMatch(v) {
+  PERSONAS = PERSONAS || await api("/api/personas");
+  let prof = F.edit ? null : loadProfile();
+  if (!prof) { prof = {role: "", voivodeship: "", sectors: [], budget: "", goal: "", step: 0}; return wizard(v, prof); }
+  const r = await api("/api/match?" + qs({role: prof.role, voivodeship: prof.voivodeship, sectors: (prof.sectors || []).join(","), budget: prof.budget, goal: prof.goal, stage: prof.goal === "zysk" ? "tech_ready" : "exploring"}));
+  const who = (PERSONAS.find(p => p.key === prof.role) || {}).name || "";
+  v.innerHTML = header("Dopasowane do Ciebie", "target", `${r.total} pomysłów, od najlepiej dopasowanych`,
+    `${esc(who)}${prof.voivodeship ? " · " + esc(prof.voivodeship) : ""} · budżet: ${esc(COST_RANGE[prof.budget] || "—")} · cel: ${esc({zysk: "zwrot z inwestycji", wdrozenie: "wdrożenie u siebie", partner: "partner", finansowanie: "finansowanie"}[prof.goal] || "")}`,
+    `<a class="btn-soft" href="#/dopasuj?edit=1">${icon("filter")}Zmień odpowiedzi</a>`) +
+    `<div class="grid g-2">${r.items.map(i => matchCard(i, r.metric)).join("") || empty("Nic nie pasuje: poszerz budżet albo sektory.")}</div>`;
+  bindCards(v);
+}
+function wizard(v, prof) {
+  const st = MQ[prof.step], opts = st.opts(), sel = val => st.multi ? (prof[st.k] || []).includes(val) : prof[st.k] === val;
+  v.innerHTML = `<section class="wiz reveal"><div class="wiz-top"><p class="pretitle">${icon("target")}Dopasuj radar · krok ${prof.step + 1} z ${MQ.length}</p>
+      <div class="wiz-bar"><i style="width:${(prof.step + 1) / MQ.length * 100}%"></i></div></div><h1>${esc(st.q)}</h1>
+    <div class="wiz-opts ${opts.length > 8 ? "many" : ""}">${opts.map(([val, lab, ic]) => `<button class="wiz-opt ${sel(val) ? "on" : ""}" data-v="${esc(val)}">${avatar(ic, sel(val) ? "red" : "")}<span>${esc(lab)}</span></button>`).join("")}</div>
+    <div class="chips" style="margin-top:1.5rem">${prof.step ? `<button class="btn-soft" id="wback">${icon("chevron-down", "flip")}Wstecz</button>` : ""}${st.multi ? `<button class="btn" id="wnext">${icon("arrow-right")}${(prof.sectors || []).length ? "Dalej" : "Wszystkie obszary"}</button>` : ""}</div></section>`;
+  const next = () => { if (prof.step < MQ.length - 1) { prof.step++; wizard(v, prof); } else { delete prof.step; saveProfile(prof); go("dopasuj", {}); route(); } };
+  $$(".wiz-opt", v).forEach(b => b.onclick = () => {
+    if (st.multi) { const s = new Set(prof[st.k] || []); s.has(b.dataset.v) ? s.delete(b.dataset.v) : s.add(b.dataset.v); prof[st.k] = [...s]; wizard(v, prof); }
+    else { prof[st.k] = b.dataset.v; next(); } });
+  if ($("#wnext")) $("#wnext").onclick = next;
+  if ($("#wback")) $("#wback").onclick = () => { prof.step--; wizard(v, prof); };
+  stagger(v);
+}
+function matchCard(i, metric) {
+  const b = i.business, lvl = LVLK[i.maturity] ?? 0;
+  return `<article class="card biz reveal" data-card="${i.card_id}" tabindex="0"><div class="card-h">${avatar(SECTOR_ICON[i.sector] || "lightbulb")}<div><h3>${esc(i.title)}</h3><div class="faint">${esc(i.institution || "")}</div></div>
+      ${ring(i.match, "match")}</div>
+    <div class="card-b"><div class="biz-value"><small>dopasowanie ${i.match}% · ${esc(METRIC_PL[metric] || "wartość")}</small><b>${money(b.metric)}</b></div>
+      <div class="plates">${i.why.map(w => plate("circle-check", w, "", "sm")).join("")}</div>
+      <div class="plates" style="margin-top:.5rem">${locPlate(i, "sm")}${plate("users", b.adopters.count.toLocaleString("pl-PL") + " odbiorców", "", "sm")}${plate("clock", b.payback, "", "sm")}<span class="plate sm"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}</span></div></div></article>`;
+}
+
 // ------------------------------------------------------------------ CARD drawer
 async function openCard(id) {
   $("#scrim").classList.add("on"); $("#drawer").classList.add("on"); $("#drawer-in").innerHTML = '<div class="skel" style="height:2rem;width:60%"></div><div class="skel"></div>';
@@ -399,6 +548,7 @@ async function openCard(id) {
     <div class="plates" style="margin-top:1rem">${locPlate(info)}${moneyPlate(info)}<span class="plate"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}<span>${LVL[lvl]}</span></span>${sectorPlate(r.sector)}${r.tech_area ? plate(TECH_ICON[r.tech_area] || "cpu", lp("tech_area", r.tech_area)) : ""}${instPlate(c.basal?.institution_type?.value)}${demo(c.synthetic)}</div>
     <p class="muted" style="margin-top:1rem">${esc(a.summary || c.summary_pl || "")}</p>
     ${r.affiliations?.length ? `<p class="faint">${icon("building-2")} ${esc(r.affiliations.join("; "))}${r.url ? ` · <a href="${esc(r.url)}" target="_blank" rel="noopener">${icon("external-link")} źródło</a>` : ""}</p>` : ""}
+    ${bizSection(c.business)}
     ${a.scores ? `<div class="sec"><p class="pretitle">${icon("target")}Ocena wg jawnych kryteriów</p><div class="crit">${Object.entries(a.scores).map(([k, x]) => `<span>${esc(CRIT[k] || k)} <span class="faint">${Math.round((a.criteria?.[k]?.weight || 0) * 100)}%</span></span><div class="mini"><i style="width:${x.score * 20}%"></i></div><b class="mono">${x.score}</b><span class="why">${esc(x.why)}</span>`).join("")}</div></div>` : ""}
     ${a.paths ? `<div class="sec"><p class="pretitle">${icon("rocket")}Ścieżki wdrożenia · kto co robi</p>${a.paths.map(p => `<p style="margin:.75rem 0 .5rem;display:flex;gap:.5rem;align-items:center">${icon(PATH_ICON[p.path] || "arrow-right")}<b>${esc(p.path)}</b><span class="faint">${esc(p.why)}</span></p><ul class="steps">${p.steps.map(s => `<li>${icon("chevron-right")}<span>${esc(s.step)}<span class="who">${esc(s.who)}${s.time ? " · " + esc(s.time) : ""}</span></span></li>`).join("")}</ul>`).join("")}</div>` : ""}
     ${a.recipients ? `<div class="sec"><p class="pretitle">${icon("users")}Odbiorcy i partnerzy</p><div class="plates">${a.recipients.map(x => plate(x.kind === "typ odbiorcy" ? "users" : "building-2", x.name, x.kind)).join("")}</div></div>` : ""}
@@ -433,5 +583,5 @@ if (SR) { const mic = $("#mic"); mic.hidden = false; mic.innerHTML = icon("mic")
 // Inline the icon sprite once: <use> on same-document symbols works everywhere (external sprites do not).
 const SPRITE = fetch("/static/icons.svg").then(r => r.text()).then(t => { const d = document.createElement("div"); d.hidden = true; d.innerHTML = t; document.body.prepend(d); }).catch(() => {});
 Promise.all([SPRITE, api("/api/config").then(c => CFG = c).catch(() => {}), api("/api/labels").then(l => LABELS = l).catch(() => {})]).then(() => {
-  $("#foot").innerHTML = `${CFG.demo_mode ? "Tryb demo (dane przykładowe) · " : ""}LLM: ${esc((CFG.llm_providers || []).join(" → "))} · ikony Lucide (ISC) · granice województw: polska-geojson (MIT)`;
+  $("#foot").innerHTML = `${CFG.demo_mode ? "Tryb demo (dane przykładowe) · " : ""}LLM: ${esc((CFG.llm_providers || []).join(" → "))} · ikony Lucide (ISC) · granice województw: polska-geojson (MIT) · ilustracje: Higgsfield (AI, wizualizacje)`;
   route(); });

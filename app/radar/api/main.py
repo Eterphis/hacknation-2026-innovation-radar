@@ -171,6 +171,9 @@ def card_dict(c: Card, full: bool = False) -> dict:
         d.update(problem_solved=c.problem_solved, what_is_new=c.what_is_new, evidence=c.evidence,
                  reasoning=c.reasoning, provenance=c.provenance, decision_note=c.decision_note,
                  decided_at=c.decided_at, assessment=c.assessment, brief=c.brief, basal=r.basal)
+        from radar.business import business_case
+
+        d["business"] = business_case(r, c) if c.maturity else None
         d["record"].update(abstract=r.abstract, authors=r.authors, keywords=r.keywords, licence=r.licence,
                            amounts=r.amounts, extra=r.extra)
     return d

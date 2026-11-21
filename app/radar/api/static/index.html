@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
+<a class="skip" href="#view">Przejdź do treści</a>
 <header class="navbar">
   <div class="container nav-in">
     <a class="brand" href="#/" aria-label="Radar Innowacji: przegląd">
@@ -31,11 +32,13 @@
     </a>
     <nav class="nav" id="nav" aria-label="Główna nawigacja">
       <a href="#/" data-i="layout-dashboard">Przegląd</a>
+      <a href="#/dla" data-i="users">Dla mnie</a>
+      <a href="#/dopasuj" data-i="target">Dopasuj</a>
       <a href="#/mapa" data-i="map">Mapa</a>
       <a href="#/odkrywaj" data-i="layers">Odkrywaj</a>
-      <a href="#/graf" data-i="network">Graf</a>
+      <a href="#/graf" data-i="network" class="desk-only">Graf</a>
       <a href="#/rolki" data-i="clapperboard">Rolki</a>
-      <a href="#/zrodla" data-i="radar">Źródła</a>
+      <a href="#/zrodla" data-i="radar" class="desk-only">Źródła</a>
     </nav>
     <div class="nav-tools">
       <button class="btn-icon" id="cmdbtn" aria-label="Szukaj (klawisz /)" title="Szukaj ( / )"></button>
