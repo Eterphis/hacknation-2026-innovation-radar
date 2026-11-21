@@ -213,6 +213,89 @@ sources:
       url: publication
       patent_kind: kind
 
+  # ------------------------------------------------------------------ HARVESTER zespołu (radar/refresh.py)
+  # `python -X utf8 -m radar.refresh` (albo `docker compose --profile harvester up`) pobiera i normalizuje
+  # źródła do data/normalized/<id>.jsonl w formacie radar.record/v1 (blokada, pobieranie przyrostowe,
+  # kontrola spadku liczby rekordów). Tu te pliki wchodzą do kolejki: normalize -> Basal -> agent.
+  # Brak pliku = źródło jeszcze nie odświeżone (optional), nie błąd. Wspólne mapowanie: &record_v1.
+  - id: harvester-ncbr
+    type: snapshot
+    kind: solution
+    schedule_s: 3600
+    description: "NCBR: wyszukiwarka sukcesów beneficjentów (harvester radar/refresh.py)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/ncbr.jsonl", optional: true, min_abstract_chars: 150 }
+    id_path: record_id
+    mapping: &record_v1
+      title: title
+      abstract: { expr: "text_for_llm || text || intro || abstract || description", transform: first }
+      affiliations: "organizations[].name"
+      region: { expr: "region.voivodeships", transform: first }
+      keywords: keywords
+      url: url
+      doi: { expr: "ids.doi || doi", transform: doi }
+      year: { expr: "period.start || year || date", transform: year }
+      language: language
+      licence: rights.licence
+      amount_total: { expr: "funding.total_value", transform: pl_decimal }
+      amount_grant: { expr: "funding.grant_value", transform: pl_decimal }
+      record_type: record_type
+      harvester_source: source
+      quality_status: quality.status
+
+  - id: harvester-interreg
+    type: snapshot
+    kind: project
+    schedule_s: 3600
+    description: "Interreg 2021–2027, projekty z partnerami z Polski (harvester)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/interreg.jsonl", optional: true, min_abstract_chars: 150 }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-openalex
+    type: snapshot
+    kind: publication
+    schedule_s: 3600
+    description: "OpenAlex: publikacje z polskich instytucji (zamiennik Google Scholar; harvester)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/openalex.jsonl", optional: true }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-cordis
+    type: snapshot
+    kind: project
+    schedule_s: 3600
+    description: "CORDIS: projekty Horyzont Europa / H2020 z udziałem polskich organizacji (harvester)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/cordis.jsonl", optional: true, min_abstract_chars: 150 }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-fe
+    type: snapshot
+    kind: project
+    schedule_s: 3600
+    description: "Fundusze Europejskie 2021–2027: lista projektów (harvester)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/fe_projects.jsonl", optional: true, min_abstract_chars: 120 }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-epo
+    type: snapshot
+    kind: patent
+    schedule_s: 3600
+    description: "EPO: zgłoszenia EP z polskimi zgłaszającymi (harvester; zastępuje wolne zapytanie SPARQL)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/epo.jsonl", optional: true, min_abstract_chars: 80 }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-uprp
+    type: snapshot
+    kind: patent
+    schedule_s: 3600
+    description: "UPRP: import ręcznego eksportu e-Wyszukiwarki (bez zapytań do UPRP; harvester)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/uprp_import.jsonl", optional: true, min_abstract_chars: 60 }
+    id_path: record_id
+    mapping: *record_v1
+
   # ------------------------------------------------------------------ SZABLONY (wyłączone): GraphQL i pub/sub
   - id: przyklad-graphql
     type: graphql

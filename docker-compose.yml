@@ -1,5 +1,5 @@
-# Ścieżka dla jury (D-005): `docker compose up --build`, potem http://localhost:8000
-# Bez kluczy działa w trybie demo (snapshoty + heurystyczny "mock" LLM). Klucze: skopiuj .env.example do .env.
+# `docker compose up --build` -> http://localhost:8000 (prawdziwe dane). Harvester zespołu: `docker compose --profile harvester up` zapisuje do ./data,
+# a źródła `harvester-*` wciągają te pliki do kolejki. RADAR_DEMO_MODE=1 = tylko dane przykładowe. Klucze: .env.example -> .env.
 x-radar: &radar
   build: ./app
   image: innovation-radar:dev
@@ -11,6 +11,9 @@ x-radar: &radar
     RADAR_LLM_PROVIDERS: ${RADAR_LLM_PROVIDERS:-local,anthropic,openai,mock}
     # set to http://llm:8080/v1 when running with `--profile local-llm`
     RADAR_LOCAL_LLM_URL: ${RADAR_LOCAL_LLM_URL:-}
+    # outputs of the team harvester (radar/refresh.py) -> `harvester-*` sources in app/sources.yaml
+    RADAR_HARVEST_DIR: /data/normalized
+  volumes: ["./data:/data:ro"]
   depends_on:
     postgres: { condition: service_healthy }
     rabbitmq: { condition: service_healthy }

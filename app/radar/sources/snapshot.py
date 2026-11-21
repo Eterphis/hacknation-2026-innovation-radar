@@ -27,6 +27,10 @@ def resolve_path(p: str) -> Path:
 class SnapshotConnector(PullConnector):
     def fetch(self, cursor: str | None) -> Iterator[Page]:
         path = resolve_path(self.spec.opt("path"))
+        if not path.exists() and self.spec.opt("optional", False):
+            # e.g. a harvester output (radar.refresh) not produced yet: nothing to ingest, not an error
+            yield Page(items=[], next_cursor=None, meta={"missing": str(path)})
+            return
         fmt = self.spec.opt("format", "auto")
         if fmt == "auto":
             fmt = path.suffix.lstrip(".").lower()
