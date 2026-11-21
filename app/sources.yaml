@@ -38,7 +38,7 @@ sources:
     demo: true
     kind: project
     description: "Przykładowe projekty spójności (dane syntetyczne w kształcie odpowiedzi Kohesio)"
-    options: { path: samples/kohesio.json, min_abstract_chars: 120 }
+    options: { path: samples/kohesio.json, min_abstract_chars: 120, group_by_title: true }
     record_path: list
     id_path: item
     mapping:
@@ -175,6 +175,7 @@ sources:
       max_pages: 5
       timeout: 60
       min_abstract_chars: 150
+      group_by_title: true   # jeden program (np. „Czyste powietrze”), wielu beneficjentów: jedna grupa, kanoniczny = najpełniejszy
     record_path: list
     id_path: item
     mapping:

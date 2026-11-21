@@ -133,36 +133,89 @@ def resolve_org(self, raw_id: int, h: str) -> str:
 
 
 # ---------------------------------------------------------------- dedup
+def completeness(rec: Record) -> float:
+    """How much a record tells about the idea. Within a cluster the fullest record is canonical (T025), so a
+    richer copy that arrives later (DOI, abstract, organisations, amounts) replaces a thin first one."""
+    text = min(len(rec.abstract or ""), 2000) / 200          # up to 10 points for the description
+    return (text + (3 if rec.doi else 0) + min(len(rec.affiliations or []), 5) + min(len(rec.authors or []), 3) * 0.5
+            + min(len(rec.keywords or []), 6) * 0.5 + (1 if rec.year else 0) + (1 if rec.url else 0)
+            + (1 if rec.region else 0) + (2 if any(v for v in (rec.amounts or {}).values()) else 0))
+
+
+def _fuller(a: Record, b: Record) -> bool:
+    """a should be canonical instead of b: more complete, ties go to the older record (stable result)."""
+    ca, cb = completeness(a), completeness(b)
+    return ca > cb or (ca == cb and a.id < b.id)
+
+
+def _find_match(s, rec: Record, group_by_title: bool) -> tuple[Record | None, str | None]:
+    """Canonical record (not a duplicate) this one duplicates. Layers 2-3 of §16: same DOI, or same normalized
+    title + year; sources with `group_by_title` (Kohesio: one programme, many beneficiaries) group the same
+    title in the source whatever the year. Layers 4-5 (embeddings) stay in the graph as possible_duplicate."""
+    live = (Record.id != rec.id, Record.status.notin_(("duplicate", "deleted")))
+    if rec.doi:
+        m = s.scalar(select(Record).where(Record.doi == rec.doi, *live).order_by(Record.id))
+        if m is not None:
+            return m, f"ten sam DOI {rec.doi}"
+    nt = norm_title(rec.title)
+    if not nt:
+        return None, None
+    if group_by_title:
+        prefix = (rec.title or "")[:12].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        for other in s.scalars(select(Record).where(Record.source_id == rec.source_id, *live,
+                                                    Record.title.ilike(prefix + "%", escape="\\")).order_by(Record.id)):
+            if norm_title(other.title) == nt:
+                return other, f"ten sam tytuł projektu w {rec.source_id} (grupa projektów)"
+    if rec.year:
+        for other in s.scalars(select(Record).where(Record.year.between(rec.year - 1, rec.year + 1), *live,
+                                                    Record.kind == rec.kind).order_by(Record.id)):
+            if norm_title(other.title) == nt:
+                return other, f"ten sam tytuł i rok ({other.source_id})"
+    return None, None
+
+
+def _group_size(s, cluster_id: int) -> int:
+    return len(s.scalars(select(Record.id).where(Record.cluster_id == cluster_id)).all())
+
+
 @app.task(**RETRY)
 def dedup(self, raw_id: int, h: str) -> str:
-    """Layers 2-3 of §16: same DOI, or same normalized title + year. Layers 4-5 (embeddings): T025."""
+    """Cluster duplicates; the fullest record of a cluster is canonical and goes on, the others stop as
+    `duplicate` pointing at it (cluster_id = canonical id). A fuller newcomer takes over: the old canonical is
+    demoted and its cluster repointed, whatever order the sources were harvested in."""
     with session() as s:
         if _done(s, raw_id, "dedup", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
-        match, reason = None, None
-        if rec.doi:
-            match = s.scalar(select(Record).where(Record.doi == rec.doi, Record.id != rec.id,
-                                                  Record.status != "duplicate").order_by(Record.id))
-            reason = f"ten sam DOI {rec.doi}" if match else None
-        if match is None and rec.title and rec.year:
-            nt = norm_title(rec.title)
-            for other in s.scalars(select(Record).where(Record.year.between(rec.year - 1, rec.year + 1),
-                                                        Record.id != rec.id, Record.status != "duplicate",
-                                                        Record.kind == rec.kind)):
-                if nt and norm_title(other.title) == nt:
-                    match, reason = other, f"ten sam tytuł i rok ({other.source_id})"
-                    break
-        if match is not None and match.id < rec.id:
+        group = bool(get_source(rec.source_id).options.get("group_by_title", False))
+        match, reason = _find_match(s, rec, group)
+        if match is not None and not _fuller(rec, match):
             rec.status = "duplicate"
             rec.cluster_id = match.cluster_id or match.id
             rec.review_reasons = [f"duplikat rekordu #{match.id}: {reason}"]
+            s.flush()
+            n = _group_size(s, rec.cluster_id)
+            match.extra = {**(match.extra or {}), "cluster_size": n}
             _mark(s, raw_id, "dedup", h, "skipped", reason)
             return "duplicate"
         rec.cluster_id = rec.id
-        _mark(s, raw_id, "dedup", h)
+        if match is not None:
+            old = match.cluster_id or match.id
+            for member in s.scalars(select(Record).where(Record.cluster_id == old)):
+                member.cluster_id = rec.id
+            match.cluster_id = rec.id
+            match.status = "duplicate"
+            match.review_reasons = [f"duplikat rekordu #{rec.id} (pełniejszy opis): {reason}"]
+            if match.card is not None:
+                match.card.hidden = True
+            # terminal marker: reconcile does not re-enqueue it and later stages leave it alone
+            _mark(s, match.raw_id, "superseded", match.raw.content_hash, "skipped", f"zastąpiony przez #{rec.id}")
+            s.flush()
+            rec.extra = {**(rec.extra or {}), "cluster_size": _group_size(s, rec.id)}
+            log.info("dedup: #%s replaces #%s as canonical (%s)", rec.id, match.id, reason)
+        _mark(s, raw_id, "dedup", h, "ok", f"zastępuje #{match.id} jako pełniejszy: {reason}" if match else None)
     _next("gate", raw_id, h)
-    return "ok"
+    return "canonical" if match is not None else "ok"
 
 
 # ---------------------------------------------------------------- gate (Basal)
@@ -175,6 +228,8 @@ def gate(self, raw_id: int, h: str) -> str:
         if _done(s, raw_id, "gate", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        if rec.status == "duplicate":  # a fuller record took over the cluster meanwhile
+            return "superseded"
         spec = get_source(rec.source_id)
         b = classify(title=rec.title, abstract=rec.abstract, keywords=rec.keywords, affiliations=rec.affiliations,
                      region=rec.region, kind=rec.kind, amounts=rec.amounts,
@@ -223,6 +278,8 @@ def extract(self, raw_id: int, h: str) -> str:
         if _done(s, raw_id, "extract", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        if rec.status == "duplicate":
+            return "superseded"
         text = ex.source_text(rec.title, rec.abstract, rec.keywords or [])
 
     out, errors, prov = ex.extract(text)  # outside the transaction: the LLM call can take a while
@@ -291,6 +348,8 @@ def maturity(self, raw_id: int, h: str) -> str:
         if _done(s, raw_id, "maturity", h):
             return "duplicate-delivery"
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        if rec.status == "duplicate":
+            return "superseded"
         card = rec.card
         level, why = maturity_for(rec)
         card.maturity = level
