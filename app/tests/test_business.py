@@ -107,8 +107,8 @@ def test_key_missing_from_file_falls_back_to_labelled_estimate(gus_file):
     bc = business.business_case(rec(sector="Q_zdrowie"), CARD)  # hospitals are not in the fixture
     a = bc["adopters"]
     assert a["source"] == "szacunek" and a["count"] == business.ADOPTERS["szpitale"][0]
-    assert bc["market"]["sam_pln"] == round(a["count"] / 16) * bc["deploy_cost_pln"]
-    assert "(szacunek)" in bc["assumptions"][0] and "1/16 kraju" in bc["assumptions"][0]
+    assert bc["market"]["sam_pln"] == round(a["count"] * business.region_share(a["voivodeship"])) * bc["deploy_cost_pln"]
+    assert "(szacunek)" in bc["assumptions"][0] and "udział w ludności" in bc["assumptions"][0]
 
 
 def test_no_file_means_estimates(tmp_path, monkeypatch):

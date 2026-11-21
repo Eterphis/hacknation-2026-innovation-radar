@@ -70,7 +70,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => THEM
 applyTheme(THEME);
 
 // ------------------------------------------------------------------ router
-const ROUTES = {"": pageHome, dla: pageAudience, dopasuj: pageMatch, mapa: pageMap, odkrywaj: pageExplore, graf: pageGraph, rolki: pageReels, zrodla: pageSources};
+const ROUTES = {"": pageHome, dla: pageAudience, dopasuj: pageMatch, portfel: pageDeals, porownaj: pageCompare, wdrozenia: pageDeploy, mapa: pageMap, odkrywaj: pageExplore, graf: pageGraph, rolki: pageReels, zrodla: pageSources};
 $$("#nav a").forEach(a => a.innerHTML = icon(a.dataset.i) + `<span>${a.textContent}</span>`);
 $("#cmdbtn").innerHTML = icon("search"); $("#cmdicon").innerHTML = icon("search", "faint");
 async function route() {
@@ -188,7 +188,7 @@ async function drawPoland(el, reg, opts = {}) {
       return `<path d="${p.d}" fill="${fill(r)}" data-v="${esc(p.name)}" class="${opts.selected === p.name ? "sel" : ""}" tabindex="0" role="button" aria-label="${esc(lab)}"/>`; }).join("")}
     ${POLAND.regions.map(p => { const r = by[p.name] || {selected: 0, gap: 0}; const t = val(r) / max, n = mode === "gap" ? (r.gap > 0 ? "luka" : "") : r.selected;
       return n || n === 0 && !opts.compact ? `<text x="${p.cx}" y="${p.cy}" text-anchor="middle" class="${t > .6 ? "on-red" : ""}">${n}</text>` : ""; }).join("")}</svg>
-    <div class="map-scale"><span>${mode === "gap" ? "brak luki" : "0"}</span><i></i><span>${mode === "gap" ? "największa luka" : Math.round(max) + " pomysłów"}</span></div>
+    <div class="map-scale"><span>${mode === "gap" ? "brak luki" : "0"}</span><i></i><span>${mode === "gap" ? "największa luka" : Math.round(max) + " " + (opts.unit || "pomysłów")}</span></div>
     ${opts.compact ? "" : `<div class="map-legend"><span><i style="background:var(--white)"></i>${mode === "gap" ? "brak luki" : "brak pomysłów"}</span><span><i style="background:var(--red)"></i>${mode === "gap" ? "największa luka" : "najwięcej"}</span><span>${icon("map-pin")}klik lub Enter: pomysły województwa</span></div>`}
     <p class="faint" style="margin:.5rem 0 0">Granice: ppatrzyk/polska-geojson (MIT), uproszczone.</p>`;
   $$("path[data-v]", el).forEach(p => { const r = by[p.dataset.v] || {selected: 0, ideas: 0, gap: 0, top_sectors: []};
@@ -511,9 +511,16 @@ async function pageMatch(v) {
   const who = (PERSONAS.find(p => p.key === prof.role) || {}).name || "";
   v.innerHTML = header("Dopasowane do Ciebie", "target", `${r.total} pomysłów, od najlepiej dopasowanych`,
     `${esc(who)}${prof.voivodeship ? " · " + esc(prof.voivodeship) : ""} · budżet: ${esc(COST_RANGE[prof.budget] || "—")} · cel: ${esc({zysk: "zwrot z inwestycji", wdrozenie: "wdrożenie u siebie", partner: "partner", finansowanie: "finansowanie"}[prof.goal] || "")}`,
-    `<a class="btn-soft" href="#/dopasuj?edit=1">${icon("filter")}Zmień odpowiedzi</a>`) +
+    `<div class="chips"><a class="btn-soft" href="#/dopasuj?edit=1">${icon("filter")}Zmień odpowiedzi</a><button class="btn" id="wsub">${icon("rss")}Powiadamiaj o nowych</button></div>`) + `<div id="wsubout"></div>` +
     `<div class="grid g-2">${r.items.map(i => matchCard(i, r.metric)).join("") || empty("Nic nie pasuje: poszerz budżet albo sektory.")}</div>`;
   bindCards(v);
+  $("#wsub").onclick = async () => {
+    const w = await api("/api/watch", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({profile: prof, min_match: 70})});
+    $("#wsubout").innerHTML = `<div class="card reveal" style="margin:1rem 0"><div class="card-b"><p class="pretitle">${icon("rss")}Subskrypcja bez logowania i bez e-maila</p>
+      <p>Nowe pomysły z dopasowaniem od 70% trafią do tego kanału (czytnik RSS, Slack, Teams, Zapier):</p>
+      <div class="chips"><code class="mono" style="word-break:break-all">${esc(w.feed_url)}</code><button class="btn-soft" id="wcopy">${icon("copy")}Kopiuj</button></div></div></div>`;
+    $("#wcopy").onclick = () => navigator.clipboard?.writeText(w.feed_url);
+  };
 }
 function wizard(v, prof) {
   const st = MQ[prof.step], opts = st.opts(), sel = val => st.multi ? (prof[st.k] || []).includes(val) : prof[st.k] === val;
@@ -538,6 +545,126 @@ function matchCard(i, metric) {
       <div class="plates" style="margin-top:.5rem">${locPlate(i, "sm")}${plate("users", b.adopters.count.toLocaleString("pl-PL") + " odbiorców", "", "sm")}${plate("clock", b.payback, "", "sm")}<span class="plate sm"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}</span></div></div></article>`;
 }
 
+// ------------------------------------------------------------------ DEAL FLOW (investor pipeline), COMPARE, DEPLOYMENTS
+const STAGES_D = [["nowe", "Nowe", "inbox"], ["kontakt", "Kontakt", "users"], ["dd", "Due diligence", "shield-alert"], ["term", "Term sheet", "file-text"], ["odrzucone", "Odrzucone", "ban"]];
+const loadJSON = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch (e) { return d; } };
+const saveJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+let DEALS = loadJSON("radar-deals", {}), CMP = loadJSON("radar-compare", []);
+const saveDeals = () => saveJSON("radar-deals", DEALS), saveCmp = () => saveJSON("radar-compare", CMP);
+const STRENGTH_PL = {none: "brak śladów", weak: "patenty instytucji", medium: "zgłoszenie / wynalazek", strong: "patent udzielony"};
+
+function dealActions(c) {
+  const inDeals = !!DEALS[c.id], inCmp = CMP.includes(c.id);
+  return `<div class="chips deal-actions" style="margin-top:1rem">
+    <button class="btn" id="adeal">${icon(inDeals ? "check" : "plus")}${inDeals ? "W portfelu" : "Do portfela"}</button>
+    <button class="btn-soft" id="acmp">${icon("git-compare-arrows")}${inCmp ? "W porównaniu" : "Porównaj"}${CMP.length ? ` (${CMP.length})` : ""}</button>
+    <a class="btn-soft" href="/api/cards/${c.id}/memo" target="_blank" rel="noopener">${icon("file-text")}Memo PDF</a>
+    <a class="btn-soft" href="/api/cards/${c.id}/memo?kind=wykonawca" target="_blank" rel="noopener">${icon("handshake")}Specyfikacja wdrożenia</a></div>`;
+}
+function bindDealActions(c) {
+  const val = c.investor?.adjusted?.licence_or_spinoff_pln ?? c.business?.valuation?.licence_or_spinoff_pln ?? 0;
+  $("#adeal").onclick = () => { if (DEALS[c.id]) delete DEALS[c.id]; else DEALS[c.id] = {stage: "nowe", title: c.solution_name || c.record.title, value: val,
+      readiness: c.investor?.readiness?.score ?? null, org: (c.record.affiliations || [])[0] || "", voivodeship: c.record.voivodeship, note: "", at: new Date().toISOString().slice(0, 10)};
+    saveDeals(); $(".deal-actions").outerHTML = dealActions(c); bindDealActions(c); };
+  $("#acmp").onclick = () => { CMP = CMP.includes(c.id) ? CMP.filter(x => x !== c.id) : [...CMP, c.id].slice(-4); saveCmp();
+    if (CMP.length >= 2 && CMP.includes(c.id)) { closeCard(); go("porownaj", {ids: CMP.join(",")}); return; }
+    $(".deal-actions").outerHTML = dealActions(c); bindDealActions(c); };
+}
+function investorSection(inv) {
+  if (!inv) return "";
+  const r = inv.readiness, t = inv.traction, ip = inv.ip, cp = inv.comparables, adj = inv.adjusted;
+  const parts = Object.entries(r.parts), maxp = {"dojrzałość": 35, "ochrona IP": 20, "trakcja": 20, "zespół": 10, "ścieżka komercjalizacji": 15};
+  return `<div class="sec"><p class="pretitle">${icon("trending-up")}Dla inwestora · gotowość inwestycyjna</p>
+    <div class="inv-top">${ring(r.score)}<div><b>${esc(r.label)}</b><div class="inv-parts">${parts.map(([k, x]) => `<span>${esc(k)}</span><div class="mini"><i style="width:${x / (maxp[k] || 20) * 100}%"></i></div><b class="mono">${x}/${maxp[k] || 20}</b>`).join("")}</div></div></div>
+    <div class="plates" style="margin-top:.75rem">${plate("shield-alert", STRENGTH_PL[ip.strength], "ochrona IP")}${plate("coins", t.grants ? money(t.public_funding_pln) + " w " + t.grants + " proj." : "brak w bazie", "trakcja instytucji")}
+      ${inv.team.people ? plate("users", inv.team.people + " os." + (inv.team.prior_records ? ", " + inv.team.prior_records + " innych prac" : ""), "zespół") : ""}${inv.commercial.route ? plate("briefcase", inv.commercial.route, "komercjalizacja") : ""}
+      ${cp.median_pln ? plate("git-compare-arrows", money(cp.median_pln), "mediana podobnych projektów") : ""}</div>
+    ${adj?.reasons?.length ? `<p class="faint" style="margin-top:.75rem">${icon("sparkles")} Wycena po dowodach: <b>${money(adj.licence_or_spinoff_pln)}</b> (szansa ${Math.round(adj.success_probability * 100)}%) · ${esc(adj.reasons.join("; "))}</p>` : ""}
+    ${cp.items.length ? `<details class="how"><summary>${icon("layers")}Porównywalne zrealizowane projekty (${cp.items.length})</summary><div class="items" style="margin-top:.5rem">${cp.items.map(x => `<div class="item" data-card="${x.card_id || ""}">${avatar("copy")}<h3>${esc(x.title)}</h3><span class="plate sm"><span class="pi">${icon("banknote")}</span>${money(x.amount)}</span><div class="plates">${x.voivodeship ? plate("map-pin", x.voivodeship, "", "sm red") : ""}${x.year ? plate("clock", String(x.year), "", "sm") : ""}</div></div>`).join("")}</div></details>` : ""}</div>`;
+}
+
+async function pageDeals(v) {
+  DEALS = loadJSON("radar-deals", {}); CMP = loadJSON("radar-compare", []);
+  const ids = Object.keys(DEALS);
+  const total = st => ids.filter(i => DEALS[i].stage === st).reduce((a, i) => a + (DEALS[i].value || 0), 0);
+  v.innerHTML = header("Portfel inwestora", "kanban", "Twój lejek transakcji", "Dodawaj pomysły z karty („Do portfela”), przesuwaj między etapami, zapisuj notatki. Dane zostają w tej przeglądarce.",
+      `<div class="chips"><a class="btn" href="#/dopasuj">${icon("target")}Znajdź pomysły</a>${CMP.length >= 2 ? `<a class="btn-soft" href="#/porownaj?ids=${CMP.join(",")}">${icon("git-compare-arrows")}Porównaj (${CMP.length})</a>` : ""}</div>`) +
+    (ids.length ? `<div class="kanban">${STAGES_D.map(([k, lab, ic]) => `<section class="kcol reveal" data-st="${k}" aria-label="${lab}"><div class="kcol-h">${icon(ic)}<b>${lab}</b><span class="faint">${ids.filter(i => DEALS[i].stage === k).length} · ${money(total(k))}</span></div>
+      <div class="kcol-b">${ids.filter(i => DEALS[i].stage === k).map(i => { const d = DEALS[i], si = STAGES_D.findIndex(s => s[0] === k);
+        return `<article class="kcard" draggable="true" data-id="${i}" tabindex="0"><h3 data-card="${i}">${esc(d.title)}</h3><div class="faint">${esc(d.org)}</div>
+          <div class="plates">${plate("banknote", money(d.value), "", "sm")}${d.readiness != null ? plate("gauge", d.readiness + "/100", "", "sm") : ""}${d.voivodeship ? plate("map-pin", d.voivodeship, "", "sm red") : ""}</div>
+          <textarea class="knote" data-id="${i}" rows="2" placeholder="notatka: kontakt, termin, warunki">${esc(d.note)}</textarea>
+          <div class="kmove"><button class="btn-icon" data-mv="-1" data-id="${i}" ${si === 0 ? "disabled" : ""} aria-label="Poprzedni etap">${icon("chevron-left")}</button><span class="faint">od ${esc(d.at)}</span><button class="btn-icon" data-mv="1" data-id="${i}" ${si === STAGES_D.length - 1 ? "disabled" : ""} aria-label="Następny etap">${icon("chevron-right")}</button></div></article>`; }).join("")}</div></section>`).join("")}</div>`
+      : empty("Portfel jest pusty. Otwórz kartę pomysłu i kliknij „Do portfela”.", `<a class="btn" href="#/dla/inwestorzy">${icon("trending-up")}Pomysły dla inwestorów</a>`));
+  $$("[data-mv]", v).forEach(b => b.onclick = () => { const d = DEALS[b.dataset.id], i = STAGES_D.findIndex(s => s[0] === d.stage) + +b.dataset.mv; d.stage = STAGES_D[Math.max(0, Math.min(STAGES_D.length - 1, i))][0]; saveDeals(); route(); });
+  $$(".knote", v).forEach(t => t.oninput = debounce(() => { DEALS[t.dataset.id].note = t.value; saveDeals(); }, 300));
+  $$(".kcard", v).forEach(c => c.ondragstart = e => e.dataTransfer.setData("text/plain", c.dataset.id));
+  $$(".kcol", v).forEach(col => { col.ondragover = e => { e.preventDefault(); col.classList.add("over"); }; col.ondragleave = () => col.classList.remove("over");
+    col.ondrop = e => { e.preventDefault(); const id = e.dataTransfer.getData("text/plain"); if (DEALS[id]) { DEALS[id].stage = col.dataset.st; saveDeals(); route(); } }; });
+  $$("h3[data-card]", v).forEach(h => h.onclick = () => openCard(+h.dataset.card));
+}
+
+async function pageCompare(v) {
+  const ids = (F.ids || CMP.join(",")).split(",").filter(Boolean).map(Number).slice(0, 4);
+  if (ids.length < 2) { v.innerHTML = header("Porównanie", "git-compare-arrows", "Wybierz 2–4 pomysły", "") + empty("Otwórz kartę pomysłu i kliknij „Porównaj” przy co najmniej dwóch.", `<a class="btn" href="#/dopasuj">${icon("target")}Dopasuj radar</a>`); return; }
+  const cs = await Promise.all(ids.map(i => api("/api/cards/" + i)));
+  const rows = [
+    ["Dojrzałość", c => LVLK[c.maturity] ?? 0, x => LVL[x], "max"],
+    ["Gotowość inwestycyjna", c => c.investor?.readiness?.score ?? 0, x => x + "/100", "max"],
+    ["Ocena radaru", c => c.assessment?.total ?? c.score ?? 0, x => Math.round(x) + "/100", "max"],
+    ["Wartość licencji / spin-off", c => c.investor?.adjusted?.licence_or_spinoff_pln ?? c.business?.valuation?.licence_or_spinoff_pln ?? 0, money, "max"],
+    ["Szansa wdrożenia", c => c.investor?.adjusted?.success_probability ?? c.business?.valuation?.success_probability ?? 0, x => Math.round(x * 100) + "%", "max"],
+    ["Koszt wdrożenia", c => c.business?.deploy_cost_pln ?? 0, money, "min"],
+    ["Rynek 3 lata (SOM)", c => c.business?.market?.som_3y_pln ?? 0, money, "max"],
+    ["TAM", c => c.business?.market?.tam_pln ?? 0, money, "max"],
+    ["Odbiorcy", c => c.business?.adopters?.count ?? 0, x => x.toLocaleString("pl-PL"), "max"],
+    ["Zwrot", c => ({"< 1 rok": 1, "1–2 lata": 2, "3–5 lat": 4})[c.business?.payback] ?? 9, x => ({1: "< 1 rok", 2: "1–2 lata", 4: "3–5 lat"})[x] || "—", "min"],
+    ["Ochrona IP", c => ({none: 0, weak: 1, medium: 2, strong: 3})[c.investor?.ip?.strength] ?? 0, x => ["brak", "patenty instytucji", "zgłoszenie", "patent"][x], "max"],
+    ["Trakcja (środki publiczne)", c => c.investor?.traction?.public_funding_pln ?? 0, money, "max"],
+    ["Ryzyka", c => (c.assessment?.risks || []).length, x => x + " zidentyfikowanych", "min"],
+  ];
+  v.innerHTML = header("Porównanie", "git-compare-arrows", `${cs.length} pomysły obok siebie`, "Najlepsza wartość w każdym wierszu jest wyróżniona.",
+      `<div class="chips"><button class="btn-soft" id="cclear">${icon("x")}Wyczyść</button></div>`) +
+    `<div class="cmp reveal" style="--n:${cs.length}"><div class="cmp-row cmp-head"><span></span>${cs.map(c => `<div class="cmp-h" data-card="${c.id}">${avatar(SECTOR_ICON[c.record.sector] || "lightbulb")}<b>${esc(short(c.solution_name || c.record.title, 70))}</b><span class="faint">${esc((c.record.affiliations || [])[0] || "")}</span></div>`).join("")}</div>
+    ${rows.map(([lab, f, fmt, best]) => { const vals = cs.map(f), b = best === "max" ? Math.max(...vals) : Math.min(...vals);
+      return `<div class="cmp-row"><span class="cmp-l">${lab}</span>${vals.map(x => `<span class="cmp-v ${x === b && vals.filter(y => y === b).length < vals.length ? "best" : ""}"><small>${lab}</small>${esc(fmt(x))}</span>`).join("")}</div>`; }).join("")}
+    <div class="cmp-row"><span class="cmp-l">Finansowanie</span>${cs.map(c => `<span class="cmp-v"><small>Finansowanie</small>${esc((c.business?.funding || []).slice(0, 2).map(f => f.programme).join("; ") || "—")}</span>`).join("")}</div>
+    <div class="cmp-row"><span class="cmp-l">Memo</span>${cs.map(c => `<span class="cmp-v"><a class="btn-soft" href="/api/cards/${c.id}/memo" target="_blank" rel="noopener">${icon("file-text")}PDF</a></span>`).join("")}</div></div>`;
+  $("#cclear").onclick = () => { CMP = []; saveCmp(); go("porownaj", {}); };
+  bindCards(v);
+}
+
+async function pageDeploy(v) {
+  const side = F.side || "odbiorca", prof = loadProfile() || {};
+  const woj = F.voivodeship ?? prof.voivodeship ?? "", sectors = F.sectors ?? (prof.sectors || []).join(","), budget = F.budget || prof.budget || "wysoki";
+  const d = await api("/api/deployments?" + qs({side, voivodeship: woj, sectors, budget, limit: 12}));
+  const tabs = `<div class="chips"><button class="chip ${side === "odbiorca" ? "on" : ""}" data-side="odbiorca">${icon("landmark")}Szukam rozwiązania (gmina, szkoła, szpital)</button><button class="chip ${side === "wykonawca" ? "on" : ""}" data-side="wykonawca">${icon("briefcase")}Wdrażam i sprzedaję (wykonawca)</button></div>`;
+  const filters = `<div class="chips" style="margin:1rem 0"><select id="dwoj" class="chip" aria-label="Województwo"><option value="">Cała Polska</option>${(LABELS.voivodeship || []).map(x => `<option ${x === woj ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
+    <select id="dbud" class="chip" aria-label="Budżet">${[["niski", "do 100 tys. zł"], ["sredni", "do 2 mln zł"], ["wysoki", "do 20 mln zł"], ["bardzo_wysoki", "bez limitu"]].map(([k, l]) => `<option value="${k}" ${k === budget ? "selected" : ""}>${l}</option>`).join("")}</select>
+    ${sectors ? `<span class="plate sm">${icon("filter")}${esc(sectors.split(",").map(s => lp("sector", s).split(",")[0]).join(", "))}</span><button class="chip" id="dall">${icon("x")}wszystkie sektory</button>` : ""}</div>`;
+  const item = i => `<article class="card biz reveal" data-card="${i.card_id}" tabindex="0"><div class="card-h">${avatar(SECTOR_ICON[i.sector] || "lightbulb")}<div><h3>${esc(i.title)}</h3><div class="faint">${esc(i.institution || "")}</div></div>${ring(i.score, "sm")}</div>
+    <div class="card-b"><div class="biz-value"><small>${side === "wykonawca" ? "oszczędność dla klienta" : "koszt wdrożenia u Ciebie"}</small><b>${money(side === "wykonawca" ? i.savings_pln : i.deploy_cost_pln)}</b></div>
+      <div class="plates">${locPlate(i, "sm")}${plate("clock", i.payback, "", "sm")}${i.funding.slice(0, 2).map(f => plate("piggy-bank", f, "", "sm")).join("")}</div>
+      <p class="pretitle" style="margin:.75rem 0 .25rem">${icon("handshake")}Kto może wdrożyć</p><div class="plates">${i.implementers.map(o => plate(o.role === "twórca" ? "lightbulb" : "briefcase", short(o.name, 48) + (o.voivodeship ? " · " + o.voivodeship : ""), o.role, "sm")).join("")}</div>
+      <div class="biz-cta"><a href="/api/cards/${i.card_id}/memo?kind=wykonawca" target="_blank" rel="noopener" onclick="event.stopPropagation()">${icon("file-text")}Specyfikacja wdrożenia</a></div></div></article>`;
+  if (side === "wykonawca") {
+    const maxr = Math.max(1, ...d.regions.map(r => r.revenue_3y_pln));
+    v.innerHTML = header("Wdrożenia", "handshake", "Gdzie sprzedać gotowe rozwiązania", "Potencjał przychodu w 3 lata = odbiorcy w województwie (GUS) × koszt wdrożenia × realna adopcja. Mniej lokalnej podaży = łatwiej wejść.") + tabs + filters +
+      `<div class="grid g-7-5"><div class="card reveal"><div class="card-b"><div id="dmap"></div></div></div><div class="card reveal">${cardH("trending-up", "Najlepsze rynki", "przychód 3 lata / lokalna konkurencja")}<div class="card-b"><div class="items">${d.regions.slice(0, 8).map(r => `<div class="item">${avatar("map-pin")}<h3>${esc(r.voivodeship)}</h3><span class="plate sm red"><span class="pi">${icon("banknote")}</span>${money(r.revenue_3y_pln)}</span><div class="plates">${plate("users", r.adopters.toLocaleString("pl-PL") + " odbiorców", "", "sm")}${plate("layers", r.local_supply + " lokalnych rozwiązań", "", "sm")}</div></div>`).join("")}</div></div></div></div>
+      <h2 class="reveal" style="margin:2rem 0 1rem">Rozwiązania do licencji i wdrażania</h2><div class="grid g-2">${d.items.map(item).join("") || empty("Brak gotowych rozwiązań dla tych filtrów.")}</div>`;
+    await drawPoland($("#dmap"), {regions: d.regions.map(r => ({voivodeship: r.voivodeship, selected: Math.round(r.revenue_3y_pln / maxr * 100), gap: 0, top_sectors: []}))},
+      {compact: true, unit: "= najwyższy potencjał", onPick: name => go("wdrozenia", {...F, side, voivodeship: name})});
+  } else {
+    v.innerHTML = header("Wdrożenia", "handshake", "Gotowe rozwiązania dla Twojej instytucji", "Tylko sprawdzone (gotowe do wdrożenia lub na rynku): koszt, zwrot, kto wdroży i z jakiego programu sfinansować.") + tabs + filters +
+      `<div class="grid g-2">${d.items.map(item).join("") || empty("Brak gotowych rozwiązań dla tych filtrów. Zwiększ budżet albo wybierz całą Polskę.")}</div>`;
+  }
+  $$("[data-side]", v).forEach(b => b.onclick = () => go("wdrozenia", {...F, side: b.dataset.side}));
+  $("#dwoj").onchange = e => go("wdrozenia", {...F, side, voivodeship: e.target.value});
+  $("#dbud").onchange = e => go("wdrozenia", {...F, side, budget: e.target.value});
+  if ($("#dall")) $("#dall").onclick = () => go("wdrozenia", {...F, side, sectors: ""});
+  bindCards(v);
+}
+
 // ------------------------------------------------------------------ CARD drawer
 async function openCard(id) {
   $("#scrim").classList.add("on"); $("#drawer").classList.add("on"); $("#drawer-in").innerHTML = '<div class="skel" style="height:2rem;width:60%"></div><div class="skel"></div>';
@@ -548,7 +675,7 @@ async function openCard(id) {
     <div class="plates" style="margin-top:1rem">${locPlate(info)}${moneyPlate(info)}<span class="plate"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}<span>${LVL[lvl]}</span></span>${sectorPlate(r.sector)}${r.tech_area ? plate(TECH_ICON[r.tech_area] || "cpu", lp("tech_area", r.tech_area)) : ""}${instPlate(c.basal?.institution_type?.value)}${demo(c.synthetic)}</div>
     <p class="muted" style="margin-top:1rem">${esc(a.summary || c.summary_pl || "")}</p>
     ${r.affiliations?.length ? `<p class="faint">${icon("building-2")} ${esc(r.affiliations.join("; "))}${r.url ? ` · <a href="${esc(r.url)}" target="_blank" rel="noopener">${icon("external-link")} źródło</a>` : ""}</p>` : ""}
-    ${bizSection(c.business)}
+    ${dealActions(c)}${investorSection(c.investor)}${bizSection(c.business)}
     ${a.scores ? `<div class="sec"><p class="pretitle">${icon("target")}Ocena wg jawnych kryteriów</p><div class="crit">${Object.entries(a.scores).map(([k, x]) => `<span>${esc(CRIT[k] || k)} <span class="faint">${Math.round((a.criteria?.[k]?.weight || 0) * 100)}%</span></span><div class="mini"><i style="width:${x.score * 20}%"></i></div><b class="mono">${x.score}</b><span class="why">${esc(x.why)}</span>`).join("")}</div></div>` : ""}
     ${a.paths ? `<div class="sec"><p class="pretitle">${icon("rocket")}Ścieżki wdrożenia · kto co robi</p>${a.paths.map(p => `<p style="margin:.75rem 0 .5rem;display:flex;gap:.5rem;align-items:center">${icon(PATH_ICON[p.path] || "arrow-right")}<b>${esc(p.path)}</b><span class="faint">${esc(p.why)}</span></p><ul class="steps">${p.steps.map(s => `<li>${icon("chevron-right")}<span>${esc(s.step)}<span class="who">${esc(s.who)}${s.time ? " · " + esc(s.time) : ""}</span></span></li>`).join("")}</ul>`).join("")}</div>` : ""}
     ${a.recipients ? `<div class="sec"><p class="pretitle">${icon("users")}Odbiorcy i partnerzy</p><div class="plates">${a.recipients.map(x => plate(x.kind === "typ odbiorcy" ? "users" : "building-2", x.name, x.kind)).join("")}</div></div>` : ""}
@@ -559,7 +686,7 @@ async function openCard(id) {
       ${(c.reasoning || []).slice(0, 1).map(s => `<ul class="steps" style="margin-top:.75rem">${s.items.map(i => `<li>${icon("book-open")}<span>${esc(i)}</span></li>`).join("")}</ul>`).join("")}
       <p class="faint">ocena: ${esc(a.by || "")} · ekstrakcja: ${esc(c.provenance?.provider)}/${esc(c.provenance?.model)} · basal: ${esc(c.basal?.version)} (${esc(c.basal?.embedder)})</p></details>
     <div class="chips" style="margin-top:2rem"><button class="btn-soft good" data-d="approved">${icon("circle-check")}Zatwierdź</button><button class="btn-soft bad" data-d="rejected">${icon("ban")}Odrzuć</button><span class="faint" style="align-self:center">decyzja: ${esc(c.decision)}</span></div>`;
-  $("#dclose").onclick = closeCard;
+  $("#dclose").onclick = closeCard; bindDealActions(c);
   $$("[data-card]", $("#drawer-in")).forEach(x => x.onclick = () => x.dataset.card && openCard(+x.dataset.card));
   $$("[data-d]", $("#drawer-in")).forEach(b => b.onclick = async () => { await api(`/api/cards/${id}/decision`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({decision: b.dataset.d})}); closeCard(); route(); });
 }

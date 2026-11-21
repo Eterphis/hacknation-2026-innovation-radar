@@ -470,6 +470,14 @@ def score(self, raw_id: int, h: str) -> str:
     return "ok"
 
 
+# ---------------------------------------------------------------- watchlists
+@app.task
+def notify_watchlists() -> dict:
+    from radar.api.deals import notify_watchlists as run
+
+    return run()
+
+
 # ---------------------------------------------------------------- reassess
 @app.task(bind=True, max_retries=2)
 def reassess(self) -> int:
@@ -512,5 +520,5 @@ def reconcile_all() -> int:
     return len(todo)
 
 
-__all__ = ["harvest", "normalize", "resolve_org", "dedup", "gate", "link", "extract", "maturity", "score",
+__all__ = ["harvest", "normalize", "resolve_org", "dedup", "gate", "link", "extract", "maturity", "score", "notify_watchlists",
            "reconcile_all"]

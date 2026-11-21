@@ -23,3 +23,6 @@ CLAUDE.md
 data/
 # app data shipped with the code (GUS adopter counts, see scripts/fetch_gus_adopters.py)
 !app/radar/data/
+
+# nightly database dumps (compose profile public)
+backups/

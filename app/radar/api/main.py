@@ -49,6 +49,10 @@ from radar.api.insights import router as insights_router  # noqa: E402
 
 app.include_router(explore_router)
 app.include_router(insights_router)
+from radar.api.deals import router as deals_router, v1 as partner_router  # noqa: E402
+
+app.include_router(deals_router)
+app.include_router(partner_router)
 from radar.observability import router as metrics_router, setup_logging  # noqa: E402
 
 app.include_router(metrics_router)
@@ -174,6 +178,12 @@ def card_dict(c: Card, full: bool = False) -> dict:
         from radar.business import business_case
 
         d["business"] = business_case(r, c) if c.maturity else None
+        if d["business"]:
+            from sqlalchemy.orm import object_session
+
+            from radar.investor import signals
+
+            d["investor"] = signals(object_session(c), r, c, d["business"])
         d["record"].update(abstract=r.abstract, authors=r.authors, keywords=r.keywords, licence=r.licence,
                            amounts=r.amounts, extra=r.extra)
     return d

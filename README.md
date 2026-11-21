@@ -124,6 +124,38 @@ docker compose --profile observability up -d   # Grafana :3000 (dashboard „Rad
 - Schemat bazy: migracje Alembic (`radar migrate`; w Helm Job post-install/pre-upgrade, API też migruje pod blokadą doradczą Postgresa). Baza utworzona wcześniej przez `create_all` jest najpierw oznaczana jako rewizja `0001`, więc dane zostają.
 - `radar reassess` przelicza graf i oceny (też codziennie z beat).
 
+## Dla inwestorów i wykonawców (runda 2)
+
+To od nich zależy, czy pomysł powstanie, więc dostają narzędzia pracy, nie katalog. Wszystko liczone regułami z danych w bazie, bez LLM w czasie zapytania.
+
+| Co | Gdzie | Z czego |
+|---|---|---|
+| Gotowość inwestycyjna 0–100 | karta pomysłu, `GET /api/cards/{id}` → `investor.readiness` | dojrzałość 35, ochrona IP 20, trakcja 20, zespół 10, ścieżka komercjalizacji 15 (`app/radar/investor.py`) |
+| Wycena po dowodach | `investor.adjusted` | szansa wdrożenia rośnie o jawnie wypisane punkty: patent, ≥ 1 mln zł środków publicznych instytucji, spółka/licencja, dorobek zespołu |
+| Porównywalne projekty | `investor.comparables` | zrealizowane, finansowane projekty z tego samego sektora (NCBR, Kohesio, CORDIS…), mediana budżetu jako kotwica |
+| Memo PDF (inwestor) i specyfikacja wdrożenia (wykonawca) | `GET /api/cards/{id}/memo?kind=inwestor\|wykonawca` → „Zapisz PDF” | wyłącznie pola już policzone przez potok; zero nowych faktów |
+| Portfel (lejek transakcji) | `#/portfel` | Nowe → Kontakt → Due diligence → Term sheet → Odrzucone; przeciąganie i klawiatura, notatki, suma wycen |
+| Porównanie 2–4 pomysłów | `#/porownaj?ids=…` | najlepsza wartość w wierszu wyróżniona |
+| Wdrożenia | `#/wdrozenia`, `GET /api/deployments?side=odbiorca\|wykonawca` | gmina/szkoła/szpital: gotowe rozwiązania + kto wdroży + z czego zapłacić; wykonawca: mapa przychodu w 3 lata per województwo vs. lokalna konkurencja |
+| Alerty bez logowania | „Powiadamiaj o nowych” w `#/dopasuj`, `POST /api/watch` → kanał Atom | profil pod anonimowym tokenem, bez e-maila; opcjonalny webhook https (codziennie z beat) |
+| API dla partnerów | `/api/v1/ideas`, `/api/v1/match`, `/api/v1/cards/{id}` (OpenAPI: `/docs`) | nagłówek `X-API-Key` (klucze w `RADAR_PARTNER_KEYS`), limit 60 zapytań/min na klucz |
+
+### Publiczny adres i koszt
+
+```powershell
+# na VPS (2 vCPU / 4 GB), z RADAR_DOMAIN=radar.twojadomena.pl w .env
+docker compose --profile public up -d
+```
+
+Caddy (`deploy/public/Caddyfile`) sam pobiera certyfikat HTTPS i ukrywa `/metrics`; kontener `backup` co noc zapisuje zrzut bazy do `./backups`.
+
+| Pozycja | Miesięcznie |
+|---|---|
+| VPS 2 vCPU / 4 GB (np. Hetzner CX22, OVH VPS) | ok. 20–35 zł |
+| Domena | ok. 5 zł |
+| LLM | 0 zł: klasyfikacja Basal, wycena, memo, dopasowanie i alerty działają bez modelu; nowe rekordy może opisywać Bielik 1.5B na CPU (`--profile local-llm`) |
+| Razem | **poniżej 50 zł** |
+
 ## Harvester danych (`radar/`, `config/`, z gałęzi `feature/pobieranie-danych`)
 
 Osobny pakiet w katalogu głównym: konektory NCBR, Interreg, Biblioteka Nauki, OpenAlex, RAD-on, EPO, CORDIS, FE, UPRP, crawler stron, baza SQLite z historią. W compose działa w profilu `harvester` (`docker compose --profile harvester up`), port `HARVESTER_PORT` (domyślnie 8765). Wyniki (`data/normalized/<id>.jsonl`, w tym `web.jsonl` z crawlera) wchodzą do potoku `app/` przez źródła `harvester-*`; Biblioteka Nauki i RAD-on tylko tą drogą. Rejestr instytucji z RAD-on (`radon_institutions.jsonl`) zasila etap `resolve_org`.
