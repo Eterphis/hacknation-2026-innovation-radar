@@ -48,6 +48,7 @@ _RX = {name: [re.compile(p) for p in pats] for name, pats in
        {"negative": T.NEGATIVE, "spam": T.SPAM, "offensive": T.OFFENSIVE, "signal": T.SIGNAL}.items()}
 _MAT = {k: [re.compile(p) for p in v] for k, v in T.MATURITY_KW.items()}
 _NGO = [re.compile(p) for p in T.NGO_KW]
+_COMPANY_CASED = [re.compile(p) for p in T.COMPANY_CASED]  # case-sensitive, on the original names
 _COST = {k: [re.compile(p) for p in v] for k, v in T.COST_KW.items()}
 
 
@@ -88,15 +89,18 @@ def _axis(text: str, vec: np.ndarray, compiled: dict, axis: str, min_conf: float
     return Label(best, conf, by, hits[best], ranked[1:4])
 
 
-def _institution(org_text: str, text: str, declared: str | None) -> Label:
+def _institution(org_text: str, text: str, declared: str | None, org_raw: str = "") -> Label:
     """Who runs it: the declared form field, else the organisation names, and only when there are no names the
-    description (a description mentions partners, cities and companies that are not the applicant)."""
+    description (a description mentions partners, cities and companies that are not the applicant).
+    `org_raw`: the organisation names before folding, for company forms that need capitals ("PGE SA")."""
     if declared:
         key = T.INSTITUTION_FIELD_MAP.get(declared.strip(), T.INSTITUTION_FIELD_MAP.get(declared.strip().lower()))
         if key:
             return Label(key, 0.95, "pole zgłoszenia", [declared])
     src, by = (org_text, "nazwy organizacji") if org_text.strip() else (text, "opis (brak nazw organizacji)")
     hits = {k: _hits(src, pats) for k, pats in _INST.items()}
+    if org_text.strip():
+        hits["firma"] += [h for h in _hits(org_raw, _COMPANY_CASED) if h not in hits["firma"]]
     ranked = sorted(((k, len(v)) for k, v in hits.items()), key=lambda kv: -kv[1])
     k, n = ranked[0]
     if not n:
@@ -238,7 +242,7 @@ def classify(*, title: str | None, abstract: str | None, keywords: list[str] | N
         "sector": _axis(text, vec, _SECT, "sector"),
         "tech_area": _axis(text, vec, _TECH, "tech"),
         "innovation_type": _axis(text, vec, _ITYPE, "itype"),
-        "institution_type": _institution(org_text, text, declared_institution),
+        "institution_type": _institution(org_text, text, declared_institution, " ; ".join(affiliations or [])),
         "maturity_hint": _maturity(text, kind),
         "cost_level": _cost(amounts or {}, text),
         "voivodeship": voivodeship(region, " ".join(affiliations or []), abstract),

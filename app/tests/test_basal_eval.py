@@ -49,3 +49,14 @@ def test_calibration_scale():
     assert c["lo"] < c["hi"] and c["similar_min"] < c["dup_min"]
     assert closeness(c["similar_min"], "fastembed:intfloat/multilingual-e5-small") == 0.0
     assert closeness(1.0, "hashing-stem6+char4") == 1.0
+
+
+def test_company_form_in_capitals_without_dots():
+    """PR #11 review, risk 5: "S.A." needed dots after the Slovak "sa" fix, so "PGE SA" stopped being a company."""
+    body = "Opracowano nowy system monitoringu sieci i wdrożono go w zakładach. " * 4
+    for org in ("PGE Dystrybucja SA", "Orlen S.A.", "Comarch SA, Kraków"):
+        b = classify(title="Monitoring", abstract=body, affiliations=[org], kind="project", min_chars=80)
+        assert b["institution_type"]["value"] == "firma", org
+    sk = classify(title="Hranice", abstract=body, affiliations=["Krajské riaditeľstvo Policajného zboru, s ktorým sa spolupracuje"],
+                  kind="project", min_chars=80)
+    assert sk["institution_type"]["value"] != "firma"  # lower-case Slovak "sa" is a word, not a company form
