@@ -11,6 +11,8 @@ import re
 import xml.etree.ElementTree as ET
 import zipfile
 from datetime import date, timedelta
+from pathlib import Path
+from typing import Iterator
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
@@ -43,33 +45,56 @@ def _sheet_path(z: zipfile.ZipFile, sheet: str | None) -> str:
     return target if target.startswith("xl/") else "xl/" + target
 
 
-def read_rows(data: bytes, sheet: str | None = None) -> list[list[str]]:
-    """All rows of a sheet as lists of strings (missing cells become "")."""
-    z = zipfile.ZipFile(io.BytesIO(data))
+def _source(data: bytes | str | Path) -> zipfile.ZipFile:
+    return zipfile.ZipFile(io.BytesIO(data) if isinstance(data, (bytes, bytearray)) else data)
+
+
+def _shared_strings(z: zipfile.ZipFile) -> list[str]:
+    if "xl/sharedStrings.xml" not in z.namelist():
+        return []
     shared: list[str] = []
-    if "xl/sharedStrings.xml" in z.namelist():
-        root = ET.fromstring(z.read("xl/sharedStrings.xml"))
-        shared = [_text(si) for si in root.findall("m:si", NS)]
-    root = ET.fromstring(z.read(_sheet_path(z, sheet)))
-    rows: list[list[str]] = []
-    for row in root.iter(f"{{{NS['m']}}}row"):
-        cells: dict[int, str] = {}
-        for c in row.findall("m:c", NS):
-            t = c.get("t")
-            v = c.find("m:v", NS)
-            if t == "s" and v is not None:
-                value = shared[int(v.text)]
-            elif t == "inlineStr":
-                is_ = c.find("m:is", NS)
-                value = _text(is_) if is_ is not None else ""
-            elif t == "b" and v is not None:
-                value = "TRUE" if v.text == "1" else "FALSE"
-            else:
-                value = v.text if v is not None and v.text is not None else ""
-            cells[_col_index(c.get("r"))] = value
-        width = max(cells) + 1 if cells else 0
-        rows.append([cells.get(i, "") for i in range(width)])
-    return rows
+    si_tag = f"{{{NS['m']}}}si"
+    with z.open("xl/sharedStrings.xml") as fh:
+        for _, el in ET.iterparse(fh, events=("end",)):
+            if el.tag == si_tag:
+                shared.append(_text(el))
+                el.clear()
+    return shared
+
+
+def iter_rows(data: bytes | str | Path, sheet: str | None = None) -> Iterator[list[str]]:
+    """Rows of a sheet as lists of strings, streamed (large files are not loaded into memory at once).
+
+    Missing cells become ""; rows absent from the file are skipped (as in read_rows)."""
+    row_tag, c_tag = f"{{{NS['m']}}}row", f"{{{NS['m']}}}c"
+    with _source(data) as z, z.open(_sheet_path(z, sheet)) as fh:
+        shared = _shared_strings(z)
+        for _, row in ET.iterparse(fh, events=("end",)):
+            if row.tag != row_tag:
+                continue
+            cells: dict[int, str] = {}
+            for pos, c in enumerate(row.iter(c_tag)):
+                t = c.get("t")
+                v = c.find("m:v", NS)
+                if t == "s" and v is not None:
+                    value = shared[int(v.text)]
+                elif t == "inlineStr":
+                    is_ = c.find("m:is", NS)
+                    value = _text(is_) if is_ is not None else ""
+                elif t == "b" and v is not None:
+                    value = "TRUE" if v.text == "1" else "FALSE"
+                else:
+                    value = v.text if v is not None and v.text is not None else ""
+                ref = c.get("r")
+                cells[_col_index(ref) if ref else pos] = value
+            row.clear()
+            width = max(cells) + 1 if cells else 0
+            yield [cells.get(i, "") for i in range(width)]
+
+
+def read_rows(data: bytes | str | Path, sheet: str | None = None) -> list[list[str]]:
+    """All rows of a sheet as lists of strings (missing cells become "")."""
+    return list(iter_rows(data, sheet))
 
 
 def excel_date(value: str | float | None) -> date | None:

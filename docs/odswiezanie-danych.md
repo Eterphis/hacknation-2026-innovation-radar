@@ -1,11 +1,19 @@
 # Odświeżanie danych (`radar.refresh`)
 
-Jedno polecenie, które pobiera i przebudowuje dane z dwóch źródeł:
+Jedno polecenie, które pobiera i przebudowuje dane ze wszystkich źródeł z rejestru (`REGISTRY` w [`radar/refresh.py`](../radar/refresh.py)). Każde źródło ma rodzaj, kategorię z zadania i własny termin:
 
-| Źródło | Co pobiera | Konektor |
-|---|---|---|
-| `interreg` | wykaz projektów Interreg 2021–2027 (plik XLSX ze strony `interreg.gov.pl/lista-projektow/`) | [`radar/sources/interreg.py`](../radar/sources/interreg.py) |
-| `ncbr` | wyszukiwarka sukcesów beneficjentów NCBR (strona listy i strona szczegółów każdego projektu) | [`radar/sources/ncbr.py`](../radar/sources/ncbr.py) |
+| Źródło | Rodzaj | Kategoria | Termin | Co pobiera |
+|---|---|---|---|---|
+| `interreg` | api | projekty | 24 h | wykaz projektów Interreg 2021–2027 (plik XLSX ze strony `interreg.gov.pl/lista-projektow/`), [`radar/sources/interreg.py`](../radar/sources/interreg.py) |
+| `ncbr` | api | projekty | 24 h | wyszukiwarka sukcesów beneficjentów NCBR (strona listy i strona szczegółów każdego projektu), [`radar/sources/ncbr.py`](../radar/sources/ncbr.py) |
+| `web` | web | każda | 1 h | crawler stron z [`config/sites.json`](../config/sites.json): przechodzi witryny, którym minął ich własny termin (`interval_hours`, `revisit_days`), [`radar/crawl/`](../radar/crawl/) |
+| `bibliotekanauki`, `openalex`, `radon`, `epo`, `cordis`, `fe_projects`, `uprp_import` | api / import | nauka, projekty | 7 dni (import: 24 h) | konektory z `radar/sources/`; rejestr dodaje tylko te, które są w repozytorium |
+
+Pełny opis źródeł, ograniczeń i witryn wyłączonych z powodu blokad: [`zrodla.md`](zrodla.md). Aktualny stan rejestru:
+
+```powershell
+python -X utf8 -m radar.refresh --list
+```
 
 Po każdej przebudowie rekordy trafiają do bazy `data/radar.db` (moduł [`radar/store.py`](../radar/store.py)). Baza pamięta, kiedy projekt pojawił się pierwszy raz, kiedy zmienił się jego opis i czy zniknął ze źródła.
 
@@ -49,6 +57,24 @@ Sprawdź, co by się stało, bez zapisywania czegokolwiek (sieć jest używana t
 python -X utf8 -m radar.refresh --dry-run
 ```
 
+Tylko źródła, którym minął termin (tak co godzinę robi kontener `scheduler`):
+
+```powershell
+python -X utf8 -m radar.refresh --due-only
+```
+
+Tylko źródła i witryny z wybranych kategorii zadania:
+
+```powershell
+python -X utf8 -m radar.refresh --category nauka biznes
+```
+
+Tylko crawler stron (witryny, którym minął termin; z `--force` wszystkie):
+
+```powershell
+python -X utf8 -m radar.refresh --sources web
+```
+
 Pobierz i przebuduj wszystko od nowa, ignorując zapisane pliki:
 
 ```powershell
@@ -77,13 +103,17 @@ python -X utf8 -m radar.refresh --sources ncbr --delay 0.3
 
 | Opcja | Domyślnie | Opis |
 |---|---|---|
-| `--sources` | `interreg ncbr` | które źródła odświeżyć (jedno lub oba, oddzielone spacją) |
-| `--raw-dir` | `data/raw` | gdzie trzymać surowe pliki (podkatalogi `interreg/`, `ncbr/`) |
+| `--sources` | wszystkie z rejestru | które źródła odświeżyć (oddzielone spacją) |
+| `--due-only` | – | tylko źródła, którym minął termin według ostatniego wpisu w `refresh_runs`; nieudany przebieg jest ponawiany po 6 h |
+| `--category` | – | tylko źródła i witryny z tych kategorii (`nauka`, `projekty`, `biznes`, `administracja`) |
+| `--sites-config` | `config/sites.json` | plik witryn crawlera (albo zmienna `RADAR_SITES`) |
+| `--list` | – | wypisz rejestr źródeł z terminami i zakończ |
+| `--raw-dir` | `data/raw` | gdzie trzymać surowe pliki (podkatalogi `interreg/`, `ncbr/`, `web/` i konektorów) |
 | `--out-dir` | `data/normalized` | gdzie zapisać wyniki `*.jsonl` i `*.csv` |
 | `--db` | `data/radar.db` | baza SQLite (albo zmienna `RADAR_DB`) |
 | `--max-age` | `24` | NCBR: po ilu godzinach pobrać stronę listy ponownie |
 | `--delay` | `1.0` | NCBR: sekundy przerwy między zapytaniami |
-| `--force` | – | pobierz i przebuduj wszystko, ignorując cache |
+| `--force` | – | pobierz i przebuduj wszystko, ignorując cache i terminy; oznacza też usunięte rekordy, nawet gdy zniknęła ponad połowa źródła |
 | `--offline` | – | bez sieci, tylko z zapisanych plików (nie łączy się z `--force`) |
 | `--dry-run` | – | pokaż, co by zrobiono, nic nie zapisuj |
 
@@ -175,20 +205,20 @@ Każde uruchomienie odświeżania jest zapisane w tabeli `refresh_runs`; ostatni
 
 ## Uruchamianie automatyczne
 
-Najprościej w Dockerze: kontener `scheduler` odświeża dane co 24 h, patrz [docker.md](docker.md).
+Najprościej w Dockerze: kontener `scheduler` co godzinę uruchamia `refresh --due-only`, czyli tylko źródła, którym minął termin. Patrz [docker.md](docker.md).
 
 ### Harmonogram zadań Windows
 
-Codziennie o 6:00 (`schtasks` uruchamia polecenie w katalogu systemowym, dlatego najpierw `cd /d` do repozytorium; podmień ścieżkę na swoją):
+Co godzinę z `--due-only`: każde źródło i każda witryna i tak uruchomi się dopiero po swoim terminie. `schtasks` uruchamia polecenie w katalogu systemowym, dlatego najpierw `cd /d` do repozytorium; podmień ścieżkę na swoją.
 
 ```powershell
-schtasks /Create /TN "Radar - odswiezanie danych" /SC DAILY /ST 06:00 /TR "cmd /c cd /d C:\sciezka\do\repo && python -X utf8 -m radar.refresh >> data\refresh.log 2>&1"
+schtasks /Create /TN "Radar - odswiezanie danych" /SC HOURLY /TR "cmd /c cd /d C:\sciezka\do\repo && python -X utf8 -m radar.refresh --due-only >> data\refresh.log 2>&1"
 ```
 
 Na Linuksie / macOS wpis w `crontab -e`:
 
 ```text
-0 6 * * * cd /sciezka/do/repo && python3 -X utf8 -m radar.refresh >> data/refresh.log 2>&1
+5 * * * * cd /sciezka/do/repo && python3 -X utf8 -m radar.refresh --due-only >> data/refresh.log 2>&1
 ```
 
 ## Rozwiązywanie problemów
@@ -199,4 +229,7 @@ Na Linuksie / macOS wpis w `crontab -e`:
 | `brak poprawnego zapisanego pliku` / `brak zapisanej strony listy` przy `--offline` | uruchom raz bez `--offline`, żeby pobrać dane |
 | `nie ma linku do pliku .xlsx` / `nie jest plikiem XLSX` | strona Interreg zmieniła układ; poprzednie dane zostają, trzeba poprawić konektor |
 | `UWAGA: liczba rekordów spadła z X do Y` | sprawdź źródło; poprzedni wynik jest w `*.prev.jsonl` |
-| `FetchError` | brak sieci albo serwer źródła nie odpowiada; spróbuj później, drugie źródło i tak zostało odświeżone |
+| `FetchError` | brak sieci albo serwer źródła nie odpowiada; spróbuj później, pozostałe źródła i tak zostały odświeżone |
+| `UWAGA: witryny zablokowane (nie obchodzimy)` | witryna postawiła ochronę antybotową; ustaw w `config/sites.json` `enabled: false` z notatką i opisz ją w [`zrodla.md`](zrodla.md) |
+| `UWAGA: N rekordów zniknęło ze źródła naraz` | z jednego pobrania zniknęła ponad połowa rekordów źródła, więc nic nie oznaczono jako usunięte; sprawdź źródło, a jeśli to prawda, uruchom z `--force` |
+| `web: pomijam, ostatnio ... h temu` | przy `--due-only` termin jeszcze nie minął; bez `--due-only` źródło uruchomi się od razu |

@@ -1,0 +1,69 @@
+{
+ "meta": {"count": 3, "db_response_time_ms": 38, "page": null, "per_page": 2, "next_cursor": null, "groups_count": null},
+ "results": [
+  {
+   "id": "https://openalex.org/W4400000003",
+   "doi": "https://doi.org/10.0000/example.2026.003",
+   "title": "Detekcja uszkodzeń łożysk z użyciem uczenia maszynowego na danych wibracyjnych",
+   "display_name": "Detekcja uszkodzeń łożysk z użyciem uczenia maszynowego na danych wibracyjnych",
+   "publication_date": "2026-09-30",
+   "publication_year": 2026,
+   "type": "article",
+   "language": "pl",
+   "abstract_inverted_index": {
+    "Artykuł": [0], "opisuje": [1], "system": [2], "wczesnej": [3], "detekcji": [4], "uszkodzeń": [5], "łożysk": [6], "tocznych": [7],
+    "w": [8, 24], "maszynach": [9], "przemysłowych.": [10], "Model": [11], "uczony": [12], "jest": [13], "na": [14], "sygnałach": [15],
+    "wibracyjnych": [16], "z": [17], "czujników": [18], "MEMS": [19], "i": [20], "działa": [21], "bezpośrednio": [22],
+    "sterowniku": [23], "hali": [25], "produkcyjnej,": [26], "wykrywając": [27], "usterki": [28], "średnio": [29], "o": [30],
+    "trzy": [31], "tygodnie": [32], "wcześniej": [33], "niż": [34], "dotychczasowe": [35], "metody": [36], "progowe.": [37]
+   },
+   "authorships": [
+    {
+     "author_position": "first",
+     "author": {"id": "https://openalex.org/A5000000005", "display_name": "Marta Wzorcowa", "orcid": null},
+     "institutions": [
+      {"id": "https://openalex.org/I1000000005", "display_name": "Łukasiewicz Research Network", "ror": "https://ror.org/00example05", "country_code": "PL", "type": "facility", "lineage": []}
+     ],
+     "countries": ["PL"],
+     "is_corresponding": true,
+     "raw_author_name": "M. Wzorcowa",
+     "raw_affiliation_strings": []
+    }
+   ],
+   "topics": [
+    {"id": "https://openalex.org/T10002", "display_name": "Machine Fault Diagnosis Techniques", "score": 0.99,
+     "subfield": {"id": "https://openalex.org/subfields/2207", "display_name": "Control and Systems Engineering"},
+     "field": {"id": "https://openalex.org/fields/22", "display_name": "Engineering"},
+     "domain": {"id": "https://openalex.org/domains/3", "display_name": "Physical Sciences"}}
+   ],
+   "keywords": [{"id": "https://openalex.org/keywords/bearing", "display_name": "Bearing", "score": 0.6}],
+   "primary_location": {"is_oa": false, "landing_page_url": "https://doi.org/10.0000/example.2026.003", "pdf_url": null,
+    "source": {"id": "https://openalex.org/S2000000002", "display_name": "Przegląd Elektrotechniczny", "issn_l": "0033-2097", "type": "journal"},
+    "license": null, "version": null},
+   "open_access": {"is_oa": false, "oa_status": "closed", "oa_url": null, "any_repository_has_fulltext": false},
+   "cited_by_count": 0,
+   "updated_date": "2026-11-01T00:00:00",
+   "grants": []
+  },
+  {
+   "id": "https://openalex.org/W4400000001",
+   "doi": "https://doi.org/10.0000/example.2026.001",
+   "title": "duplicate across pages (cursor overlap)",
+   "display_name": "duplicate across pages (cursor overlap)",
+   "publication_date": "2026-10-14",
+   "publication_year": 2026,
+   "type": "article",
+   "language": "en",
+   "abstract_inverted_index": null,
+   "authorships": [],
+   "topics": [],
+   "keywords": [],
+   "primary_location": null,
+   "open_access": null,
+   "cited_by_count": 2,
+   "updated_date": "2026-11-18T05:12:33.104512",
+   "grants": []
+  }
+ ],
+ "group_by": []
+}

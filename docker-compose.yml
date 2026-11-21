@@ -2,12 +2,15 @@
 # Jednorazowo:   docker compose run --rm gui refresh          (opcje jak w radar.refresh)
 #                docker compose run --rm gui cards --stale    (karty dla nowych i zmienionych rekordów)
 #                docker compose run --rm gui store stats
+#                docker compose run --rm gui crawl sites      (stan witryn crawlera)
+#                docker compose run --rm gui refresh --list   (źródła i terminy)
 x-radar: &radar
   build: .
   image: innovation-radar:latest
   init: true
   volumes:
     - ./data:/app/data
+    - ./config:/app/config:ro   # witryny crawlera: zmiana bez przebudowy obrazu
   env_file:
     - path: .env
       required: false

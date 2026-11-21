@@ -106,6 +106,76 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(store.last_successful_run(self.conn, "interreg"), {})
         self.assertEqual([r["at"] for r in store.refresh_runs(self.conn)], ["t2", "t1"])
 
+    def test_removal_guard_and_force(self):
+        third = variant(self.rec, record_id="trzeci", content_hash="h3")
+        store.upsert_source(self.conn, self.src, [self.rec, self.other, third])
+        c = store.upsert_source(self.conn, self.src, [self.rec])  # 2 of 3 would vanish: suspicious harvest
+        self.assertEqual((c["removed"], c["removal_skipped"]), (0, 2))
+        self.assertEqual(store.stats(self.conn)["records"], 3)
+        c = store.upsert_source(self.conn, self.src, [self.rec], force_removal=True)
+        self.assertEqual((c["removed"], c["removal_skipped"]), (2, 0))
+        c = store.upsert_source(self.conn, self.src, [self.rec, self.other, third])
+        self.assertEqual(c["restored"], 2)
+        c = store.upsert_source(self.conn, self.src, [self.rec, self.other])  # 1 of 3 is within the guard
+        self.assertEqual((c["removed"], c["removal_skipped"]), (1, 0))
+
+    def test_mark_removed_and_category(self):
+        store.upsert_source(self.conn, self.src, [self.rec, self.other], category="projekty")
+        self.assertEqual(store.mark_removed(self.conn, self.src, ["inny-projekt"]), 1)
+        self.assertEqual(store.mark_removed(self.conn, self.src, ["inny-projekt"]), 0)  # already gone
+        self.assertEqual([r["record_id"] for r in store.list_records(self.conn, category="projekty")],
+                         [self.rec["record_id"]])
+        self.assertEqual(store.list_records(self.conn, category="nauka"), [])
+        self.assertEqual(store.stats(self.conn)["categories"], {"projekty": 1})
+
+
+class ChunkedWriteTest(unittest.TestCase):
+    def test_large_harvest_is_visible_to_readers_while_it_loads(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "radar.db"
+            conn = store.connect(path)
+            base = czujnik_record()
+            seen_by_reader = []
+
+            def records():
+                for i in range(12):
+                    if i == 7:  # after the first chunk of 5 was committed
+                        reader = store.connect_readonly(path)
+                        seen_by_reader.append(reader.execute("SELECT COUNT(*) FROM records").fetchone()[0])
+                        reader.close()
+                    yield variant(base, record_id=f"r{i}", content_hash=f"h{i}")
+
+            c = store.upsert_source(conn, base["source"], records(), chunk=5)
+            self.assertEqual(c["added"], 12)
+            self.assertEqual(seen_by_reader, [5])
+            ro = store.connect_readonly(path)
+            with self.assertRaises(Exception):
+                ro.execute("DELETE FROM records")  # the viewer's connection cannot write
+            ro.close()
+            conn.close()
+
+
+class MigrationTest(unittest.TestCase):
+    def test_v1_database_is_upgraded(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "old.db"
+            old = sqlite3.connect(path)
+            old.executescript(store.MIGRATIONS[0])
+            old.execute("PRAGMA user_version=1")
+            old.execute("INSERT INTO records(source, record_id, title, first_seen, last_seen, changed_at, data) "
+                        "VALUES ('ncbr_sukcesy', 'a', 'Stary', 't', 't', 't', '{}')")
+            old.commit()
+            old.close()
+            conn = store.connect(path)
+            self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], len(store.MIGRATIONS))
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(records)")}
+            self.assertIn("category", cols)
+            tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            self.assertTrue({"crawl_sites", "crawl_pages"} <= tables)
+            self.assertEqual(conn.execute("SELECT title, category FROM records").fetchone()[:], ("Stary", None))
+            conn.close()
+
 
 if __name__ == "__main__":
     unittest.main()

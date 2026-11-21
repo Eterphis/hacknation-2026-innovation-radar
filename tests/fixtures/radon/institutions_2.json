@@ -1,0 +1,306 @@
+{
+ "results": [
+  {
+   "country": "Polska",
+   "federationNumber": null,
+   "addresses": [
+    {
+     "country": "Polska",
+     "voivodeship": "pomorskie",
+     "city": "Gdańsk",
+     "postalCd": "80-210",
+     "street": "ul. Marii Skłodowskiej-Curie",
+     "bNumber": "3A",
+     "lNumber": null,
+     "dateFrom": "1945-10-08"
+    }
+   ],
+   "regon": "000288627",
+   "targetInstitutions": [],
+   "countryCd": "167",
+   "pib": "0",
+   "institutionUuid": "d2d5f7a9-7583-4415-a4b9-516367b9efcb",
+   "lNumber": null,
+   "managerName": "Michał",
+   "supervisingInstitutions": [
+    {
+     "supervisingInstitutionID": "e32dba3a-b2a3-41da-8019-314f1091d013",
+     "supervisingInstitutionName": "Minister Zdrowia",
+     "dateFrom": "1945-10-08"
+    }
+   ],
+   "eMail": "rektor@gumed.edu.pl",
+   "supervisingInstitutionID": "e32dba3a-b2a3-41da-8019-314f1091d013",
+   "nip": "5840955985",
+   "www": "http://www.gumed.edu.pl/",
+   "managerSurnamePrefix": null,
+   "managerFunction": "Rektor",
+   "espAddress": "/Gdanski_Uniwersytet_Medyczny/Nauka",
+   "id": "3888",
+   "iKindName": "Uczelnia publiczna",
+   "federationComposition": null,
+   "edaAddress": "AE:PL-13777-32718-RJUCS-15",
+   "postalCd": "80-210",
+   "managerOtherNames": null,
+   "bNumber": "3A",
+   "panNumber": null,
+   "branches": null,
+   "supervisingInstitutionName": "Minister Zdrowia",
+   "iLiqStartDT": null,
+   "eunNumber": null,
+   "uTypeName": "akademicka",
+   "phone": "58 349-10-00",
+   "iStartDT": "1945-10-08",
+   "iLiqDT": null,
+   "name": "Gdański Uniwersytet Medyczny",
+   "statuses": [
+    {
+     "statusName": "Działająca",
+     "dateFrom": "1945-10-08"
+    }
+   ],
+   "iKindCd": "13",
+   "yearPib": null,
+   "dataSource": "POLON",
+   "status": "Działająca",
+   "statusCode": "1",
+   "city": "Gdańsk",
+   "managerSurname": "Markuszewski",
+   "siTypeName": null,
+   "managerEmployeeInInstitutionUuid": null,
+   "ministryNumber": "301",
+   "street": "ul. Marii Skłodowskiej-Curie",
+   "voivodeship": "pomorskie",
+   "transformedInstitutions": [
+    {
+     "transformedInstitutionUuid": "022a55c5-bc6d-42bf-8c76-8483c402d077",
+     "transformedInstitutionName": "Instytut Medycyny Morskiej i Tropikalnej w Gdyni",
+     "regon": null,
+     "nip": null,
+     "krs": null,
+     "eunNumber": null,
+     "panNumber": null,
+     "supervisingInstitutionID": "e32dba3a-b2a3-41da-8019-314f1091d013",
+     "supervisingInstitutionName": "Minister Zdrowia",
+     "transformationKind": "Włączenie",
+     "transformationDate": "2003-10-01"
+    }
+   ],
+   "types": [
+    {
+     "typeName": "akademicka",
+     "dateFrom": "1945-10-08"
+    }
+   ],
+   "lastRefresh": "1792654205445",
+   "krs": null,
+   "names": [
+    {
+     "name": "Gdański Uniwersytet Medyczny",
+     "dateFrom": "1945-10-08"
+    }
+   ],
+   "institutionUid": "b7yUwfiNvH0ASeQWmaJCWVA",
+   "siTypeCd": null,
+   "uTypeCd": "1",
+   "voivodeshipCode": "11"
+  },
+  {
+   "country": "Polska",
+   "federationNumber": null,
+   "addresses": [
+    {
+     "country": "Polska",
+     "voivodeship": "pomorskie",
+     "city": "Gdańsk",
+     "postalCd": "80-309",
+     "street": "ul. Jana Bażyńskiego",
+     "bNumber": "8",
+     "lNumber": null,
+     "dateFrom": "1970-03-20"
+    },
+    {
+     "country": "Polska",
+     "voivodeship": "pomorskie",
+     "city": "Gdańsk",
+     "postalCd": "80-309",
+     "street": "ul. prof. Marii Janion",
+     "bNumber": "7",
+     "lNumber": null,
+     "dateFrom": "2026-01-29"
+    }
+   ],
+   "regon": "000001330",
+   "targetInstitutions": [],
+   "countryCd": "167",
+   "pib": "0",
+   "institutionUuid": "f3afb96b-3be4-453c-bf67-d5dccba3d1cc",
+   "lNumber": null,
+   "managerName": "Piotr",
+   "supervisingInstitutions": [
+    {
+     "supervisingInstitutionID": "2b2e64d0-dc32-4575-ba6c-073f0757f4f9",
+     "supervisingInstitutionName": "Minister Nauki i Szkolnictwa Wyższego (poprzednio MEiN)",
+     "dateFrom": "1970-03-20"
+    }
+   ],
+   "eMail": "rektor@ug.edu.pl",
+   "supervisingInstitutionID": "2b2e64d0-dc32-4575-ba6c-073f0757f4f9",
+   "nip": "5840203239",
+   "www": "http://ug.edu.pl",
+   "managerSurnamePrefix": null,
+   "managerFunction": "Rektor",
+   "espAddress": "/uniwersytet_gdanski/SkrytkaESP",
+   "id": "3830",
+   "iKindName": "Uczelnia publiczna",
+   "federationComposition": null,
+   "edaAddress": "AE:PL-91224-17616-EIDIE-29",
+   "postalCd": "80-309",
+   "managerOtherNames": null,
+   "bNumber": "7",
+   "panNumber": null,
+   "branches": null,
+   "supervisingInstitutionName": "Minister Nauki i Szkolnictwa Wyższego (poprzednio MEiN)",
+   "iLiqStartDT": null,
+   "eunNumber": null,
+   "uTypeName": "akademicka",
+   "phone": "(58) 523 24 07",
+   "iStartDT": "1970-03-20",
+   "iLiqDT": null,
+   "name": "Uniwersytet Gdański",
+   "statuses": [
+    {
+     "statusName": "Działająca",
+     "dateFrom": "1970-03-20"
+    }
+   ],
+   "iKindCd": "13",
+   "yearPib": null,
+   "dataSource": "POLON",
+   "status": "Działająca",
+   "statusCode": "1",
+   "city": "Gdańsk",
+   "managerSurname": "Stepnowski",
+   "siTypeName": null,
+   "managerEmployeeInInstitutionUuid": "cb0e2cce-1fec-4662-b16c-dbc782ed9ace",
+   "ministryNumber": "244",
+   "street": "ul. prof. Marii Janion",
+   "voivodeship": "pomorskie",
+   "transformedInstitutions": [],
+   "types": [
+    {
+     "typeName": "akademicka",
+     "dateFrom": "1970-03-20"
+    }
+   ],
+   "lastRefresh": "1769777524717",
+   "krs": null,
+   "names": [
+    {
+     "name": "Uniwersytet Gdański",
+     "dateFrom": "1970-03-20"
+    }
+   ],
+   "institutionUid": "bw-g9IX4k6ydcOqHISTtCqA",
+   "siTypeCd": null,
+   "uTypeCd": "1",
+   "voivodeshipCode": "11"
+  },
+  {
+   "country": "Polska",
+   "federationNumber": null,
+   "addresses": [
+    {
+     "country": "Polska",
+     "voivodeship": "mazowieckie",
+     "city": "Warszawa",
+     "postalCd": "00-927",
+     "street": "ul. Krakowskie Przedmieście",
+     "bNumber": "26/28",
+     "lNumber": null,
+     "dateFrom": "1816-11-19"
+    }
+   ],
+   "regon": "000001258",
+   "targetInstitutions": [],
+   "countryCd": "167",
+   "pib": "0",
+   "institutionUuid": "511d4dfc-574e-4801-af14-e99dc24f8209",
+   "lNumber": null,
+   "managerName": "Alojzy",
+   "supervisingInstitutions": [
+    {
+     "supervisingInstitutionID": "2b2e64d0-dc32-4575-ba6c-073f0757f4f9",
+     "supervisingInstitutionName": "Minister Nauki i Szkolnictwa Wyższego (poprzednio MEiN)",
+     "dateFrom": "1816-11-19"
+    }
+   ],
+   "eMail": "senat@adm.uw.edu.pl",
+   "supervisingInstitutionID": "2b2e64d0-dc32-4575-ba6c-073f0757f4f9",
+   "nip": "5250011266",
+   "www": "http://www.uw.edu.pl",
+   "managerSurnamePrefix": null,
+   "managerFunction": "Rektor",
+   "espAddress": "/uwedupl/SkrytkaESP",
+   "id": "3828",
+   "iKindName": "Uczelnia publiczna",
+   "federationComposition": null,
+   "edaAddress": "AE:PL-50246-45510-HFDWF-34",
+   "postalCd": "00-927",
+   "managerOtherNames": "Zbigniew",
+   "bNumber": "26/28",
+   "panNumber": null,
+   "branches": null,
+   "supervisingInstitutionName": "Minister Nauki i Szkolnictwa Wyższego (poprzednio MEiN)",
+   "iLiqStartDT": null,
+   "eunNumber": null,
+   "uTypeName": "akademicka",
+   "phone": "+48 22 55-20-000",
+   "iStartDT": "1816-11-19",
+   "iLiqDT": null,
+   "name": "Uniwersytet Warszawski",
+   "statuses": [
+    {
+     "statusName": "Działająca",
+     "dateFrom": "1816-11-19"
+    }
+   ],
+   "iKindCd": "13",
+   "yearPib": null,
+   "dataSource": "POLON",
+   "status": "Działająca",
+   "statusCode": "1",
+   "city": "Warszawa",
+   "managerSurname": "Nowak",
+   "siTypeName": null,
+   "managerEmployeeInInstitutionUuid": "ec1fdbe3-65cb-4bf3-bfc4-f5840d223886",
+   "ministryNumber": "242",
+   "street": "ul. Krakowskie Przedmieście",
+   "voivodeship": "mazowieckie",
+   "transformedInstitutions": [],
+   "types": [
+    {
+     "typeName": "akademicka",
+     "dateFrom": "1816-11-19"
+    }
+   ],
+   "lastRefresh": "1750836894686",
+   "krs": null,
+   "names": [
+    {
+     "name": "Uniwersytet Warszawski",
+     "dateFrom": "1816-11-19"
+    }
+   ],
+   "institutionUid": "bzvsPYOprn7OdjI6A8M5SNw",
+   "siTypeCd": null,
+   "uTypeCd": "1",
+   "voivodeshipCode": "7"
+  }
+ ],
+ "pagination": {
+  "maxCount": 7,
+  "token": "MTc1MDgzNjg5NDY4Ng=="
+ },
+ "version": "1.13.0"
+}

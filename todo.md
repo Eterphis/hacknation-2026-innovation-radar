@@ -39,7 +39,23 @@ Do zrobienia: własny **crawler** (w duchu Firecrawl: strona/PDF → czysty teks
 
 Wyniki realnych wywołań każdego źródła: `.house/reports/data-access.md`.
 
-## Stan repozytorium
+## Postęp (2026-11-21, sesja na `feature/pobieranie-danych`, bez commita)
+
+Zrobione w tym worktree (kroki 1–3 i 6–10):
+- `radar/crawl/crawler.py` + `radar/crawl/__main__.py` (dry-run, `sites`), opcja witryny `require_date`;
+- poprawki ekstrakcji: klasa boilerplate na `<body>` nie ukrywa już strony; tytuł, gdy `<h1>` to logo serwisu; nazwy organizacji nie sklejają się między akapitami;
+- `config/sites.json`: 9 włączonych witryn (nauka 2, biznes 3, projekty 1, administracja 3) sprawdzonych przez dry-run, 7 wyłączonych z opisem blokady;
+- rejestr `Source` w `radar/refresh.py`, `--due-only`, `--category`, `--list`, źródło `web`, adapter konektorów z `main(argv)` (rejestruje się sam, gdy moduł istnieje), uzupełnianie kategorii starych rekordów;
+- scheduler co `REFRESH_TICK_MINUTES` z `--due-only`, `WITH_PDF`, `config/` w obrazie i jako wolumen (obraz zbudowany lokalnie);
+- GUI: filtr i liczniki kategorii, sekcja „Ocena crawlera”, wydawca strony zamiast „beneficjent nieustalony”;
+- `docs/zrodla.md`, aktualizacja README, `docs/odswiezanie-danych.md`, `docs/docker.md`, `.env.example`;
+- testy: 123 (nowe: `test_crawl_extract`, `test_crawl_classify`, `test_crawl_frontier`, `test_crawler`, rozszerzone `test_store`, `test_refresh`, `test_gui`).
+
+Kroki 4 i 5 (Biblioteka Nauki + OAI, OpenAlex, RAD-on, EPO, CORDIS, FE, UPRP) zrobione w osobnych sesjach i przeniesione tutaj (pliki skopiowane z ich worktree, bez commitów). W rejestrze: Biblioteka Nauki i OpenAlex jako `incremental` (okno czasowe, brakujące rekordy nie są usuwane), UPRP pomijany bez błędu, gdy w `data/import/uprp/` nie ma eksportu. Testy: 207.
+
+Do sprawdzenia: OpenAlex nie przeszedł jeszcze próby online (429, wyczerpany dzienny limit IP; fixture odtworzony ze schematu API). Pełne przebiegi RAD-on (~30 min), EPO i CORDIS uruchomi pierwszy raz scheduler.
+
+## Stan repozytorium (z poprzedniej sesji)
 
 - Branch roboczy: `feature/pobieranie-danych` na `origin` (ostatni commit `199ce19`). W tym worktree branch nazywa się `claude/data-refresh-intereg-ecbr-b185a0` i wskazuje ten sam commit.
 - Już działa i jest wypchnięte:

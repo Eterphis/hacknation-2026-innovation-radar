@@ -20,7 +20,9 @@ Oba korzystają z katalogu `./data` na Twoim komputerze: tam są surowe pliki, w
 docker compose up -d --build
 ```
 
-Potem otwórz http://localhost:8765. Przy pierwszym uruchomieniu baza jest pusta: `scheduler` pobiera dane od razu (Interreg kilka sekund, NCBR około 5 minut). Strona pokazuje nowe rekordy po odświeżeniu przeglądarki, restart nie jest potrzebny.
+Potem otwórz http://localhost:8765. Przy pierwszym uruchomieniu baza jest pusta: `scheduler` pobiera dane od razu (Interreg kilka sekund, NCBR około 5 minut, crawler stron kilkanaście minut, bo na każdy host wysyła najwyżej jedno zapytanie na 2 s). Potem co godzinę sprawdza terminy i uruchamia tylko źródła, którym minął. Strona pokazuje nowe rekordy po odświeżeniu przeglądarki, restart nie jest potrzebny.
+
+Witryny crawlera są w `config/sites.json`, podmontowanym do kontenerów: po zmianie pliku nie trzeba przebudowywać obrazu.
 
 Postęp pobierania:
 
@@ -62,6 +64,24 @@ Odbuduj bazę z zapisanych plików, bez sieci:
 docker compose run --rm gui refresh --offline
 ```
 
+Źródła z rejestru, ich kategorie i terminy:
+
+```powershell
+docker compose run --rm gui refresh --list
+```
+
+Przegląd jednej witryny crawlera bez zapisu do bazy (co byłoby rekordem i dlaczego):
+
+```powershell
+docker compose run --rm gui crawl --site ur_ctt --max-pages 20 --dry-run
+```
+
+Stan witryn crawlera (strony, rekordy, błędy, blokady):
+
+```powershell
+docker compose run --rm gui crawl sites
+```
+
 Policz karty innowacji dla nowych i zmienionych rekordów:
 
 ```powershell
@@ -101,7 +121,7 @@ Copy-Item .env.example .env
 | Zmienna | Domyślnie | Opis |
 |---|---|---|
 | `RADAR_PORT` | `8765` | port przeglądarki na komputerze |
-| `REFRESH_INTERVAL_HOURS` | `24` | co ile godzin `scheduler` odświeża dane |
+| `REFRESH_TICK_MINUTES` | `60` | co ile minut `scheduler` sprawdza terminy i uruchamia źródła, którym minął (`refresh --due-only`) |
 | `REFRESH_ARGS` | (puste) | dodatkowe opcje każdego odświeżenia, np. `--delay 2` |
 | `ANTHROPIC_API_KEY` | (puste) | klucz Claude dla kart; bez niego karty liczone są offline, na regułach |
 | `RADAR_LLM` | `auto` | `auto` / `claude` / `offline` |
@@ -126,8 +146,9 @@ docker compose build --build-arg WITH_LLM=0
 
 ## Jak to działa
 
-- Obraz `python:3.12-slim`, sam kod radaru (biblioteka standardowa) i opcjonalnie `anthropic`. Działa jako użytkownik bez uprawnień administratora (uid 1000).
-- Punkt wejścia: [`radar/container.py`](../radar/container.py). Komendy: `gui`, `scheduler`, `refresh`, `cards`, `store`, `shell`.
+- Obraz `python:3.12-slim`, sam kod radaru (biblioteka standardowa), opcjonalnie `anthropic` (`WITH_LLM=1`) i `pypdf` do tekstu z PDF (`WITH_PDF=1`, domyślnie włączone). Działa jako użytkownik bez uprawnień administratora (uid 1000).
+- Punkt wejścia: [`radar/container.py`](../radar/container.py). Komendy: `gui`, `scheduler`, `refresh`, `crawl`, `cards`, `store`, `shell`.
+- `scheduler` budzi się co `REFRESH_TICK_MINUTES` (domyślnie 60) i uruchamia `refresh --due-only`. Terminy źródeł są w rejestrze `radar/refresh.py`, a terminy witryn w `config/sites.json`.
 - Baza SQLite pracuje w trybie WAL: `gui` czyta, gdy `scheduler` pisze.
 - Blokada `data/.refresh.lock` zapisuje nazwę kontenera, więc ręczne `refresh` nie wystartuje, gdy `scheduler` właśnie odświeża. Poczeka na następne uruchomienie albo zakończy się komunikatem.
 - `gui` ma healthcheck (`/api/meta`). Stan kontenerów pokazuje `docker compose ps`.
@@ -139,6 +160,7 @@ docker compose build --build-arg WITH_LLM=0
 | `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine` | Docker Desktop nie jest uruchomiony: włącz go, poczekaj, aż `docker info` zadziała, i powtórz polecenie |
 | `no configuration file provided: not found` | uruchamiasz polecenie w katalogu bez `docker-compose.yml`; przejdź do katalogu repozytorium z tymi plikami |
 | `port is already allocated` | ustaw inny `RADAR_PORT` w `.env` |
+| `429 Too Many Requests` przy budowaniu (`registry-1.docker.io`) | Docker Hub ogranicza pobrania; zbuduj z tego samego obrazu w lustrze Google: `docker compose build --build-arg BASE_IMAGE=mirror.gcr.io/library/python:3.12-slim`, potem `docker compose up -d` |
 | `odświeżanie już trwa` | inne odświeżanie właśnie pracuje; poczekaj albo sprawdź `docker compose logs scheduler` |
 | Linux: `Permission denied` przy zapisie do `./data` | `sudo chown -R 1000:1000 data` |
 | Strona pusta po starcie | pierwsze pobieranie jeszcze trwa: `docker compose logs -f scheduler` |

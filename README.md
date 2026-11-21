@@ -15,7 +15,7 @@ docker compose up -d --build
 ```
 
 - Przeglądarka danych: **http://localhost:8765**.
-- Kontener `scheduler` od razu pobiera dane z Interreg i NCBR (pierwszy raz około 5 minut), a potem odświeża je co 24 h. Po pobraniu wystarczy odświeżyć stronę.
+- Kontener `scheduler` od razu pobiera dane (Interreg, NCBR, crawler stron z `config/sites.json` i konektory API), a potem co godzinę sprawdza terminy i uruchamia źródła, którym minął. Po pobraniu wystarczy odświeżyć stronę.
 - Dane (surowe pliki, JSONL i baza `radar.db`) trafiają do `./data` na Twoim komputerze i nie giną po zatrzymaniu kontenerów.
 
 ```bash
@@ -70,10 +70,20 @@ python -X utf8 -m radar.sources.interreg --offline   # z zapisanego pliku, bez s
 - Jeden wiersz = jeden rekord `radar.record/v1`: tytuł, opis, partner wiodący z lokalizacją (kod, miejscowość, gmina, powiat, region, kraj), partnerzy, program, numer projektu, fundusz, cel szczegółowy, zakres interwencji, wartość w EUR, stopa i wyliczone dofinansowanie, okres ze statusem, województwo (dla partnerów z Polski), w `provenance` adres pliku i numer wiersza.
 - Źródło nie ma strony per projekt, więc `url` jest pusty; opisy dłuższe niż 4000 znaków są w pliku ucięte (ostrzeżenie `description_truncated_in_source`).
 
-**Odświeżenie obu źródeł jednym poleceniem** ([`radar/refresh.py`](radar/refresh.py), pełna instrukcja: [`docs/odswiezanie-danych.md`](docs/odswiezanie-danych.md)):
+**Crawler stron bez LLM** ([`radar/crawl/`](radar/crawl/), witryny w [`config/sites.json`](config/sites.json), opis źródeł: [`docs/zrodla.md`](docs/zrodla.md)): strony uczelni, centrów transferu technologii, klastrów, instytucji finansujących, samorządów i ministerstw → główna treść i metadane → filtr innowacji na słownikach → rekord `radar.record/v1` z kategorią z zadania (`nauka` / `projekty` / `biznes` / `administracja`). Respektuje `robots.txt`, wysyła najwyżej jedno zapytanie na 2 s na host i nie obchodzi zabezpieczeń (taka witryna dostaje status `blocked`).
 
 ```bash
-python -X utf8 -m radar.refresh              # Interreg + NCBR, pobiera tylko to, co nowe
+python -X utf8 -m radar.crawl --site ur_ctt --max-pages 20 --dry-run   # przegląd: co byłoby rekordem i dlaczego
+python -X utf8 -m radar.crawl                                          # witryny, którym minął termin
+python -X utf8 -m radar.crawl sites                                    # stan witryn: strony, rekordy, błędy
+```
+
+**Odświeżenie wszystkich źródeł jednym poleceniem** ([`radar/refresh.py`](radar/refresh.py), pełna instrukcja: [`docs/odswiezanie-danych.md`](docs/odswiezanie-danych.md)):
+
+```bash
+python -X utf8 -m radar.refresh              # wszystkie źródła z rejestru, pobiera tylko to, co nowe
+python -X utf8 -m radar.refresh --due-only   # tylko źródła, którym minął termin (tak działa scheduler)
+python -X utf8 -m radar.refresh --list       # źródła, kategorie i terminy
 python -X utf8 -m radar.refresh --dry-run    # pokaż, co by zrobił
 python -X utf8 -m radar.refresh --force      # wszystko od nowa
 python -X utf8 -m radar.gui                  # przeglądarka danych z bazy: http://127.0.0.1:8765
@@ -93,7 +103,7 @@ python -X utf8 -m radar.store export --source ncbr_sukcesy --out eksport.jsonl
 python -X utf8 -m radar.card --stale         # karty tylko dla nowych i zmienionych rekordów
 ```
 
-**Docker** ([`docs/docker.md`](docs/docker.md)): `docker compose up -d --build` uruchamia przeglądarkę na http://localhost:8765 i harmonogram odświeżania co 24 h; dane trafiają do `./data`.
+**Docker** ([`docs/docker.md`](docs/docker.md)): `docker compose up -d --build` uruchamia przeglądarkę na http://localhost:8765 i harmonogram, który co godzinę uruchamia źródła z minionym terminem. Dane trafiają do `./data`, a witryny crawlera są czytane z `./config` (zmiana bez przebudowy obrazu).
 
 Testy: `python -X utf8 -m unittest discover -s tests -t .`
 

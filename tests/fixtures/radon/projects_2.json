@@ -1,0 +1,111 @@
+{
+ "results": [
+  {
+   "projectAbstractEn": "The KlastER project aims at working-out the Strategy for the development of energy clusters in Poland, based on a number of analyses and pilot implementations in the selected clusters. The Strategy will constitute a coherent program that will contribute to the development of energy clusters in Poland by providing recommendations for various types of clusters and its stakeholders. Technological solutions supporting the management of energy clusters will also be prepared. The two phases of the project implementation will lead to the development of ready-made solutions, the use of which will be verified in selected energy clusters. The gained experience will allow for the development of a coherent Strategy for the development of energy clusters in Poland. Within the framework of the KlastER project, the Distributed Energy Competence Network will be established with the aim to serve as a professional research-oriented institution. It should create a forum for public debate open to all stakeholders, and become a medium for building an effective environment supporting the development of energy clusters in Poland. The results of KlastER will enable effective implementation of the strategic project \"Distributed energy\" (with the Ministry of Energy responsible for its execution) of the Strategy for Responsible Development.",
+   "keywords": "Energetyka rozproszona, distributed energy, energy markets, klastry energii, microgrids, odnawialne źródła energii, renewable energy, rynki energii",
+   "edition": "Program \"Społeczny i gospodarczy rozwój Polski w warunkach globalizujących się rynków\" Gospostrateg1",
+   "projectUuid": "616e5d810d71611f89601a5c",
+   "projectAbstractPl": "Celem projektu KlastER jest wypracowanie Strategii rozwoju klastrów energii w Polsce, w oparciu o szereg przeprowadzonych analiz oraz pilotażowe uruchomienia klastrów z wykorzystaniem opracowanych rozwiązań technologicznych i organizacyjnych. Realizacja projektu KlastER umożliwi skuteczne wdrażanie wpisanego na listę projektów strategicznych Strategii na rzecz Odpowiedzialnego Rozwoju kompleksowego projektu „Energetyka rozproszona\", za którego implementację podmiotem odpowiedzialnym jest Ministerstwo Energii. W ramach projektu przewiduje się kompleksowe badania uwarunkowań i barier technicznych, prawnych, ekonomicznych i społecznych rozwoju energetyki rozproszonej, w tym klastrów energii, a następnie, na bazie uzyskanych na podstawie badań rekomendacji, wypracowanie strategii rozwijania klastrów energii w Polsce, a także opracowanie oraz pilotażowe wdrożenie szeregu narzędzi i konkretnych rozwiązań. Opracowana Strategia stanowić będzie spójny program, który przyczyni się do rozwoju klastrów energii w Polsce poprzez dostarczenie założeń i rekomendacji dla różnego typu zainteresowanych grup, ze szczególnym uwzględnieniem: narzędzi wspomagających projektowanie i szacowanie opłacalności klastrów w danych warunkach; referencyjnych rozwiązań technologicznych wspomagających zarządzanie klastrem, w tym prowadzenie rozliczeń pomiędzy poszczególnymi członkami klastrów; zestawu dobrych praktyk dotyczących rozwiązań prawnych, organizacyjnych i technologicznych, które ułatwią tworzenie nowych klastrów.\nProjekt zapewni również możliwość wykorzystywania dorobku - rezultatów prac i badań - licznych instytucji działających w obszarze szeroko rozumianej energetyki rozproszonej. Osiągnięciu tego celu będzie służyć utworzona Sieć Kompetencji ds. Energetyki Rozproszonej jako profesjonalnej instytucji badawczej zorientowanej na doradztwo i analizy istotne dla implementacji polityki państwa w obszarze energetyki rozproszonej. Przedmiotem działalności Sieci będą między innymi diagnozy problemów społecznych, organizacyjnych, legislacyjnych, technicznych, itp., istotnych dla implementacji polityki państwa w obszarze rozwoju klastrów energii oraz poszukiwanie i przedstawianie rekomendacji co do sposobów ich rozwiązywania. Sieć będzie stanowić również forum debaty publicznej otwartej na wszystkich interesariuszy, przez co stanie się medium budowy środowiska wspierającego rozwój energetyki rozproszonej oraz klastrów energii w Polsce. Oprócz opracowania analiz i wytycznych, a w szczególności planowanej Strategii, zostaną przygotowane również rozwiązania technologiczne wspierające zarządzanie klastrami energii. Do ich implementacji zostanie wykorzystany know-how posiadany przez wszystkich partnerów oraz długoletnie doświadczenie w tworzeniu tego typu systemów. Dwie fazy realizacji projektu doprowadzą do opracowania gotowych rozwiązań, których użycie zostanie zweryfikowane w wybranych klastrach energii uruchomionych w ramach niniejszego projektu. Zebrane doświadczenia pozwolą na weryfikację, a w konsekwencji opracowanie spójnej Strategii rozwoju klastrów energii w Polsce.",
+   "projectStartDate": "2019-02-01",
+   "implementingInstitutions": [
+    {
+     "institutionUuid": "29b47066-4dca-4b1d-ba55-14e3ee02fb1a",
+     "institutionName": "Narodowe Centrum Badań Jądrowych",
+     "leader": "Nie",
+     "foreignInstitutionLeader": "Nie",
+     "higherEducationAndScience": "Tak",
+     "ownFunds": "0"
+    }
+   ],
+   "disseminationOfScience": "Nie",
+   "nationalFunds": "8675717",
+   "partnership": "Projekt realizowany przez grupę podmiotów",
+   "projectGrantDate": "2019-01-18",
+   "anotherProjectClassification": null,
+   "acronym": "Klaster",
+   "lastRefresh": "1747043485309",
+   "projectNumber": "Gospostrateg1/385085/21/NCBR/2019",
+   "projectEndDate": "2022-12-31",
+   "projectTitleEn": "Development of distributed energy in energy clusters",
+   "financedCompetition": "Tak",
+   "projectManagers": [
+    {
+     "institutionUuid": "29b47066-4dca-4b1d-ba55-14e3ee02fb1a",
+     "institutionName": "Narodowe Centrum Badań Jądrowych",
+     "employeeId": "8C025618421D95F597E44997E2F1F0B0DBA21271",
+     "kindManagerCode": "KZ",
+     "kindManager": "Kierownik zespołu badawczego",
+     "firstName": "Ryszard",
+     "middleName": null,
+     "lastName": "Cetnarski",
+     "ORCID": "0000-0003-1050-3579",
+     "startDate": null,
+     "endDate": null
+    }
+   ],
+   "entityShowingAchievementsName": "Narodowe Centrum Badań Jądrowych",
+   "namePriority": null,
+   "receivedFunds": [
+    {
+     "institutionUuid": "29b47066-4dca-4b1d-ba55-14e3ee02fb1a",
+     "institutionName": "Narodowe Centrum Badań Jądrowych",
+     "nationalFunds": "8675717",
+     "foreignFunds": null,
+     "totalFunds": "8675717",
+     "financingInstitutionUuid": "ff801008-38fa-4388-b3df-749f510215d0",
+     "financingInstitutionName": "Narodowe Centrum Badań i Rozwoju"
+    }
+   ],
+   "projectClassification": "GOSPOSTRATEG",
+   "relatedProjects": [],
+   "foreignFunds": "0",
+   "disciplines": [
+    {
+     "institutionUuid": "29b47066-4dca-4b1d-ba55-14e3ee02fb1a",
+     "institutionName": "Narodowe Centrum Badań Jądrowych",
+     "disciplineCode": "DS010203N",
+     "disciplineName": "automatyka, elektronika i elektrotechnika",
+     "percentageShare": "25"
+    },
+    {
+     "institutionUuid": "29b47066-4dca-4b1d-ba55-14e3ee02fb1a",
+     "institutionName": "Narodowe Centrum Badań Jądrowych",
+     "disciplineCode": "DS010209N",
+     "disciplineName": "inżynieria środowiska, górnictwo i energetyka",
+     "percentageShare": "75"
+    }
+   ],
+   "projectTitlePl": "Rozwój energetyki rozproszonej w klastrach energii",
+   "financingInstitutions": [
+    {
+     "financingInstitutionUuid": "ff801008-38fa-4388-b3df-749f510215d0",
+     "financingInstitutionName": "Narodowe Centrum Badań i Rozwoju",
+     "kindOfFinancingInstitution": "Krajowa",
+     "grantDate": "2019-01-18",
+     "settlementDate": null,
+     "sourceOfFinancing": "Projekt finansowany przez Narodowe Centrum Badań i Rozwoju",
+     "anotherSourceOfFinancing": null,
+     "receivedFunds": "8675717",
+     "nationalFunds": "8675717",
+     "foreignFunds": "0",
+     "urlAddress": "https://www.gov.pl/web/ncbr",
+     "country": "Polska",
+     "voivodeship": "mazowieckie",
+     "addressCity": "Warszawa [woj. mazowieckie, pow. Warszawa, gm. Warszawa,miasto]",
+     "addressPostalCode": "00-695",
+     "addressStreet": "Nowogrodzka [Śródmieście]",
+     "addressBuildingNumber": "47 A",
+     "addressApartmentNumber": null
+    }
+   ],
+   "dataSource": "POLON",
+   "entityShowingAchievementsUuid": "29b47066-4dca-4b1d-ba55-14e3ee02fb1a",
+   "totalFunds": "8675717"
+  }
+ ],
+ "pagination": {
+  "maxCount": 4,
+  "token": "MTc0NzA0MzQ4NTMwOQ=="
+ },
+ "version": "1.13.0"
+}

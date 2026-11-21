@@ -30,6 +30,10 @@ aside { background: var(--panel); border-right: 1px solid var(--line); display: 
 .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 input[type=search], select { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .count { padding: 6px 12px; color: var(--muted); font-size: 13px; }
+.fresh { margin: 8px 12px 0; padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; }
+.fresh[hidden] { display: none; }
+.fresh button, .more { border: 1px solid var(--accent); color: var(--accent); background: var(--panel); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+.more { display: block; margin: 12px auto 16px; padding: 6px 14px; }
 #list { overflow-y: auto; flex: 1; }
 .item { padding: 11px 12px; border-top: 1px solid var(--line); cursor: pointer; }
 .item:hover { background: var(--soft); }
@@ -82,12 +86,16 @@ a { color: var(--accent); }
   <aside>
     <div class="filters">
       <input type="search" id="q" placeholder="Szukaj w tytułach, opisach i organizacjach" autocomplete="off">
-      <select id="f-source" aria-label="Źródło"><option value="">Wszystkie źródła</option></select>
+      <div class="row">
+        <select id="f-cat" aria-label="Kategoria źródła"><option value="">Każda kategoria</option></select>
+        <select id="f-source" aria-label="Źródło"><option value="">Wszystkie źródła</option></select>
+      </div>
       <div class="row">
         <select id="f-quality" aria-label="Jakość rekordu"><option value="">Każda jakość</option><option value="ok">Kompletne (ok)</option><option value="needs_review">Do przeglądu</option></select>
         <select id="f-voiv" aria-label="Województwo"><option value="">Każde województwo</option></select>
       </div>
     </div>
+    <div class="fresh" id="fresh" role="status" hidden></div>
     <div class="count" id="count"></div>
     <div id="list" role="listbox" aria-label="Rekordy"></div>
   </aside>
@@ -98,11 +106,19 @@ const SOURCE_SHORT = {ncbr_sukcesy: "NCBR", interreg_pl: "Interreg"};
 const TEXT_PL = {description: "Opis projektu", problem: "Jaki problem rozwiązuje", result: "Efekt pracy",
   users: "Kto korzysta / skorzysta", challenges: "Największe wyzwania", advice: "Rada dla wnioskodawców",
   market_readiness: "Gotowość rynkowa", commercialization: "Ścieżka komercjalizacji",
-  commercialization_barriers: "Trudności w komercjalizacji", ip: "Własność intelektualna"};
+  commercialization_barriers: "Trudności w komercjalizacji", ip: "Własność intelektualna", body: "Treść strony"};
+const CATEGORY_PL = {nauka: "Nauka i technologie", projekty: "Projekty badawcze i innowacyjne", biznes: "Startupy i biznes",
+  administracja: "Administracja i edukacja", "(brak)": "Bez kategorii"};
+const PAGE_TYPE_PL = {technology_offer: "oferta technologiczna", project: "opis projektu", event: "wydarzenie",
+  document: "dokument (PDF)", news: "aktualność", other: "inna strona"};
+const SIGNAL_PL = {innovation: "innowacja", project: "projekt", offer: "oferta", event: "wydarzenie", negative: "sygnały negatywne"};
 const STATUS_PL = {finished: "zakończony", running: "w trakcie", planned: "planowany"};
 const ROLE_PL = {beneficiary: "beneficjent", partner: "partner", lead_partner: "partner wiodący"};
 
-let ALL = [], VIEW = [], SEL = null, META = {}, HITS = null, SEARCH_SEQ = 0;
+// The list is loaded page by page with filters applied on the server, so the browser never holds the
+// whole database; a harvest running in the background only adds rows, it never blocks browsing.
+const PAGE_SIZE = 200, POLL_MS = 20000;
+let VIEW = [], TOTAL = 0, SEL = null, META = {}, LOAD_SEQ = 0, LOADING = false, LAST_STAMP = null;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const safeUrl = (u) => /^https?:\/\//.test(u || "") ? u : null;
@@ -112,53 +128,98 @@ const or = (v) => (v === null || v === undefined || v === "" || (Array.isArray(v
 const amount = (x, cur) => x == null ? null : x.toLocaleString("pl-PL", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " " + esc(cur || "");
 const yesno = (b) => b === true ? "tak" : b === false ? "nie" : null;
 const kv = (rows) => `<div class="kv">${rows.filter(Boolean).map(([k, v]) => `<div class="k">${esc(k)}</div><div>${or(v)}</div>`).join("")}</div>`;
-const short = (s) => SOURCE_SHORT[s] || s;
+const short = (s) => SOURCE_SHORT[s] || (String(s).startsWith("web_") ? "www " + s.slice(4) : s);
 
-async function load() {
-  const [meta, rows] = await Promise.all([fetch("/api/meta").then((r) => r.json()), fetch("/api/records").then((r) => r.json())]);
-  ALL = rows; META = meta;
+function fillSelect(id, entries) {
+  const sel = $(id), keep = sel.value;
+  sel.length = 1;  // keep the "all" option
+  for (const [value, label] of entries) {
+    const o = document.createElement("option"); o.value = value; o.textContent = label; sel.appendChild(o);
+  }
+  if ([...sel.options].some((o) => o.value === keep)) sel.value = keep;
+}
+
+function showMeta(meta) {
   const last = (meta.refresh_runs || [])[0];
   $("file").innerHTML = meta.db
     ? `${meta.records} rekordów z bazy <code>${esc(meta.db)}</code>` + (meta.removed ? ` (+${meta.removed} usuniętych ze źródła)` : "") +
       (last ? ` · ostatnie odświeżenie: ${dt(last.at)} (${esc(last.source)}, ${last.ok ? "ok" : "błąd"})` : " · baza jeszcze nie była odświeżana")
     : `${meta.records} rekordów z plików: ` + meta.files.map((f) => `<code>${esc(f.path)}</code> (${f.records})`).join(", ");
-  for (const [id, name] of Object.entries(meta.source_ids)) {
-    const o = document.createElement("option"); o.value = id; o.textContent = name; $("f-source").appendChild(o);
-  }
-  for (const v of [...new Set(ALL.flatMap((r) => r.voivodeships))].sort((a, b) => a.localeCompare(b, "pl"))) {
-    const o = document.createElement("option"); o.value = v; o.textContent = v; $("f-voiv").appendChild(o);
-  }
-  render();
+  fillSelect("f-cat", Object.entries(meta.categories || {}).sort().map(([cat, n]) =>
+    [cat === "(brak)" ? "-" : cat, `${CATEGORY_PL[cat] || cat} (${n})`]));
+  fillSelect("f-source", Object.entries(meta.source_ids || {}).map(([id, name]) => [id, name]));
+  fillSelect("f-voiv", (meta.voivodeships || []).map((v) => [v, v]));
+}
+
+async function load() {
+  META = await fetch("/api/meta").then((r) => r.json());
+  showMeta(META);
+  await loadPage(true);
   const first = decodeURIComponent(location.hash.slice(1)) || (VIEW[0] && VIEW[0].key);
   if (first) select(first);
+  setInterval(poll, POLL_MS);
 }
 
-// "new" = appeared in a later refresh than the initial load, within the last 7 days
-let FIRST_LOAD = null;
-const isNew = (r) => {
-  if (!r.first_seen) return false;
-  if (FIRST_LOAD === null) FIRST_LOAD = Math.min(...ALL.filter((x) => x.first_seen).map((x) => Date.parse(x.first_seen)));
-  const t = Date.parse(r.first_seen);
-  return t - FIRST_LOAD > 3600e3 && Date.now() - t < 7 * 864e5;
-};
+// a background harvest adds records: say so, but do not reshuffle the list under the reader
+async function poll() {
+  let light, meta;
+  try { light = await fetch("/api/meta?light=1").then((r) => r.json()); } catch { return; }
+  const lastNow = (light.refresh_runs || [])[0];
+  const stamp = `${light.records}|${lastNow ? lastNow.at : ""}`;
+  if (LAST_STAMP === null) LAST_STAMP = `${META.records}|${((META.refresh_runs || [])[0] || {}).at || ""}`;
+  if (stamp === LAST_STAMP) return;  // nothing changed since the previous poll
+  LAST_STAMP = stamp;
+  const lastBefore = (META.refresh_runs || [])[0];
+  const added = light.records - META.records;
+  const newRun = lastNow && (!lastBefore || lastNow.at !== lastBefore.at);
+  try { meta = await fetch("/api/meta").then((r) => r.json()); } catch { return; }  // full stats only on change
+  showMeta(meta);
+  if (added > 0 || newRun) {
+    $("fresh").innerHTML = (added > 0 ? `Pobrano nowe rekordy: +${added}. ` : "Zakończono kolejne odświeżanie. ") +
+      '<button type="button" id="fresh-reload">Odśwież listę</button>';
+    $("fresh").hidden = false;
+    $("fresh-reload").onclick = async () => {
+      $("fresh").hidden = true;
+      try { META = await fetch("/api/meta").then((r) => r.json()); } catch { META = meta; }  // state at click time
+      LAST_STAMP = null;
+      showMeta(META);
+      loadPage(true);
+    };
+  }
+}
 
-// with the database, search runs on the server (full text, Polish letters optional)
-async function search() {
-  const q = $("q").value.trim(), seq = ++SEARCH_SEQ;
-  if (!META.db || !q) { HITS = null; return render(); }
-  const rows = await fetch("/api/records?q=" + encodeURIComponent(q)).then((r) => r.json());
-  if (seq !== SEARCH_SEQ) return;
-  HITS = new Set(rows.map((r) => r.key));
+function query(offset) {
+  const p = new URLSearchParams({limit: PAGE_SIZE, offset});
+  for (const [key, id] of [["q", "q"], ["category", "f-cat"], ["source", "f-source"], ["quality", "f-quality"], ["voivodeship", "f-voiv"]]) {
+    const v = $(id).value.trim();
+    if (v) p.set(key, v);
+  }
+  return "/api/records?" + p.toString();
+}
+
+async function loadPage(reset) {
+  const seq = ++LOAD_SEQ;
+  LOADING = true;
+  const offset = reset ? 0 : VIEW.length;
+  let page;
+  try { page = await fetch(query(offset)).then((r) => r.json()); }
+  finally { if (seq === LOAD_SEQ) LOADING = false; }
+  if (seq !== LOAD_SEQ) return;  // a newer filter change won
+  VIEW = reset ? page.rows : VIEW.concat(page.rows);
+  TOTAL = page.total;
   render();
 }
 
+// "new" = appeared in a later refresh than the first records, within the last 7 days
+const isNew = (r) => {
+  if (!r.first_seen || !META.first_seen_min) return false;
+  const t = Date.parse(r.first_seen);
+  return t - Date.parse(META.first_seen_min) > 3600e3 && Date.now() - t < 7 * 864e5;
+};
+
 function render() {
-  const q = $("q").value.trim().toLowerCase(), src = $("f-source").value, qual = $("f-quality").value, voiv = $("f-voiv").value;
-  const textHit = (r) => HITS ? HITS.has(r.key) : [r.title, r.beneficiary, r.programme, r.contest].join(" ").toLowerCase().includes(q);
-  VIEW = ALL.filter((r) =>
-    (!q || textHit(r)) &&
-    (!src || r.source === src) && (!qual || r.quality === qual) && (!voiv || r.voivodeships.includes(voiv)));
-  $("count").textContent = `${VIEW.length} z ${ALL.length} rekordów`;
+  $("count").textContent = VIEW.length < TOTAL ? `${VIEW.length} z ${TOTAL} pasujących (wszystkich: ${META.records})`
+                                              : `${TOTAL} z ${META.records} rekordów`;
   $("list").innerHTML = VIEW.map((r) => {
     const where = r.voivodeships.length ? r.voivodeships.join(", ") : (r.country && r.country !== "Polska" ? r.country : "");
     return `<div class="item${r.key === SEL ? " sel" : ""}" data-id="${esc(r.key)}" role="option">
@@ -166,6 +227,10 @@ function render() {
       <div class="m"><span class="tag src">${esc(short(r.source))}</span>${esc(r.beneficiary || "beneficjent nieustalony")}${where ? " · " + esc(where) : ""}</div>
     </div>`;
   }).join("") || '<div class="empty">Brak rekordów.</div>';
+  if (VIEW.length < TOTAL) {
+    $("list").insertAdjacentHTML("beforeend", `<button type="button" class="more" id="more">Pokaż kolejne ${Math.min(PAGE_SIZE, TOTAL - VIEW.length)}</button>`);
+    $("more").onclick = () => loadPage(false);
+  }
   for (const el of $("list").querySelectorAll(".item")) el.onclick = () => select(el.dataset.id);
 }
 
@@ -241,6 +306,18 @@ function renderDetail({record: r, raw_files: raw, data_file, history: h}) {
     ["Prawa do treści", r.rights ? `${esc(r.rights.licence)} <span class="raw">· ${esc(r.rights.note || "")}</span>` : null],
   ]);
 
+  const x = r.extra || {}, sig = x.signals || {};
+  const crawl = sig.hits ? kv([
+    ["Kategoria", esc(CATEGORY_PL[x.category] || x.category)],
+    ["Rodzaj strony", esc(PAGE_TYPE_PL[x.page_type] || x.page_type)],
+    ["Data publikacji", esc(x.published || "")],
+    ["Ostatnia zmiana na stronie", esc(x.modified || "")],
+    ["Wynik filtra", sig.score != null ? String(sig.score) : null],
+    ["Powód zachowania", esc(p.keep_reason || "")],
+    ["Dopasowane sygnały", Object.keys(sig.hits).length ? `<ul>${Object.entries(sig.hits).map(([g, pats]) =>
+      `<li>${esc(SIGNAL_PL[g] || g)}: <span class="raw">${esc(pats.join(" · "))}</span></li>`).join("")}</ul>` : null],
+  ]) : "";
+
   const t = r.text || {};
   const texts = [
     r.intro ? `<h4>Zajawka</h4><p>${esc(r.intro)}</p>` : "",
@@ -253,6 +330,7 @@ function renderDetail({record: r, raw_files: raw, data_file, history: h}) {
     <div class="sub">${esc(r.source_name)} · rekord ${q.status === "ok" ? '<span class="status-ok">kompletny</span>' : '<span class="status-warn">do przeglądu</span>'}</div>
     <section><h3>Źródło wczytania</h3>${source}</section>
     <section><h3>Dane rekordu</h3>${data}</section>
+    ${crawl ? `<section><h3>Ocena crawlera (reguły, bez LLM)</h3>${crawl}</section>` : ""}
     <section><h3>${fileSource ? "Treść z pliku" : "Treść ze strony"}</h3><div class="text">${texts}</div></section>
     <section><h3>Jakość wczytania</h3>${quality}</section>
     <details><summary>Surowy JSON rekordu</summary><pre>${esc(JSON.stringify(r, null, 2))}</pre></details>
@@ -260,8 +338,9 @@ function renderDetail({record: r, raw_files: raw, data_file, history: h}) {
   $("detail").scrollTop = 0;
 }
 
-function move(step) {
+async function move(step) {
   const i = VIEW.findIndex((r) => r.key === SEL);
+  if (i + step >= VIEW.length && VIEW.length < TOTAL && !LOADING) await loadPage(false);
   const next = VIEW[Math.max(0, Math.min(VIEW.length - 1, i + step))];
   if (next) { select(next.key); document.querySelector(`.item[data-id="${CSS.escape(next.key)}"]`)?.scrollIntoView({block: "nearest"}); }
 }
@@ -270,9 +349,9 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
   if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
 });
-for (const id of ["f-source", "f-quality", "f-voiv"]) $(id).addEventListener("input", render);
+for (const id of ["f-cat", "f-source", "f-quality", "f-voiv"]) $(id).addEventListener("input", () => loadPage(true));
 let searchTimer;
-$("q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(search, META.db ? 200 : 0); });
+$("q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadPage(true), 250); });
 load();
 </script>
 </body>

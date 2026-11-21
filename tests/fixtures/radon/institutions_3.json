@@ -1,0 +1,124 @@
+{
+ "results": [
+  {
+   "country": "Polska",
+   "federationNumber": null,
+   "addresses": [
+    {
+     "country": "Polska",
+     "voivodeship": "mazowieckie",
+     "city": "Otwock",
+     "postalCd": "05-400",
+     "street": "ul. Andrzeja Sołtana",
+     "bNumber": "7",
+     "lNumber": null,
+     "dateFrom": "1955-06-04"
+    }
+   ],
+   "regon": "001024043",
+   "targetInstitutions": [],
+   "countryCd": "167",
+   "pib": "0",
+   "institutionUuid": "29b47066-4dca-4b1d-ba55-14e3ee02fb1a",
+   "lNumber": null,
+   "managerName": "Jakub",
+   "supervisingInstitutions": [
+    {
+     "supervisingInstitutionID": "b19d0545-dcf0-4f9c-8414-9328e1831c24",
+     "supervisingInstitutionName": "Minister Gospodarki",
+     "dateFrom": "1955-06-04"
+    },
+    {
+     "supervisingInstitutionID": "5bd5c28a-b763-43c7-86b0-79a4cc745664",
+     "supervisingInstitutionName": "Minister Energii",
+     "dateFrom": "2016-09-01"
+    },
+    {
+     "supervisingInstitutionID": "39d86820-f093-46f4-a6bf-facd6137b25a",
+     "supervisingInstitutionName": "Minister Klimatu i Środowiska (poprzednio MŚiK)",
+     "dateFrom": "2021-04-12"
+    }
+   ],
+   "eMail": "ncbj@ncbj.gov.pl",
+   "supervisingInstitutionID": "39d86820-f093-46f4-a6bf-facd6137b25a",
+   "nip": "5320100125",
+   "www": "http://www.ncbj.gov.pl",
+   "managerSurnamePrefix": null,
+   "managerFunction": "Dyrektor instytutu",
+   "espAddress": "/NCBJ/SkrytkaESP",
+   "id": "4050",
+   "iKindName": "Instytucja naukowa",
+   "federationComposition": null,
+   "edaAddress": "AE:PL-79180-11927-VTRWT-27",
+   "postalCd": "05-400",
+   "managerOtherNames": "Marcin",
+   "bNumber": "7",
+   "panNumber": null,
+   "branches": null,
+   "supervisingInstitutionName": "Minister Klimatu i Środowiska (poprzednio MŚiK)",
+   "iLiqStartDT": null,
+   "eunNumber": null,
+   "uTypeName": null,
+   "phone": "22 273 1001",
+   "iStartDT": "1955-06-04",
+   "iLiqDT": null,
+   "name": "Narodowe Centrum Badań Jądrowych",
+   "statuses": [
+    {
+     "statusName": "Działająca",
+     "dateFrom": "1955-06-04"
+    }
+   ],
+   "iKindCd": "5",
+   "yearPib": null,
+   "dataSource": "POLON",
+   "status": "Działająca",
+   "statusCode": "1",
+   "city": "Otwock",
+   "managerSurname": "Kupecki",
+   "siTypeName": "instytut badawczy",
+   "managerEmployeeInInstitutionUuid": null,
+   "ministryNumber": null,
+   "street": "ul. Andrzeja Sołtana",
+   "voivodeship": "mazowieckie",
+   "transformedInstitutions": [
+    {
+     "transformedInstitutionUuid": "354f425a-e8d9-4c1e-adcb-73369f27eb15",
+     "transformedInstitutionName": "Instytut Energii Atomowej POLATOM w Świerku",
+     "regon": null,
+     "nip": null,
+     "krs": null,
+     "eunNumber": null,
+     "panNumber": null,
+     "supervisingInstitutionID": "b19d0545-dcf0-4f9c-8414-9328e1831c24",
+     "supervisingInstitutionName": "Minister Gospodarki",
+     "transformationKind": "Włączenie",
+     "transformationDate": "2011-09-01"
+    }
+   ],
+   "types": [
+    {
+     "typeName": "instytut badawczy",
+     "dateFrom": "1955-06-04"
+    }
+   ],
+   "lastRefresh": "1760693405339",
+   "krs": "0000171393",
+   "names": [
+    {
+     "name": "Narodowe Centrum Badań Jądrowych",
+     "dateFrom": "1955-06-04"
+    }
+   ],
+   "institutionUid": "bKZ4FIMz473eBfPKMOlBfQQ",
+   "siTypeCd": "1",
+   "uTypeCd": null,
+   "voivodeshipCode": "7"
+  }
+ ],
+ "pagination": {
+  "maxCount": 7,
+  "token": "MTc2MDY5MzQwNTMzOQ=="
+ },
+ "version": "1.13.0"
+}

@@ -6,7 +6,9 @@
 
 Komendy:
   gui        przeglądarka danych na 0.0.0.0:$PORT (domyślnie 8765)
-  scheduler  odświeżanie co $REFRESH_INTERVAL_HOURS godzin (domyślnie 24), pierwsze od razu
+  scheduler  co $REFRESH_TICK_MINUTES minut (domyślnie 60) `refresh --due-only`: uruchamia
+             źródła i witryny, którym minął termin; pierwsze sprawdzenie od razu
+  crawl      crawler stron (opcje jak w radar.crawl, np. sites albo --site ID --dry-run)
   refresh    jednorazowe odświeżenie (opcje jak w radar.refresh)
   cards      karty innowacji (opcje jak w radar.card, z bazą)
   store      operacje na bazie (opcje jak w radar.store)
@@ -31,21 +33,24 @@ def _stop(signum, frame):  # PID 1 in a container ignores SIGTERM without a hand
 
 
 def scheduler(extra: list[str]) -> int:
+    """Wake every REFRESH_TICK_MINUTES and run `refresh --due-only`: each source has its own interval
+    (radar.refresh.REGISTRY, sites in config/sites.json), so one tick may run nothing at all."""
     from . import refresh
 
-    hours = float(os.environ.get("REFRESH_INTERVAL_HOURS", "24"))
+    minutes = float(os.environ.get("REFRESH_TICK_MINUTES", "60"))
     extra = extra or os.environ.get("REFRESH_ARGS", "").split()
-    _log(f"harmonogram: odświeżanie co {hours:g} h, opcje: {' '.join(extra) or '(brak)'}")
+    args = ["--due-only", *[a for a in extra if a != "--due-only"]]
+    _log(f"harmonogram: sprawdzanie terminów co {minutes:g} min, opcje: {' '.join(args)}")
     while True:
         try:
-            rc = refresh.main(list(extra))
+            rc = refresh.main(list(args))
             _log(f"odświeżanie zakończone, kod {rc}")
         except SystemExit as e:  # e.g. lock held by a manual run: try again next time
             if e.code not in (0, None):
                 _log(f"odświeżanie przerwane: {e.code}")
         except Exception as e:  # keep the scheduler alive whatever happens in one run
             _log(f"odświeżanie nie powiodło się: {type(e).__name__}: {e}")
-        time.sleep(hours * 3600)
+        time.sleep(minutes * 60)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -60,6 +65,9 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "refresh":
         from .refresh import main as refresh
         return refresh(rest)
+    if cmd == "crawl":
+        from .crawl.__main__ import main as crawl
+        return crawl(rest)
     if cmd == "cards":
         from .card import main as cards
         return cards(["--db", *rest] if "--db" not in rest else rest)

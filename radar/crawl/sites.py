@@ -29,6 +29,7 @@ class Site:
     delay: float = 2.0
     keep_all: bool = False       # keep every page with enough text (curated project lists)
     min_score: float = 2.0
+    require_date: bool = False   # keep only pages with a publication date (drops hub/menu pages on portals)
     enabled: bool = True
     note: str = ""
 

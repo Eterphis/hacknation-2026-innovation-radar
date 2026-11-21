@@ -46,30 +46,44 @@ class DbRecordStore:
     def __init__(self, db_path: Path, ncbr_raw_dir: Path | None = None) -> None:
         self.db_path = Path(db_path)
         self.ncbr_raw_dir = ncbr_raw_dir
-        db.connect(self.db_path).close()  # create / migrate once
+        db.connect(self.db_path).close()  # create / migrate once; afterwards the viewer only reads
 
     def _conn(self):
-        return db.connect(self.db_path)
+        # read-only: never waits for the write lock of a harvest running next to the viewer
+        return db.connect_readonly(self.db_path)
 
-    def meta(self) -> dict:
+    def meta(self, light: bool = False) -> dict:
         conn = self._conn()
         try:
+            if light:  # polled every few seconds by the viewer: two cheap queries
+                n = conn.execute("SELECT COUNT(*) FROM records WHERE removed_at IS NULL").fetchone()[0]
+                return {"db": str(self.db_path), "records": n, "refresh_runs": db.refresh_runs(conn, 1)}
             st = db.stats(conn)
             return {"db": str(self.db_path), "files": [{"path": str(self.db_path), "records": st["records"]}],
                     "loaded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                     "records": st["records"], "removed": st["removed"], "sources": st["sources"],
-                    "source_ids": st["source_ids"], "quality": st["quality"], "search": "fts" if st["fts"] else "like",
+                    "source_ids": st["source_ids"], "quality": st["quality"], "categories": st["categories"],
+                    "voivodeships": db.voivodeships(conn), "first_seen_min": st["first_seen_min"],
+                    "search": "fts" if st["fts"] else "like",
                     "refresh_runs": db.refresh_runs(conn, 10)}
         finally:
             conn.close()
 
-    def summary(self, query: dict | None = None) -> list[dict]:
+    def summary(self, query: dict | None = None) -> list[dict] | dict:
+        """Without `limit`: every matching row (list). With `limit`/`offset`: one page as
+        {"total", "offset", "limit", "rows"}, so the browser never has to hold the whole database."""
         query = query or {}
+        filters = dict(q=query.get("q"), source=query.get("source"), quality=query.get("quality"),
+                       category=query.get("category"), voivodeship=query.get("voivodeship"),
+                       include_removed=query.get("removed") == "1")
+        page = _page(query)
         conn = self._conn()
         try:
-            rows = db.list_records(conn, q=query.get("q"), source=query.get("source"), quality=query.get("quality"),
-                                   voivodeship=query.get("voivodeship"), include_removed=query.get("removed") == "1")
-            return [db.summary_row(r) for r in rows]
+            if page is None:
+                return [db.summary_row(r) for r in db.list_records(conn, **filters)]
+            limit, offset = page
+            rows = [db.summary_row(r) for r in db.list_records(conn, **filters, limit=limit, offset=offset)]
+            return {"total": db.count_records(conn, **filters), "offset": offset, "limit": limit, "rows": rows}
         finally:
             conn.close()
 
@@ -111,7 +125,7 @@ class RecordStore:
     def raw_files(self, rec: dict) -> dict:
         return raw_files(rec, self.ncbr_raw_dir)
 
-    def meta(self) -> dict:
+    def meta(self, light: bool = False) -> dict:
         return {
             "files": self.files,
             "loaded_at": self.loaded_at,
@@ -119,9 +133,21 @@ class RecordStore:
             "sources": _count(r.get("source_name") for r in self.records),
             "source_ids": {r.get("source"): r.get("source_name") for r in self.records},
             "quality": _count((r.get("quality") or {}).get("status") for r in self.records),
+            "categories": _count((r.get("extra") or {}).get("category") or "(brak)" for r in self.records),
+            "voivodeships": sorted({v for r in self.records for v in (r.get("region") or {}).get("voivodeships") or []}),
+            "first_seen_min": None,
         }
 
-    def summary(self, query: dict | None = None) -> list[dict]:
+    def summary(self, query: dict | None = None) -> list[dict] | dict:
+        query = query or {}
+        rows = [r for r in self._rows() if _matches(r, query)]
+        page = _page(query)
+        if page is None:
+            return rows
+        limit, offset = page
+        return {"total": len(rows), "offset": offset, "limit": limit, "rows": rows[offset:offset + limit]}
+
+    def _rows(self) -> list[dict]:
         rows = []
         for r in self.records:
             leads = [o["name"] for o in r.get("organizations") or [] if o.get("role") in LEADING_ROLES]
@@ -138,6 +164,7 @@ class RecordStore:
                 "programme": (r.get("funding") or {}).get("programme"),
                 "contest": (r.get("funding") or {}).get("contest"),
                 "quality": q.get("status"),
+                "category": (r.get("extra") or {}).get("category"),
             })
         return rows
 
@@ -146,6 +173,34 @@ class RecordStore:
         if rec is None:
             return None
         return {"record": rec, "raw_files": self.raw_files(rec), "data_file": str(self.file_of[key])}
+
+
+MAX_PAGE = 1000
+
+
+def _page(query: dict) -> tuple[int, int] | None:
+    if "limit" not in query:
+        return None
+    try:
+        limit = max(1, min(MAX_PAGE, int(query.get("limit") or 200)))
+        offset = max(0, int(query.get("offset") or 0))
+    except ValueError:
+        limit, offset = 200, 0
+    return limit, offset
+
+
+def _matches(row: dict, query: dict) -> bool:
+    """Filters of /api/records for the file mode (the database mode filters in SQL)."""
+    q = (query.get("q") or "").strip().lower()
+    cat = query.get("category")
+    if q and q not in " ".join(str(row.get(k) or "") for k in ("title", "beneficiary", "programme", "contest")).lower():
+        return False
+    if cat and (row.get("category") is not None if cat == db.NO_CATEGORY else row.get("category") != cat):
+        return False
+    for key in ("source", "quality"):
+        if query.get(key) and row.get(key) != query[key]:
+            return False
+    return not query.get("voivodeship") or query["voivodeship"] in row.get("voivodeships", [])
 
 
 def _count(values) -> dict:
@@ -181,7 +236,8 @@ def make_handler(store: "RecordStore | DbRecordStore"):
             if path in ("/", "/index.html"):
                 return self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
             if path == "/api/meta":
-                return self._json(store.meta())
+                light = "light=1" in self.path.partition("?")[2].split("&")
+                return self._json(store.meta(light=light))
             if path == "/api/records":
                 qs = parse_qs(self.path.partition("?")[2])
                 return self._json(store.summary({k: v[0] for k, v in qs.items()}))

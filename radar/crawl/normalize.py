@@ -46,8 +46,9 @@ def find_organizations(text: str, owner: dict, limit: int = 8) -> list[dict]:
         orgs.append({"name": owner["name"], "role": "publisher", "type_hint": owner.get("type") or org_type_hint(owner["name"]),
                      "org_id": None, "is_public": None, "source": "site_config"})
         seen.add(fold(owner["name"]))
+    lines = text.split("\n")  # a name never spans two text blocks
     for pat in ORG_PATTERNS:
-        for m in pat.finditer(text):
+        for m in (m for line in lines for m in pat.finditer(line)):
             name = clean_text(m.group(0) if pat is ORG_PATTERNS[0] else m.group(1)).strip(" ,.;:")
             key = fold(name)
             if len(name) < 6 or len(name) > 120 or key in seen:

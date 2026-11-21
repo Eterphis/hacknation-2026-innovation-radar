@@ -125,6 +125,46 @@ class DbViewerTest(unittest.TestCase):
         self.assertEqual(data["history"]["first_seen"], "2026-11-01T00:00:00+00:00")
         self.assertEqual(len(data["history"]["versions"]), 1)
 
+    def test_categories_in_meta_and_filter(self):
+        conn = db.connect(self.db_path)
+        conn.execute("UPDATE records SET category='projekty' WHERE record_id=?", (self.rec["record_id"],))
+        conn.commit()
+        conn.close()
+        meta = self.get_json("/api/meta")
+        self.assertEqual(meta["categories"], {"projekty": 1, "(brak)": 1})
+        rows = self.get_json("/api/records?category=projekty")
+        self.assertEqual([r["category"] for r in rows], ["projekty"])
+
+    def test_paged_list_with_filters(self):
+        page = self.get_json("/api/records?limit=1&offset=0")
+        self.assertEqual((page["total"], page["limit"], len(page["rows"])), (2, 1, 1))
+        second = self.get_json("/api/records?limit=1&offset=1")
+        self.assertNotEqual(page["rows"][0]["key"], second["rows"][0]["key"])
+        hit = self.get_json("/api/records?limit=50&q=odksztalcen")
+        self.assertEqual(hit["total"], 1)
+        none = self.get_json("/api/records?limit=50&category=-")
+        self.assertEqual(none["total"], 2)  # no category set in this fixture
+        meta = self.get_json("/api/meta")
+        self.assertIn("voivodeships", meta)
+        self.assertTrue(meta["first_seen_min"])
+        light = self.get_json("/api/meta?light=1")
+        self.assertEqual((light["records"], light["refresh_runs"][0]["source"]), (2, "ncbr"))
+        self.assertNotIn("sources", light)
+
+    def test_viewer_reads_while_a_writer_holds_the_lock(self):
+        import sqlite3, time
+        writer = sqlite3.connect(self.db_path, timeout=1)
+        writer.execute("BEGIN IMMEDIATE")  # a harvest in the middle of a transaction
+        writer.execute("UPDATE records SET title=title")
+        try:
+            start = time.monotonic()
+            self.assertEqual(self.get_json("/api/meta")["records"], 2)
+            self.assertEqual(self.get_json("/api/records?limit=10")["total"], 2)
+            self.assertLess(time.monotonic() - start, 2.0)
+        finally:
+            writer.rollback()
+            writer.close()
+
     def test_new_data_visible_without_restart(self):
         conn = db.connect(self.db_path)
         db.upsert_source(conn, self.rec["source"], [self.rec])

@@ -155,6 +155,8 @@ class _Parser(HTMLParser):
         main = tag in MAIN_TAGS or a.get("role") == "main" or a.get("itemprop") == "articleBody"
         if main and boiler and tag in MAIN_TAGS:
             boiler = False  # <main class="... header-offset"> is still main content
+        if tag in ("html", "body"):
+            boiler = False  # themes put "menu-open", "has-header" etc. on <body>: never the whole page
         if tag in BLOCK_TAGS:
             self.flush()
             self.cur_tag = tag
@@ -323,7 +325,21 @@ def modified_date(page: Page) -> str | None:
     return None
 
 
+def _key(s: str) -> str:
+    return re.sub(r"\W+", "", s.lower())
+
+
 def best_title(page: Page, site_name: str = "") -> str:
+    # "<site> - <page>" in <title> while <h1> is the site logo: take the other part of the title
+    h1, title = clean_text(page.h1), clean_text(page.title)
+    sep = r"\s+[|–—-]\s+"
+    if h1 and title and not page.meta.get("og:title"):
+        head = re.split(sep, title, maxsplit=1)
+        tail = re.split(sep + r"(?!.*" + sep + ")", title, maxsplit=1)
+        if len(head) == 2 and _key(head[0]) == _key(h1) and len(head[1]) >= 5:
+            return head[1]
+        if len(tail) == 2 and _key(tail[1]) == _key(h1) and len(tail[0]) >= 5:
+            return tail[0]
     for cand in (page.meta.get("og:title"), page.h1, page.title):
         if not cand:
             continue

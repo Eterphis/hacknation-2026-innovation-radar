@@ -152,6 +152,29 @@ MIGRATIONS = [
 # share of a source's live records that may disappear in one harvest before we suspect a broken
 # harvest (changed page layout, truncated file) instead of real removals
 REMOVAL_GUARD_RATIO = 0.5
+# records written per transaction: keeps write locks short and makes big harvests visible as they load
+UPSERT_CHUNK = 500
+
+
+class _chunked:
+    """Context manager: commit every n calls of tick(n), commit at the end, roll back the open chunk on error."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn, self.n = conn, 0
+
+    def __enter__(self):
+        def tick(every: int) -> None:
+            self.n += 1
+            if every and self.n % every == 0:
+                self.conn.commit()
+        return tick
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        if exc_type is None:
+            self.conn.commit()
+        else:
+            self.conn.rollback()
+        return False
 
 FTS_SQL = """CREATE VIRTUAL TABLE IF NOT EXISTS records_fts USING fts5(
     source UNINDEXED, record_id UNINDEXED, title, body, tokenize='unicode61 remove_diacritics 2')"""
@@ -167,6 +190,18 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     if str(path) != ":memory:":
         conn.execute("PRAGMA journal_mode=WAL")
     migrate(conn)
+    return conn
+
+
+def connect_readonly(path: str | Path | None = None, timeout: float = 5.0) -> sqlite3.Connection:
+    """Connection for readers (the viewer): no migration, no schema writes, never takes the write lock.
+
+    In WAL mode readers see the last committed state while a harvest is writing, so browsing never
+    waits for a refresh. The database must exist (create it once with connect())."""
+    path = Path(path or default_db())
+    conn = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=timeout)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA query_only=ON")
     return conn
 
 
@@ -239,8 +274,12 @@ def _index(conn: sqlite3.Connection, fts: bool, source: str, record_id: str, rec
 
 def upsert_source(conn: sqlite3.Connection, source: str, records: Iterable[dict],
                   seen_at: str | None = None, mark_removed: bool = True, category: str | None = None,
-                  force_removal: bool = False) -> dict:
+                  force_removal: bool = False, chunk: int = UPSERT_CHUNK) -> dict:
     """Write one harvest of a source. Returns counts added/changed/unchanged/restored/removed.
+
+    Commits every `chunk` records, so a large harvest shows up in the viewer while it is being written
+    and never holds the write lock for long. Upserts are idempotent: an interrupted write is completed
+    by the next run.
 
     mark_removed: the harvest is complete, so records missing from it left the source. When more than
     REMOVAL_GUARD_RATIO of the live records would go, nothing is marked (count in `removal_skipped`)
@@ -249,7 +288,7 @@ def upsert_source(conn: sqlite3.Connection, source: str, records: Iterable[dict]
     fts = has_fts(conn)
     counts = {"added": 0, "changed": 0, "unchanged": 0, "restored": 0, "removed": 0, "removal_skipped": 0}
     seen: set[str] = set()
-    with conn:
+    with _chunked(conn) as tick:
         for rec in records:
             if rec.get("source") != source:
                 raise ValueError(f"rekord {rec.get('record_id')} ma source={rec.get('source')!r}, oczekiwano {source!r}")
@@ -285,6 +324,7 @@ def upsert_source(conn: sqlite3.Connection, source: str, records: Iterable[dict]
                              (source, rid, cols["content_hash"] or "", seen_at, cols["data"]))
                 _link_orgs(conn, source, rid, rec)
                 _index(conn, fts, source, rid, rec)
+            tick(chunk)
         if mark_removed:
             live = conn.execute("SELECT record_id FROM records WHERE source=? AND removed_at IS NULL", (source,)).fetchall()
             gone = [r["record_id"] for r in live if r["record_id"] not in seen]
@@ -363,10 +403,11 @@ def _fts_query(q: str) -> str:
     return " ".join(f'"{w}"*' for w in words)
 
 
-def list_records(conn: sqlite3.Connection, *, q: str | None = None, source: str | None = None,
-                 category: str | None = None,
-                 quality: str | None = None, voivodeship: str | None = None, include_removed: bool = False,
-                 limit: int | None = None, offset: int = 0) -> list[dict]:
+NO_CATEGORY = "-"  # category filter value for records without a category
+
+
+def _record_filters(conn: sqlite3.Connection, q, source, category, quality, voivodeship,
+                    include_removed) -> tuple[str, str, list]:
     where, params = [], []
     join = ""
     if q and q.strip():
@@ -377,6 +418,9 @@ def list_records(conn: sqlite3.Connection, *, q: str | None = None, source: str 
         else:
             where.append("(r.title LIKE ? OR r.data LIKE ?)")
             params += [f"%{q}%", f"%{q}%"]
+    if category == NO_CATEGORY:
+        where.append("r.category IS NULL")
+        category = None
     for col, val in (("r.source", source), ("r.quality", quality), ("r.category", category)):
         if val:
             where.append(f"{col}=?")
@@ -386,7 +430,15 @@ def list_records(conn: sqlite3.Connection, *, q: str | None = None, source: str 
         params.append(voivodeship)
     if not include_removed:
         where.append("r.removed_at IS NULL")
-    sql = (f"SELECT r.* FROM records r {join} " + ("WHERE " + " AND ".join(where) if where else "")
+    return join, ("WHERE " + " AND ".join(where) if where else ""), params
+
+
+def list_records(conn: sqlite3.Connection, *, q: str | None = None, source: str | None = None,
+                 category: str | None = None,
+                 quality: str | None = None, voivodeship: str | None = None, include_removed: bool = False,
+                 limit: int | None = None, offset: int = 0) -> list[dict]:
+    join, where, params = _record_filters(conn, q, source, category, quality, voivodeship, include_removed)
+    sql = (f"SELECT r.* FROM records r {join} {where}"
            + (" ORDER BY bm25(records_fts)" if join else " ORDER BY r.source, r.rowid"))
     if limit:
         sql += " LIMIT ? OFFSET ?"
@@ -394,17 +446,31 @@ def list_records(conn: sqlite3.Connection, *, q: str | None = None, source: str 
     return [dict(r) for r in conn.execute(sql, params)]
 
 
+def count_records(conn: sqlite3.Connection, *, q: str | None = None, source: str | None = None,
+                  category: str | None = None, quality: str | None = None, voivodeship: str | None = None,
+                  include_removed: bool = False) -> int:
+    join, where, params = _record_filters(conn, q, source, category, quality, voivodeship, include_removed)
+    return conn.execute(f"SELECT COUNT(*) FROM records r {join} {where}", params).fetchone()[0]
+
+
+def voivodeships(conn: sqlite3.Connection) -> list[str]:
+    rows = conn.execute("SELECT DISTINCT j.value FROM records r, json_each(r.voivodeships) j "
+                        "WHERE r.removed_at IS NULL AND j.value IS NOT NULL").fetchall()
+    return sorted(r[0] for r in rows)
+
+
 def summary_row(row: dict) -> dict:
     rec = json.loads(row["data"])
     leads = [o["name"] for o in rec.get("organizations") or [] if o.get("role") in LEADING_ROLES]
     people = [p.get("source_text") for p in rec.get("people") or [] if p.get("role") == "beneficiary"]
+    publishers = [o["name"] for o in rec.get("organizations") or [] if o.get("role") == "publisher"]  # crawled pages
     region = rec.get("region") or {}
     funding = rec.get("funding") or {}
     return {
         "key": f"{row['source']}/{row['record_id']}",
         "source": row["source"],
         "title": row["title"],
-        "beneficiary": "; ".join(x for x in (leads or people) if x),
+        "beneficiary": "; ".join(x for x in (leads or people or publishers) if x),
         "voivodeships": region.get("voivodeships") or [],
         "country": region.get("country"),
         "programme": funding.get("programme"),
@@ -446,6 +512,7 @@ def stats(conn: sqlite3.Connection) -> dict:
         out["quality"][q] = out["quality"].get(q, 0) + r["n"]
         c = r["category"] or "(brak)"
         out["categories"][c] = out["categories"].get(c, 0) + r["n"]
+    out["first_seen_min"] = conn.execute("SELECT MIN(first_seen) FROM records").fetchone()[0]
     out["organizations"] = conn.execute("SELECT COUNT(*) FROM organizations").fetchone()[0]
     out["cards"] = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
     out["fts"] = has_fts(conn)
