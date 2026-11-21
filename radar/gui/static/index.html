@@ -6,212 +6,204 @@
 <title>Radar innowacji</title>
 <style>
 :root {
-  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --line: #dfe3e8;
-  --text: #1b1f24; --muted: #5b6573; --accent: #1f5fbf; --accent-soft: #e6eefb;
-  --green: #1f8a4c; --green-soft: #e3f4ea; --yellow: #a86b00; --yellow-soft: #fdf1d8;
-  --red: #b42318; --red-soft: #fde7e5; --quote: #3a4452;
-  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --bg: #f5f6f8; --panel: #fff; --soft: #f0f2f5; --line: #e3e6ea;
+  --text: #1c2026; --muted: #6a7380; --accent: #1f5fbf; --accent-soft: #e8effb;
+  --green: #1b7f47; --green-soft: #e4f3ea; --yellow: #9a6200; --yellow-soft: #fbf0d9;
+  --red: #b42318; --red-soft: #fce8e6;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --line: #2b323c;
-    --text: #e6e9ee; --muted: #9aa4b2; --accent: #6ea0ff; --accent-soft: #1c2a44;
-    --green: #4cc38a; --green-soft: #15291f; --yellow: #e0b14a; --yellow-soft: #2d2412;
-    --red: #ff7b72; --red-soft: #3a1714; --quote: #c3cad4; --shadow: none;
+    --bg: #101317; --panel: #171b21; --soft: #1f242b; --line: #2b313a;
+    --text: #e7eaee; --muted: #98a2af; --accent: #7aa7ff; --accent-soft: #1c2a42;
+    --green: #55c48e; --green-soft: #15291f; --yellow: #e3b450; --yellow-soft: #2c2412;
+    --red: #ff8077; --red-soft: #391816;
   }
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text);
-  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: var(--panel);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+header { display: flex; align-items: center; gap: 20px; padding: 12px 20px; background: var(--panel);
   border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-header h1 { font-size: 16px; margin: 0; font-weight: 650; }
-header h1 span { color: var(--muted); font-weight: 400; }
-.stats { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
-.stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
-.stat b { font-variant-numeric: tabular-nums; }
-.stat.active { border-color: var(--accent); background: var(--accent-soft); }
-main { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); height: calc(100% - 53px); }
-aside { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
-.filters { padding: 10px 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; border-bottom: 1px solid var(--line); }
-.filters input[type=search] { grid-column: 1 / -1; }
-.filters label.chk { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
-input, select, textarea, button { font: inherit; color: inherit; }
-input[type=search], select, textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line);
-  border-radius: 6px; background: var(--panel); }
-.count { padding: 6px 12px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); }
+header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+.tabs { display: flex; gap: 4px; background: var(--soft); padding: 3px; border-radius: 10px; }
+.tab { border: 0; background: transparent; padding: 5px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); }
+.tab b { font-variant-numeric: tabular-nums; margin-left: 4px; }
+.tab.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+main { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); height: calc(100% - 59px); }
+aside { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.filters { padding: 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+.row { display: flex; gap: 8px; align-items: center; }
+input[type=search], select, textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.chk { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.more { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 14px; justify-self: start; }
+.extra { display: none; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.extra.open { display: grid; }
+.count { padding: 6px 12px; color: var(--muted); font-size: 13px; }
 #list { overflow-y: auto; flex: 1; }
-.item { padding: 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; display: grid;
-  grid-template-columns: 44px minmax(0, 1fr); gap: 10px; }
-.item:hover { background: var(--panel-2); }
-.item.sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
-.score { border-radius: 8px; text-align: center; font-weight: 700; padding: 6px 0; font-variant-numeric: tabular-nums; height: fit-content; }
-.score.green { background: var(--green-soft); color: var(--green); }
-.score.yellow { background: var(--yellow-soft); color: var(--yellow); }
-.score.red { background: var(--red-soft); color: var(--red); }
-.item .t { font-weight: 550; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.item .m { color: var(--muted); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
-.b { font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
-.b.hidden { border-color: var(--accent); color: var(--accent); }
-.b.pci { border-color: var(--green); color: var(--green); }
-.b.ok { background: var(--green-soft); color: var(--green); border-color: transparent; }
-.b.no { background: var(--red-soft); color: var(--red); border-color: transparent; }
-#detail { overflow-y: auto; padding: 20px 28px 60px; min-width: 0; }
-.empty { color: var(--muted); padding: 40px; text-align: center; }
-.top { display: flex; gap: 20px; align-items: flex-start; }
-.top h2 { margin: 0 0 4px; font-size: 20px; line-height: 1.3; }
-.top .sub { color: var(--muted); }
-.big { min-width: 120px; text-align: center; border-radius: 12px; padding: 10px 12px; }
-.big .n { font-size: 30px; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1; }
-.big .l { font-size: 12px; margin-top: 4px; }
-.verdict { margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); }
-.decide { display: flex; gap: 8px; align-items: center; margin: 14px 0 4px; flex-wrap: wrap; }
-.decide textarea { flex: 1 1 260px; min-height: 36px; height: 36px; resize: vertical; }
-.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 7px 14px; cursor: pointer; font-weight: 600; }
+.item { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; padding: 12px; border-top: 1px solid var(--line); cursor: pointer; }
+.item:hover { background: var(--soft); }
+.item.sel { background: var(--accent-soft); }
+.item .t { font-weight: 550; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item .m { color: var(--muted); font-size: 13px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score { border-radius: 8px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; padding: 5px 0; height: fit-content; font-size: 14px; }
+.green { background: var(--green-soft); color: var(--green); }
+.yellow { background: var(--yellow-soft); color: var(--yellow); }
+.red { background: var(--red-soft); color: var(--red); }
+.tag { display: inline-block; font-size: 12px; padding: 0 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+.tag.hidden { background: var(--accent-soft); color: var(--accent); }
+.tag.ok { background: var(--green-soft); color: var(--green); }
+.tag.no { background: var(--red-soft); color: var(--red); }
+
+#detail { overflow-y: auto; padding: 28px 36px 80px; min-width: 0; }
+.wrap { max-width: 820px; }
+.empty { color: var(--muted); padding: 48px 20px; text-align: center; }
+h2 { font-size: 22px; line-height: 1.3; margin: 0 0 6px; }
+.org { color: var(--muted); }
+.verdict { display: flex; align-items: center; gap: 14px; margin: 18px 0; padding: 14px 16px; border-radius: 12px; }
+.verdict .n { font-size: 28px; font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1; }
+.verdict .v { font-weight: 600; }
+.verdict .s { font-size: 13px; opacity: .85; }
+.glance { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px 16px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.glance .k { color: var(--muted); }
+.decide { display: flex; gap: 8px; margin: 18px 0 6px; flex-wrap: wrap; }
+.decide textarea { flex: 1 1 240px; height: 40px; min-height: 40px; resize: vertical; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 8px 16px; cursor: pointer; font-weight: 600; }
 .btn.approve { background: var(--green); border-color: var(--green); color: #fff; }
-.btn.reject { background: var(--panel); border-color: var(--red); color: var(--red); }
+.btn.reject { color: var(--red); border-color: var(--red); }
 .btn:disabled { opacity: .5; cursor: default; }
-.dstate { color: var(--muted); font-size: 13px; }
-section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 14px; box-shadow: var(--shadow); }
-section.card h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-.fact { display: grid; grid-template-columns: 170px 1fr; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--line); }
-.fact:first-of-type { border-top: 0; }
-.fact .k { color: var(--muted); }
-q, .q { color: var(--quote); font-style: italic; }
-q::before { content: "„"; } q::after { content: "”"; }
+.state { color: var(--muted); font-size: 14px; }
+
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-top: 12px; }
+summary { cursor: pointer; padding: 13px 18px; font-weight: 600; list-style: none; display: flex; align-items: baseline; gap: 10px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "▾"; color: var(--muted); }
+details[open] summary::after { content: "▴"; }
+summary span { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: auto; }
+.body { padding: 0 18px 16px; }
+.ev { padding: 10px 0; border-top: 1px solid var(--line); }
+.ev:first-child { border-top: 0; padding-top: 0; }
+.ev .k { color: var(--muted); font-size: 13px; }
+blockquote { margin: 3px 0 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--text); }
+table { width: 100%; border-collapse: collapse; }
+td { padding: 9px 0; border-top: 1px solid var(--line); vertical-align: top; }
+tr:first-child td { border-top: 0; }
+td.c { width: 210px; padding-right: 12px; }
+.bar { display: flex; gap: 3px; margin-top: 4px; }
+.bar i { width: 18px; height: 6px; border-radius: 3px; background: var(--line); }
+.bar i.on { background: var(--accent); }
+.why { color: var(--muted); font-size: 14px; }
+ul { margin: 0; padding-left: 20px; }
+li { margin: 5px 0; }
 a { color: var(--accent); }
-.src { font-size: 12px; margin-left: 4px; white-space: nowrap; }
-table { border-collapse: collapse; width: 100%; }
-td, th { text-align: left; padding: 7px 8px; border-top: 1px solid var(--line); vertical-align: top; }
-th { color: var(--muted); font-weight: 500; font-size: 12px; border-top: 0; }
-.dots { font-family: ui-monospace, monospace; letter-spacing: 1px; white-space: nowrap; color: var(--accent); }
-.gap { color: var(--muted); font-style: italic; }
-ul.plain { margin: 0; padding-left: 18px; }
-ul.plain li { margin: 4px 0; }
-.ladder { display: flex; gap: 4px; margin: 4px 0 8px; }
-.ladder div { flex: 1; text-align: center; font-size: 12px; padding: 6px 4px; border-radius: 6px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
-.ladder div.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 600; }
-.foot { color: var(--muted); font-size: 12px; margin-top: 16px; }
-.toolbar { display: flex; gap: 8px; margin-top: 8px; }
-.hint { color: var(--muted); font-size: 12px; }
+.src { font-size: 14px; }
+.foot { color: var(--muted); font-size: 12px; margin-top: 18px; }
+
 @media (max-width: 860px) {
   main { grid-template-columns: minmax(0, 1fr); height: auto; }
-  aside { max-height: 55vh; border-right: 0; border-bottom: 1px solid var(--line); }
-  .stats { margin-left: 0; }
-  #detail { padding: 16px; }
-  .fact { grid-template-columns: 1fr; gap: 2px; }
-  .top { flex-direction: column-reverse; }
+  aside { max-height: 50vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  #detail { padding: 18px 16px 60px; }
+  .glance { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .glance .k { margin-top: 8px; }
+  td.c { width: 130px; }
 }
 </style>
 </head>
 <body>
 <header>
-  <h1>Radar innowacji <span>· kolejka operatora PCI</span></h1>
-  <div class="stats" id="stats"></div>
+  <h1>Radar innowacji</h1>
+  <nav class="tabs" id="tabs" aria-label="Status decyzji"></nav>
 </header>
 <main>
   <aside>
     <div class="filters">
-      <input type="search" id="q" placeholder="Szukaj: tytuł, twórca, województwo…" autocomplete="off">
-      <select id="f-light"><option value="">Wszystkie oceny</option><option value="green">Zielone</option><option value="yellow">Żółte</option><option value="red">Czerwone</option></select>
-      <select id="f-level"><option value="">Każda dojrzałość</option><option value="exploring">Badania</option><option value="tech_ready">Gotowa technologia</option><option value="business_ready">Gotowa do wdrożenia</option><option value="market_ready">Na rynku</option></select>
-      <select id="f-type"><option value="">Każdy typ</option></select>
-      <select id="f-recip"><option value="">Każdy odbiorca</option></select>
-      <select id="f-voiv"><option value="">Każde województwo</option></select>
-      <select id="f-sort"><option value="score">Sortuj: ocena</option><option value="level">Sortuj: dojrzałość</option><option value="title">Sortuj: tytuł</option></select>
-      <label class="chk"><input type="checkbox" id="f-hidden"> tylko ukryte innowacje</label>
-      <label class="chk"><input type="checkbox" id="f-pci"> tylko specjalizacje PCI</label>
+      <input type="search" id="q" placeholder="Szukaj po tytule, twórcy, województwie" autocomplete="off">
+      <div class="row">
+        <select id="f-light" aria-label="Ocena">
+          <option value="">Każda ocena</option><option value="green">Zielone</option>
+          <option value="yellow">Żółte</option><option value="red">Czerwone</option>
+        </select>
+        <label class="chk"><input type="checkbox" id="f-hidden"> ukryte innowacje</label>
+      </div>
+      <button class="more" id="more" aria-expanded="false">Więcej filtrów</button>
+      <div class="extra" id="extra">
+        <select id="f-level" aria-label="Dojrzałość"><option value="">Każda dojrzałość</option></select>
+        <select id="f-recip" aria-label="Odbiorca"><option value="">Każdy odbiorca</option></select>
+        <select id="f-voiv" aria-label="Województwo"><option value="">Każde województwo</option></select>
+        <select id="f-sort" aria-label="Sortowanie"><option value="score">Od najwyższej oceny</option><option value="title">Alfabetycznie</option></select>
+      </div>
     </div>
     <div class="count" id="count"></div>
     <div id="list" role="listbox" aria-label="Kolejka kart"></div>
   </aside>
-  <div id="detail"><div class="empty">Wybierz kartę z kolejki.</div></div>
+  <div id="detail"><div class="empty">Wybierz kartę z listy.</div></div>
 </main>
 <script>
 const LEVELS = ["exploring", "tech_ready", "business_ready", "market_ready"];
 const LEVEL_PL = {exploring: "Badania", tech_ready: "Gotowa technologia", business_ready: "Gotowa do wdrożenia", market_ready: "Na rynku"};
-const LIGHT_PL = {green: "zielona", yellow: "żółta", red: "czerwona"};
-const PATH_PL = {replikacja: "Replikacja", dalsze_badania: "Dalsze badania", transfer_technologii: "Transfer technologii",
-  pilotaz_wdrozeniowy: "Pilotaż wdrożeniowy", skalowanie: "Skalowanie", zakup_replikacja: "Zakup / replikacja"};
 const RECIP_PL = {gmina_miasto: "gminy i miasta", powiat_wojewodztwo: "powiaty i województwa", szkola: "szkoły",
   uczelnia: "uczelnie", instytut_badawczy: "instytuty badawcze", ochrona_zdrowia: "ochrona zdrowia",
-  administracja_sluzby: "administracja i służby", przemysl: "przemysł", msp: "MŚP", energetyka_media: "energetyka i media",
-  transport: "transport", rolnictwo: "rolnictwo", ngo: "NGO", mieszkancy: "mieszkańcy", inne: "inne"};
-const DEC_PL = {approve: "zatwierdzona", reject: "odrzucona"};
+  administracja_sluzby: "administracja i służby", przemysl: "przemysł", msp: "małe i średnie firmy",
+  energetyka_media: "energetyka i media", transport: "transport i lotnictwo", rolnictwo: "rolnictwo",
+  ngo: "organizacje pozarządowe", mieszkancy: "mieszkańcy", inne: "inni"};
+const VERDICT = {green: "Warto przekazać dalej", yellow: "Do sprawdzenia z ekspertem", red: "Niski priorytet"};
+const TABS = [["todo", "Do decyzji"], ["approve", "Zatwierdzone"], ["reject", "Odrzucone"], ["", "Wszystkie"]];
 
-let ALL = [], VIEW = [], SEL = null, CURRENT = null, DECFILTER = "";
-
+let ALL = [], VIEW = [], SEL = null, CURRENT = null, TAB = "todo";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const safeUrl = (u) => /^https?:\/\//.test(u || "") ? u : "#";
 const num = (x) => x == null ? "–" : String(x).replace(".", ",");
-const money = (x) => x == null ? "kwota nieznana" : x.toLocaleString("pl-PL", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " zł";
+const money = (x) => x == null ? "kwota nieznana" : Math.round(x).toLocaleString("pl-PL") + " zł";
+const short = (s, n = 260) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length <= n ? s : s.slice(0, n).replace(/\s\S*$/, "") + "…"; };
 
 async function load() {
   ALL = await (await fetch("/api/cards")).json();
-  fillSelect("f-type", [...new Set(ALL.map((c) => c.innovation_type).filter(Boolean))].sort(), (v) => v);
-  fillSelect("f-recip", [...new Set(ALL.flatMap((c) => c.recipient_types))].sort(), (v) => RECIP_PL[v] || v);
-  fillSelect("f-voiv", [...new Set(ALL.flatMap((c) => c.voivodeships))].sort((a, b) => a.localeCompare(b, "pl")), (v) => v);
+  fill("f-level", LEVELS.filter((l) => ALL.some((c) => c.level === l)), (v) => LEVEL_PL[v]);
+  fill("f-recip", [...new Set(ALL.flatMap((c) => c.recipient_types))].sort(), (v) => RECIP_PL[v] || v);
+  fill("f-voiv", [...new Set(ALL.flatMap((c) => c.voivodeships))].sort((a, b) => a.localeCompare(b, "pl")), (v) => v);
   render();
   const first = location.hash.slice(1) || (VIEW[0] && VIEW[0].card_id);
   if (first) select(first);
 }
-
-function fillSelect(id, values, label) {
-  const el = $(id);
-  for (const v of values) { const o = document.createElement("option"); o.value = v; o.textContent = label(v); el.appendChild(o); }
+function fill(id, values, label) {
+  for (const v of values) { const o = document.createElement("option"); o.value = v; o.textContent = label(v); $(id).appendChild(o); }
 }
 
-function stats() {
-  const n = (f) => ALL.filter(f).length;
-  const items = [
-    ["", "Wszystkie", ALL.length],
-    ["todo", "Do decyzji", n((c) => !c.decision)],
-    ["approve", "Zatwierdzone", n((c) => c.decision === "approve")],
-    ["reject", "Odrzucone", n((c) => c.decision === "reject")],
-  ];
-  $("stats").innerHTML = items.map(([k, l, v]) =>
-    `<div class="stat${DECFILTER === k ? " active" : ""}" data-k="${k}">${l}: <b>${v}</b></div>`).join("") +
-    `<div class="stat" title="gotowa technologia bez śladu wdrożenia poza twórcą">Ukryte innowacje: <b>${n((c) => c.hidden)}</b></div>`;
-  for (const el of $("stats").querySelectorAll(".stat[data-k]")) el.onclick = () => { DECFILTER = el.dataset.k; render(); };
+function renderTabs() {
+  const n = (k) => ALL.filter((c) => k === "" || (k === "todo" ? !c.decision : c.decision === k)).length;
+  $("tabs").innerHTML = TABS.map(([k, l]) => `<button class="tab${TAB === k ? " on" : ""}" data-k="${k}">${l}<b>${n(k)}</b></button>`).join("");
+  for (const b of $("tabs").querySelectorAll(".tab")) b.onclick = () => { TAB = b.dataset.k; render(); };
 }
 
 function render() {
   const q = $("q").value.trim().toLowerCase();
-  const light = $("f-light").value, level = $("f-level").value, type = $("f-type").value;
-  const recip = $("f-recip").value, voiv = $("f-voiv").value, sort = $("f-sort").value;
-  const onlyHidden = $("f-hidden").checked, onlyPci = $("f-pci").checked;
+  const light = $("f-light").value, level = $("f-level").value, recip = $("f-recip").value, voiv = $("f-voiv").value;
+  const onlyHidden = $("f-hidden").checked;
   VIEW = ALL.filter((c) =>
+    (TAB === "" || (TAB === "todo" ? !c.decision : c.decision === TAB)) &&
     (!q || [c.title, c.org, c.voivodeships.join(" ")].join(" ").toLowerCase().includes(q)) &&
-    (!light || c.light === light) && (!level || c.level === level) && (!type || c.innovation_type === type) &&
-    (!recip || c.recipient_types.includes(recip)) && (!voiv || c.voivodeships.includes(voiv)) &&
-    (!onlyHidden || c.hidden) && (!onlyPci || c.pci.length) &&
-    (DECFILTER === "" || (DECFILTER === "todo" ? !c.decision : c.decision === DECFILTER)));
-  const cmp = {
-    score: (a, b) => (b.total ?? -1) - (a.total ?? -1),
-    level: (a, b) => (b.level_index ?? 0) - (a.level_index ?? 0) || (b.total ?? 0) - (a.total ?? 0),
-    title: (a, b) => (a.title || "").localeCompare(b.title || "", "pl"),
-  }[sort];
-  VIEW.sort(cmp);
-  $("count").textContent = `${VIEW.length} z ${ALL.length} kart`;
-  $("list").innerHTML = VIEW.map((c) => `
-    <div class="item${c.card_id === SEL ? " sel" : ""}" data-id="${c.card_id}" role="option">
+    (!light || c.light === light) && (!level || c.level === level) &&
+    (!recip || c.recipient_types.includes(recip)) && (!voiv || c.voivodeships.includes(voiv)) && (!onlyHidden || c.hidden));
+  VIEW.sort($("f-sort").value === "title"
+    ? (a, b) => (a.title || "").localeCompare(b.title || "", "pl")
+    : (a, b) => (b.total ?? -1) - (a.total ?? -1));
+  $("count").textContent = `${VIEW.length} ${VIEW.length === 1 ? "karta" : "kart"}`;
+  $("list").innerHTML = VIEW.map((c) => {
+    const tag = c.decision ? `<span class="tag ${c.decision === "approve" ? "ok" : "no"}">${c.decision === "approve" ? "zatwierdzona" : "odrzucona"}</span>`
+      : c.hidden ? '<span class="tag hidden">ukryta</span>' : "";
+    return `<div class="item${c.card_id === SEL ? " sel" : ""}" data-id="${c.card_id}" role="option">
       <div class="score ${esc(c.light)}">${num(c.total)}</div>
-      <div>
-        <div class="t">${esc(c.title)}</div>
-        <div class="m">${esc(c.org || "twórca nieustalony")} · ${esc(c.voivodeships.join(", ") || "—")}</div>
-        <div class="badges">
-          <span class="b">${esc(LEVEL_PL[c.level] || c.level)}</span>
-          ${c.hidden ? '<span class="b hidden">ukryta innowacja</span>' : ""}
-          ${c.pci.length ? `<span class="b pci">PCI: ${esc(c.pci.join(", "))}</span>` : ""}
-          ${c.decision ? `<span class="b ${c.decision === "approve" ? "ok" : "no"}">${DEC_PL[c.decision]}</span>` : ""}
-        </div>
-      </div>
-    </div>`).join("") || '<div class="empty">Brak kart dla tych filtrów.</div>';
+      <div><div class="t">${esc(c.title)}${tag}</div>
+      <div class="m">${esc(c.org || "twórca nieustalony")}${c.voivodeships.length ? " · " + esc(c.voivodeships.join(", ")) : ""}</div></div>
+    </div>`;
+  }).join("") || '<div class="empty">Brak kart.</div>';
   for (const el of $("list").querySelectorAll(".item")) el.onclick = () => select(el.dataset.id);
-  stats();
+  renderTabs();
 }
 
 async function select(id) {
@@ -224,75 +216,73 @@ async function select(id) {
   renderDetail(CURRENT);
 }
 
-function src(card) { return `<a class="src" href="${esc(safeUrl(card.url))}" target="_blank" rel="noopener">[NCBR ↗]</a>`; }
-function quote(text) { return `<q>${esc(text)}</q>`; }
-function fact(k, v) { return `<div class="fact"><div class="k">${k}</div><div>${v}</div></div>`; }
+function bar(score) { return `<div class="bar">${[1, 2, 3, 4, 5].map((i) => `<i class="${score && i <= score ? "on" : ""}"></i>`).join("")}</div>`; }
+function ev(label, text) { return `<div class="ev"><div class="k">${esc(label)}</div><blockquote>${esc(short(text, 400))}</blockquote></div>`; }
 
 function renderDetail({card, markdown, decision}) {
   if (!card.extraction) {
-    $("detail").innerHTML = `<h2>${esc(card.title)}</h2><div class="verdict">Karta niekompletna: ${esc((card.reasons || []).join("; "))}</div>`;
+    $("detail").innerHTML = `<div class="wrap"><h2>${esc(card.title)}</h2><p class="state">Karta niekompletna: ${esc((card.reasons || []).join("; "))}</p></div>`;
     return;
   }
   const ex = card.extraction, mat = card.maturity, sc = card.scores, rt = card.route, f = card.facts;
   const orgs = f.organizations.filter((o) => o.role === "beneficiary").map((o) => o.name);
-  const people = (f.people || []).map((p) => p.source_text);
-  const s = src(card);
-  const facts = [
-    fact("Twórca", esc(orgs.join("; ") || (people.join("; ") + " (beneficjent wpisany z imienia i nazwiska)") || "nieustalony") +
-      ` · woj. ${esc(f.region.voivodeships.join(", ") || "—")} ${s}`),
-    fact("Finansowanie", `${esc(f.funding.programme || "")} · konkurs ${esc(f.funding.contest || "—")} · ${esc(money(f.funding.total_value))} ${s}`),
-    f.period.start ? fact("Okres realizacji", `${esc(f.period.start)} – ${esc(f.period.end || "w toku")} ${s}`) : "",
-    ex.problem_solved.value ? fact("Problem", quote(ex.problem_solved.quote) + s) : "",
-    ex.what_is_new.value ? fact("Co nowego", quote(ex.what_is_new.quote) + s) : "",
-    ex.requirements.value ? fact("Wymagania wdrożenia", quote(ex.requirements.quote) + s) : "",
-    ...mat.evidence.map((e) => fact(`Dowód: ${esc(e.label)}`, quote(e.quote) + s)),
-    fact("Typ i dziedziny", `${esc(ex.innovation_type)} · ${esc(ex.sectors.join(", ") || "nieustalone")}`),
-  ].join("");
-  const ladder = LEVELS.map((l) => `<div class="${l === mat.level ? "on" : ""}">${LEVEL_PL[l]}</div>`).join("");
-  const crit = sc.criteria.map((c) => `<tr><td>${esc(c.label)}</td><td class="dots">${c.score == null ? '<span class="gap">brak danych</span>' : esc(c.dots)}</td><td>${esc(c.why)}</td></tr>`).join("");
-  const recips = rt.recipients.length ? rt.recipients.map((r) =>
-    `<li><b>${esc(r.label)}</b>${r.public_sector ? ' <span class="b">sektor publiczny</span>' : ""}<br>${quote(r.quote)} ${s}</li>`).join("")
-    : '<li class="gap">Źródło nie wymienia odbiorców: do ustalenia z twórcą.</li>';
-  const p = card.provenance;
-  const dec = decision ? `${DEC_PL[decision.decision]} ${esc(decision.at.replace("T", " ").slice(0, 16))}${decision.note ? " · " + esc(decision.note) : ""}` : "czeka na decyzję";
+  const who = orgs.join("; ") || (f.people || []).map((p) => p.source_text).join("; ") || "twórca nieustalony";
+  const recipients = [...new Set(rt.recipients.map((r) => r.label))];
+  const link = `<a class="src" href="${esc(safeUrl(card.url))}" target="_blank" rel="noopener">Zobacz źródło (NCBR) ↗</a>`;
+  const dState = decision
+    ? `${decision.decision === "approve" ? "Zatwierdzona" : "Odrzucona"} ${esc(decision.at.slice(0, 10))}${decision.note ? ": " + esc(decision.note) : ""}`
+    : "Czeka na decyzję";
 
-  $("detail").innerHTML = `
-    <div class="top">
-      <div style="flex:1;min-width:0">
-        <h2>${esc(ex.solution_name.value || card.title)}</h2>
-        <div class="sub">${esc(card.card_id)} · ${esc(LEVEL_PL[mat.level])}${mat.hidden ? " · <b>ukryta innowacja</b>" : ""} · ścieżka: ${esc(PATH_PL[rt.path] || rt.path)}</div>
-        <div class="verdict">${esc(ex.summary_pl)}</div>
-      </div>
-      <div class="big score ${esc(sc.light)}"><div class="n">${num(sc.total)}</div><div class="l">/ 5 · ${esc(LIGHT_PL[sc.light])}</div></div>
+  const evidence = [
+    ex.problem_solved.value ? ev("Problem", ex.problem_solved.quote) : "",
+    ex.what_is_new.value ? ev("Co nowego", ex.what_is_new.quote) : "",
+    ...mat.evidence.map((e) => ev(`Dowód: ${e.label}`, e.quote)),
+    ex.requirements.value ? ev("Wymagania wdrożenia", ex.requirements.quote) : "",
+  ].join("") || '<p class="state">Brak cytatów do pokazania.</p>';
+
+  $("detail").innerHTML = `<div class="wrap">
+    <h2>${esc(ex.solution_name.value || card.title)}</h2>
+    <div class="org">${esc(who)}${f.region.voivodeships.length ? " · woj. " + esc(f.region.voivodeships.join(", ")) : ""}</div>
+
+    <div class="verdict ${esc(sc.light)}">
+      <div class="n">${num(sc.total)}</div>
+      <div><div class="v">${esc(VERDICT[sc.light])}</div><div class="s">ocena w skali 1–5</div></div>
     </div>
+
+    <div class="glance">
+      <div class="k">Co to jest</div><div>${esc(short(ex.summary_pl, 320))}</div>
+      <div class="k">Dla kogo</div><div>${recipients.length ? esc(recipients.join(", ")) : '<span class="state">źródło nie wymienia odbiorców</span>'}</div>
+      <div class="k">Co dalej</div><div>${esc(rt.path_pl)}</div>
+      <div class="k">Dojrzałość</div><div>${esc(LEVEL_PL[mat.level])}${mat.hidden ? " – <b>ukryta innowacja</b> (brak wdrożeń poza twórcą)" : ""}</div>
+    </div>
+
     <div class="decide">
-      <textarea id="note" placeholder="Notatka do decyzji (opcjonalnie)">${esc(decision?.note || "")}</textarea>
-      <button class="btn approve" id="b-approve" title="Zatwierdź (skrót: Z)">Zatwierdź</button>
-      <button class="btn reject" id="b-reject" title="Odrzuć (skrót: O)">Odrzuć</button>
+      <textarea id="note" placeholder="Notatka (opcjonalnie)" aria-label="Notatka do decyzji">${esc(decision?.note || "")}</textarea>
+      <button class="btn approve" id="b-approve">Zatwierdź</button>
+      <button class="btn reject" id="b-reject">Odrzuć</button>
       ${decision ? '<button class="btn" id="b-reset">Cofnij</button>' : ""}
     </div>
-    <div class="dstate">Decyzja: ${dec}. ${card.status !== "ready" ? "Do przeglądu: " + esc(card.reasons.join("; ")) : ""}</div>
+    <div class="state">${dState}</div>
 
-    <section class="card"><h3>1. Co ustalono (fakty i dowody)</h3>${facts}</section>
-    <section class="card"><h3>2–3. Kryteria i ocena</h3>
-      <div class="hint">${esc(sc.verdict)} · ${esc(sc.method)}</div>
-      <table><thead><tr><th>Kryterium</th><th>Ocena</th><th>Uzasadnienie</th></tr></thead><tbody>${crit}</tbody></table>
-      <div style="margin-top:12px" class="hint">Dojrzałość</div><div class="ladder">${ladder}</div>
-      <div>Brakuje do następnego poziomu: ${esc(mat.missing)}.</div>
-    </section>
-    <section class="card"><h3>4. Co przemawia przeciw</h3><ul class="plain">${card.against.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></section>
-    <section class="card"><h3>5. Rozstrzygnięcie: do czego i dla kogo</h3>
-      <div><b>Ścieżka:</b> ${esc(rt.path_pl)}</div>
-      <div style="margin-top:8px"><b>Odbiorcy:</b></div><ul class="plain">${recips}</ul>
-      ${rt.pci_priority_sectors.length ? `<div style="margin-top:8px"><b>Specjalizacje PCI:</b> ${esc(rt.pci_priority_sectors.join(", "))}</div>` : ""}
-      <div style="margin-top:8px"><b>Mierniki skuteczności:</b></div><ul class="plain">${rt.metrics.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>
-    </section>
-    <section class="card"><h3>6. Ograniczenia</h3><ul class="plain">${card.limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></section>
-    <div class="toolbar">
-      <a class="btn" href="${esc(safeUrl(card.url))}" target="_blank" rel="noopener">Otwórz źródło ↗</a>
-      <button class="btn" id="b-md">Pobierz uzasadnienie (.md)</button>
-    </div>
-    <div class="foot">Ekstrakcja: ${esc(p.extractor)}${p.model ? " (" + esc(p.model) + ")" : ""}, ${esc(p.prompt_version)}, prób: ${p.attempts}${p.fallback_reason ? ", zapas: " + esc(p.fallback_reason) : ""} · ocena: ${esc(p.assess_version)} · ${esc(p.created_at)}</div>`;
+    <details><summary>Dowody ze źródła <span>${mat.evidence.length + ["problem_solved", "what_is_new", "requirements"].filter((k) => ex[k].value).length} cytaty</span></summary>
+      <div class="body">${evidence}<p>${link}</p></div></details>
+
+    <details><summary>Jak oceniono <span>5 kryteriów</span></summary><div class="body"><table>
+      ${sc.criteria.map((c) => `<tr><td class="c">${esc(c.label)}${c.score == null ? '<div class="why">brak danych</div>' : bar(c.score)}</td><td class="why">${esc(c.why)}</td></tr>`).join("")}
+    </table></div></details>
+
+    <details><summary>Co przemawia przeciw <span>${card.against.length}</span></summary>
+      <div class="body"><ul>${card.against.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div></details>
+
+    <details><summary>Szczegóły <span>finansowanie, mierniki, ograniczenia</span></summary><div class="body">
+      <p><b>Finansowanie:</b> ${esc(f.funding.programme || "")}${f.funding.contest ? ", konkurs " + esc(f.funding.contest) : ""}, ${esc(money(f.funding.total_value))}${f.period.start ? `, ${esc(f.period.start.slice(0, 4))}–${esc((f.period.end || "").slice(0, 4) || "w toku")}` : ""}</p>
+      <p><b>Mierniki skuteczności:</b></p><ul>${rt.metrics.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>
+      <p><b>Ograniczenia oceny:</b></p><ul>${card.limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>
+      <p><button class="btn" id="b-md">Pobierz uzasadnienie (.md)</button></p>
+      <div class="foot">${esc(card.card_id)} · ekstrakcja: ${esc(card.provenance.extractor)} · ${esc(card.provenance.assess_version)}</div>
+    </div></details>
+  </div>`;
+
   $("b-approve").onclick = () => decide("approve");
   $("b-reject").onclick = () => decide("reject");
   if ($("b-reset")) $("b-reset").onclick = () => decide("reset");
@@ -307,17 +297,16 @@ function renderDetail({card, markdown, decision}) {
 async function decide(decision) {
   if (!SEL) return;
   for (const b of document.querySelectorAll(".decide .btn")) b.disabled = true;
-  const note = $("note") ? $("note").value : "";
   const res = await fetch(`/api/cards/${encodeURIComponent(SEL)}/decision`, {
-    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({decision, note})});
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({decision, note: $("note") ? $("note").value : ""})});
   if (!res.ok) { alert("Nie udało się zapisać decyzji."); return; }
   const entry = await res.json();
-  const row = ALL.find((c) => c.card_id === SEL);
-  row.decision = decision === "reset" ? null : decision;
+  ALL.find((c) => c.card_id === SEL).decision = decision === "reset" ? null : decision;
   const idx = VIEW.findIndex((c) => c.card_id === SEL);
   render();
-  if (decision !== "reset" && DECFILTER === "todo" && VIEW.length) {
-    select(VIEW[Math.min(idx, VIEW.length - 1)].card_id);  // next card in the queue
+  if (decision !== "reset" && TAB === "todo" && VIEW.length) {
+    select(VIEW[Math.min(idx, VIEW.length - 1)].card_id);
   } else {
     CURRENT.decision = decision === "reset" ? null : entry;
     renderDetail(CURRENT);
@@ -329,16 +318,17 @@ function move(step) {
   const next = VIEW[Math.max(0, Math.min(VIEW.length - 1, i + step))];
   if (next) { select(next.card_id); document.querySelector(`.item[data-id="${next.card_id}"]`)?.scrollIntoView({block: "nearest"}); }
 }
-
 document.addEventListener("keydown", (e) => {
   if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
-  if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); move(1); }
-  else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); move(-1); }
-  else if (e.key === "z" || e.key === "Z") decide("approve");
-  else if (e.key === "o" || e.key === "O") decide("reject");
+  if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+  if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
 });
-for (const id of ["q", "f-light", "f-level", "f-type", "f-recip", "f-voiv", "f-sort", "f-hidden", "f-pci"])
-  $(id).addEventListener("input", render);
+$("more").onclick = () => {
+  const open = $("extra").classList.toggle("open");
+  $("more").textContent = open ? "Mniej filtrów" : "Więcej filtrów";
+  $("more").setAttribute("aria-expanded", open);
+};
+for (const id of ["q", "f-light", "f-hidden", "f-level", "f-recip", "f-voiv", "f-sort"]) $(id).addEventListener("input", render);
 load();
 </script>
 </body>

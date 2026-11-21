@@ -57,7 +57,7 @@ python -X utf8 -m radar.gui              # http://127.0.0.1:8765
 python -X utf8 -m radar.gui --rebuild    # najpierw przebuduj karty z data/normalized (offline)
 ```
 
-- Kolejka kart z oceną i światłem, filtry (ocena, dojrzałość, typ, odbiorca, województwo, ukryte innowacje, specjalizacje PCI), sortowanie, wyszukiwanie.
-- Karta w układzie uzasadnienia (fakty z cytatami i linkiem do źródła, kryteria, dojrzałość, co przemawia przeciw, ścieżka, odbiorcy, mierniki, ograniczenia) i pobranie uzasadnienia jako `.md`.
-- Decyzja **Zatwierdź / Odrzuć / Cofnij** z notatką; zapis w `data/decisions.jsonl` (log tylko dopisywany, ostatni wpis wygrywa). Skróty: ↑/↓ lub j/k, Z, O.
+- Zakładki Do decyzji / Zatwierdzone / Odrzucone / Wszystkie; lista z oceną, wyszukiwarka, filtr oceny i „ukryte innowacje” (pozostałe filtry pod „Więcej filtrów”).
+- Karta: rekomendacja i blok „W skrócie” (co to jest, dla kogo, co dalej, dojrzałość); dowody, kryteria, ryzyka i szczegóły w zwijanych sekcjach; pobranie uzasadnienia jako `.md`.
+- Decyzja **Zatwierdź / Odrzuć / Cofnij** z notatką; zapis w `data/decisions.jsonl` (log tylko dopisywany, ostatni wpis wygrywa). Strzałki ↑/↓ przechodzą między kartami.
 - Serwer tylko na `127.0.0.1`, biblioteka standardowa Pythona; brak kart → buduje je sam z `data/normalized/ncbr.jsonl`.
