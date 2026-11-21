@@ -116,7 +116,42 @@ MIGRATIONS = [
     );
     CREATE INDEX refresh_runs_source ON refresh_runs(source, at);
     """,
+    # v2: categories from the brief and the web crawler's state
+    """
+    ALTER TABLE records ADD COLUMN category TEXT;
+    CREATE INDEX records_category ON records(category);
+    CREATE TABLE crawl_sites (
+        site_id TEXT PRIMARY KEY,
+        category TEXT,
+        config TEXT,
+        last_run TEXT,
+        status TEXT,
+        error TEXT
+    );
+    CREATE TABLE crawl_pages (
+        url TEXT PRIMARY KEY,
+        site_id TEXT NOT NULL,
+        depth INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'queued',   -- queued | record | skipped | gone | error | blocked
+        http_status INTEGER,
+        etag TEXT,
+        last_modified TEXT,
+        content_hash TEXT,
+        content_type TEXT,
+        discovered_at TEXT NOT NULL,
+        fetched_at TEXT,
+        next_due TEXT,
+        record_id TEXT,
+        reason TEXT,
+        misses INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX crawl_pages_due ON crawl_pages(site_id, next_due);
+    """,
 ]
+
+# share of a source's live records that may disappear in one harvest before we suspect a broken
+# harvest (changed page layout, truncated file) instead of real removals
+REMOVAL_GUARD_RATIO = 0.5
 
 FTS_SQL = """CREATE VIRTUAL TABLE IF NOT EXISTS records_fts USING fts5(
     source UNINDEXED, record_id UNINDEXED, title, body, tokenize='unicode61 remove_diacritics 2')"""
@@ -203,11 +238,16 @@ def _index(conn: sqlite3.Connection, fts: bool, source: str, record_id: str, rec
 
 
 def upsert_source(conn: sqlite3.Connection, source: str, records: Iterable[dict],
-                  seen_at: str | None = None, mark_removed: bool = True) -> dict:
-    """Write one full harvest of a source. Returns counts added/changed/unchanged/restored/removed."""
+                  seen_at: str | None = None, mark_removed: bool = True, category: str | None = None,
+                  force_removal: bool = False) -> dict:
+    """Write one harvest of a source. Returns counts added/changed/unchanged/restored/removed.
+
+    mark_removed: the harvest is complete, so records missing from it left the source. When more than
+    REMOVAL_GUARD_RATIO of the live records would go, nothing is marked (count in `removal_skipped`)
+    unless force_removal: a broken harvest must not hide half the database."""
     seen_at = seen_at or now_iso()
     fts = has_fts(conn)
-    counts = {"added": 0, "changed": 0, "unchanged": 0, "restored": 0, "removed": 0}
+    counts = {"added": 0, "changed": 0, "unchanged": 0, "restored": 0, "removed": 0, "removal_skipped": 0}
     seen: set[str] = set()
     with conn:
         for rec in records:
@@ -218,6 +258,8 @@ def upsert_source(conn: sqlite3.Connection, source: str, records: Iterable[dict]
                 continue
             seen.add(rid)
             cols = _columns(rec)
+            if category:
+                cols["category"] = category
             old = conn.execute("SELECT content_hash, removed_at FROM records WHERE source=? AND record_id=?",
                                (source, rid)).fetchone()
             if old is None:
@@ -246,10 +288,22 @@ def upsert_source(conn: sqlite3.Connection, source: str, records: Iterable[dict]
         if mark_removed:
             live = conn.execute("SELECT record_id FROM records WHERE source=? AND removed_at IS NULL", (source,)).fetchall()
             gone = [r["record_id"] for r in live if r["record_id"] not in seen]
+            if gone and len(gone) > REMOVAL_GUARD_RATIO * len(live) and not force_removal:
+                counts["removal_skipped"] = len(gone)
+                gone = []
             conn.executemany("UPDATE records SET removed_at=? WHERE source=? AND record_id=?",
                              [(seen_at, source, rid) for rid in gone])
             counts["removed"] = len(gone)
     return counts
+
+
+def mark_removed(conn: sqlite3.Connection, source: str, record_ids: Iterable[str], at: str | None = None) -> int:
+    """Mark single records as gone from the source (e.g. a crawled page answered 404 twice)."""
+    at = at or now_iso()
+    with conn:
+        cur = conn.executemany("UPDATE records SET removed_at=? WHERE source=? AND record_id=? AND removed_at IS NULL",
+                               [(at, source, rid) for rid in record_ids])
+    return cur.rowcount
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -310,6 +364,7 @@ def _fts_query(q: str) -> str:
 
 
 def list_records(conn: sqlite3.Connection, *, q: str | None = None, source: str | None = None,
+                 category: str | None = None,
                  quality: str | None = None, voivodeship: str | None = None, include_removed: bool = False,
                  limit: int | None = None, offset: int = 0) -> list[dict]:
     where, params = [], []
@@ -322,7 +377,7 @@ def list_records(conn: sqlite3.Connection, *, q: str | None = None, source: str 
         else:
             where.append("(r.title LIKE ? OR r.data LIKE ?)")
             params += [f"%{q}%", f"%{q}%"]
-    for col, val in (("r.source", source), ("r.quality", quality)):
+    for col, val in (("r.source", source), ("r.quality", quality), ("r.category", category)):
         if val:
             where.append(f"{col}=?")
             params.append(val)
@@ -358,6 +413,7 @@ def summary_row(row: dict) -> dict:
         "first_seen": row["first_seen"],
         "changed_at": row["changed_at"],
         "removed_at": row["removed_at"],
+        "category": row.get("category"),
     }
 
 
@@ -375,9 +431,9 @@ def get_record(conn: sqlite3.Connection, source: str, record_id: str) -> dict | 
 
 
 def stats(conn: sqlite3.Connection) -> dict:
-    by = conn.execute("SELECT source, source_name, quality, removed_at IS NOT NULL AS removed, COUNT(*) n "
-                      "FROM records GROUP BY 1, 2, 3, 4").fetchall()
-    out: dict = {"records": 0, "removed": 0, "sources": {}, "source_ids": {}, "quality": {}}
+    by = conn.execute("SELECT source, source_name, quality, category, removed_at IS NOT NULL AS removed, COUNT(*) n "
+                      "FROM records GROUP BY 1, 2, 3, 4, 5").fetchall()
+    out: dict = {"records": 0, "removed": 0, "sources": {}, "source_ids": {}, "quality": {}, "categories": {}}
     for r in by:
         if r["removed"]:
             out["removed"] += r["n"]
@@ -388,6 +444,8 @@ def stats(conn: sqlite3.Connection) -> dict:
         out["source_ids"][r["source"]] = r["source_name"]
         q = r["quality"] or "(brak)"
         out["quality"][q] = out["quality"].get(q, 0) + r["n"]
+        c = r["category"] or "(brak)"
+        out["categories"][c] = out["categories"].get(c, 0) + r["n"]
     out["organizations"] = conn.execute("SELECT COUNT(*) FROM organizations").fetchone()[0]
     out["cards"] = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
     out["fts"] = has_fts(conn)
