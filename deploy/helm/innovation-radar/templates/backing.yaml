@@ -61,6 +61,9 @@ spec:
     metadata:
       labels: {{- include "radar.selector" $c | nindent 8 }}
     spec:
+      # rabbitmq user of the official image (100:101); without fsGroup the first start on a fresh volume fails
+      # reading .erlang.cookie (eacces) and the pod restarts once
+      securityContext: { runAsUser: 100, runAsGroup: 101, fsGroup: 101 }
       containers:
         - name: rabbitmq
           image: {{ .Values.rabbitmq.image }}

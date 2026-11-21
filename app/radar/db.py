@@ -54,6 +54,26 @@ def create_all() -> None:
     Base.metadata.create_all(engine())
 
 
+def wait_for_db(timeout_s: float = 90.0, every_s: float = 2.0) -> None:
+    """Block until the database accepts connections (pods start before Postgres is ready; crashing and being
+    restarted by Kubernetes works too, but shows up as restarts and CrashLoopBackOff)."""
+    import time
+
+    from sqlalchemy import text
+    from sqlalchemy.exc import OperationalError
+
+    deadline = time.monotonic() + timeout_s
+    while True:
+        try:
+            with engine().connect() as c:
+                c.execute(text("SELECT 1"))
+            return
+        except OperationalError:
+            if time.monotonic() > deadline:
+                raise
+            time.sleep(every_s)
+
+
 BASELINE = "0001"  # schema of the releases that used create_all (before T030)
 
 

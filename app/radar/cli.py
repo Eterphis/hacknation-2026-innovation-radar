@@ -54,6 +54,9 @@ def main(argv: list[str] | None = None) -> int:
     from radar.db import migrate
 
     if a.cmd in ("initdb", "migrate"):
+        from radar.db import wait_for_db
+
+        wait_for_db()
         print("schema at revision", migrate())
     elif a.cmd == "sources":
         from radar.sources.registry import active_sources, load_sources

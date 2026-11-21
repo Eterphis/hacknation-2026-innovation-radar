@@ -22,7 +22,7 @@ from sqlalchemy import func, select, text
 
 from radar import __version__
 from radar.config import get_settings
-from radar.db import migrate, session
+from radar.db import migrate, session, wait_for_db
 from radar.ingest import ingest_many
 from radar.models import Card, RawRecord, Record, SourceState, StageRun
 from radar.sources.base import Envelope, PushAdapter, SourceSpec
@@ -37,6 +37,7 @@ async def lifespan(_app):
     from radar.observability import setup_logging
 
     setup_logging()
+    wait_for_db()
     migrate()  # T030: Alembic; idempotent, PostgreSQL advisory lock (the Helm migrate Job usually got there first)
     yield
 
