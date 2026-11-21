@@ -3,14 +3,15 @@
 # Agenci czytają ten plik na starcie każdej sesji.
 
 contest:            # człowiek
-  name: null
-  url: null
-  organizer: null
-  language: null    # język konkursu (pitch/README w tym języku)
+  name: HackNation 2026 - RADAR INNOWACJI (Podkarpackie Centrum Innowacji)
+  url: https://hacknation.pl/zadania
+  organizer: Podkarpackie Centrum Innowacji (task partner and jury); event by Ministerstwo Cyfryzacji / GovTech Polska / Miasto Bydgoszcz
+  language: pl
+  prize: 11111.11 PLN (main prize)
 
-kind: null          # build | optimize — człowiek
+kind: build         # build | optimize — człowiek
 
-goal: null          # co budujemy / co optymalizujemy — człowiek, coordinator doprecyzowuje
+goal: "Wsrod lokalnych pomyslow ze szkol, uczelni, samorzadow i instytucji publicznych znalezc te, ktore moga miec znaczenie daleko poza miejscem, w ktorym powstaly, i ustalic, co je wyroznia. (teaser ze strony; pelna tresc zadania 21.11 11:00)"
 
 scoring:            # build: rubryka; optimize: metryka + sprawdzarka — z regulaminu
   rubric: null      # build: lista kryteriów {name, what, levels 1-5, weight}
@@ -21,20 +22,26 @@ scoring:            # build: rubryka; optimize: metryka + sprawdzarka — z regu
   leaderboard: null    # optimize: czy jest, gdzie, jak często się odświeża
 
 timeline:           # z regulaminu
-  start: null
-  end: null
-  milestones: []    # np. {at: "19:00", what: "golden path end-to-end"}, feature freeze
+  start: "2026-11-21T11:00+01:00"   # full task briefs + criteria published, coding starts
+  end: "2026-11-22T11:00+01:00"     # coding ends; submission on Hacktribe; later changes are ignored
+  milestones:
+    - {at: "2026-11-21T18:00+01:00", what: "golden path end-to-end (mocks allowed), demo checked from another device"}
+    - {at: "2026-11-22T00:00+01:00", what: "judge round; wow feature chosen"}
+    - {at: "2026-11-22T09:30+01:00", what: "feature freeze: only bugs, fallback demo video, README, pitch"}
+    - {at: "2026-11-22T10:30+01:00", what: "Hacktribe submission done (30 min buffer)"}
+    - {at: "2026-11-22T14:45+01:00", what: "Stage I results: top 5 per task go to the pitch"}
+    - {at: "2026-11-22T15:15+01:00", what: "Stage II: 5 min live pitch + 5 min jury Q&A"}    # np. {at: "19:00", what: "golden path end-to-end"}, feature freeze
 
 rules:              # sprawdza researcher PRZED startem
-  url: null
-  allowed_ai: null
+  url: https://hacknation.pl/api/public/dokumenty/28c74284-6390-4665-b8aa-bf4367db79c0/regulamin-hacknation_19.11.pdf
+  allowed_ai: null              # general rules say nothing; check the task's own regulamin at 11:00
   allowed_autonomous_agents: null
-  notes: null
+  notes: "Teams up to 6. Per-task criteria come with the full brief (Sat 11:00). Stage I = jury (3+) scores Hacktribe submissions, top 5 per task go to Stage II = 5 min pitch + 5 min Q&A. Jury may award nothing below 50% of points. Prize per task 11-34k PLN. Task regulamin may transfer IP to the partner (art. 921 par. 3 kc): check it."
 
 deliverables:       # co trzeba oddać — researcher sprawdza w regulaminie; nie zakładaj niczego (null = nieznane)
   video_required: null
   video_max_seconds: null
-  live_demo: null
+  live_demo: true              # Stage II is a live pitch to the jury
   slides: null
   repo_submission: null
   starter_code_allowed: null    # czy wolno użyć kodu przygotowanego przed eventem
@@ -61,13 +68,13 @@ deploy: true        # czy wolno samemu wystawić publiczne demo
 
 languages:
   team: pl          # PROGRESS, QUESTIONS, DECISIONS, briefing
-  public: null      # pitch, README, raporty — domyślnie język konkursu, inaczej en
+  public: pl      # pitch, README, raporty — domyślnie język konkursu, inaczej en
 
 tools: see tools.json   # wykrywa `house doctor`; nie edytuj ręcznie
 
 team:               # człowiek — system zajmuje się tylko tematami właściciela
-  owner: Wojtek
-  members: []       # {name, role, uses: claude|codex|cursor|grok-bot}
+  owner: yano358
+  members: []       # fill in at 11:00       # {name, role, uses: claude|codex|cursor|grok-bot}
 
 notify:             # powiadomienia Signal (house notify / ask / inbox); konfiguracja konta: ~/.config/house/notify.env
   alias: null       # krótki skrót konkursu w wiadomościach, np. fr; unikalny wśród trwających konkursów
