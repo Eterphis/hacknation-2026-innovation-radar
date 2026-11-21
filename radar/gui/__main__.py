@@ -22,7 +22,7 @@ from ..sources.ncbr import _file_key, _slug
 
 STATIC = Path(__file__).parent / "static"
 KEY_RE = r"([a-z0-9_]{1,40})/([a-z0-9][a-z0-9-]{0,400})"
-LEADING_ROLES = ("beneficiary", "lead_partner")
+LEADING_ROLES = ("beneficiary", "lead_partner", "applicant")
 
 
 class RecordStore:

@@ -94,13 +94,13 @@ a { color: var(--accent); }
   <div id="detail"><div class="empty">Wybierz rekord z listy.</div></div>
 </main>
 <script>
-const SOURCE_SHORT = {ncbr_sukcesy: "NCBR", interreg_pl: "Interreg"};
-const TEXT_PL = {description: "Opis projektu", problem: "Jaki problem rozwiązuje", result: "Efekt pracy",
+const SOURCE_SHORT = {ncbr_sukcesy: "NCBR", interreg_pl: "Interreg", epo_ep: "EPO"};
+const TEXT_PL = {abstract: "Abstrakt", first_claim: "Zastrzeżenie 1", description: "Opis", problem: "Jaki problem rozwiązuje", result: "Efekt pracy",
   users: "Kto korzysta / skorzysta", challenges: "Największe wyzwania", advice: "Rada dla wnioskodawców",
   market_readiness: "Gotowość rynkowa", commercialization: "Ścieżka komercjalizacji",
   commercialization_barriers: "Trudności w komercjalizacji", ip: "Własność intelektualna"};
 const STATUS_PL = {finished: "zakończony", running: "w trakcie", planned: "planowany"};
-const ROLE_PL = {beneficiary: "beneficjent", partner: "partner", lead_partner: "partner wiodący"};
+const ROLE_PL = {beneficiary: "beneficjent", partner: "partner", lead_partner: "partner wiodący", applicant: "zgłaszający", inventor: "twórca"};
 
 let ALL = [], VIEW = [], SEL = null;
 const $ = (id) => document.getElementById(id);
@@ -160,21 +160,24 @@ function renderDetail({record: r, raw_files: raw, data_file}) {
   const p = r.provenance || {}, q = r.quality || {}, f = r.funding || {}, per = r.period || {}, reg = r.region || {};
   const rawRow = (label, info) => info ? [label, `<code>${esc(info.path)}</code>${info.exists ? "" : ' <span class="raw">(brak pliku)</span>'}`] : null;
   const fileSource = !!p.source_file_url;
+  const pat = r.patent;
 
   const source = kv([
     ["Źródło", esc(r.source_name) + ` <span class="raw">(${esc(r.source)})</span>`],
-    fileSource ? null : ["Strona projektu", link(r.url)],
-    ["Strona listy", link(r.list_url)],
+    fileSource ? null : [pat ? "Strona w EPO Register" : "Strona projektu", link(r.url)],
+    [pat ? "Endpoint SPARQL" : "Strona listy", link(r.list_url)],
     fileSource ? ["Plik źródłowy", link(p.source_file_url)] : null,
     fileSource ? ["Wiersz w pliku", p.source_row != null ? String(p.source_row) : null] : null,
-    ["Pobrano stronę listy", dt(p.list_fetched_at)],
-    [fileSource ? "Pobrano plik" : "Pobrano stronę projektu", dt(p.detail_fetched_at)],
+    pat ? ["Dokument źródłowy", (p.source_documents || []).length ? p.source_documents.map(link).join("<br>") : null] : null,
+    [pat ? "Pobrano dane SPARQL" : "Pobrano stronę listy", dt(p.list_fetched_at)],
+    [fileSource ? "Pobrano plik" : pat ? "Pobrano dokument" : "Pobrano stronę projektu", dt(p.detail_fetched_at)],
     ["Konektor", p.connector ? `<code>${esc(p.connector)}</code>` : null],
     ["Schemat rekordu", r.schema ? `<code>${esc(r.schema)}</code>` : null],
     ["ID rekordu", `<code>${esc(r.record_id)}</code>`],
     ["Hash treści", r.content_hash ? `<code>${esc(r.content_hash.slice(0, 16))}…</code>` : null],
     ["Plik danych", `<code>${esc(data_file)}</code>`],
     rawRow("Zapisany plik źródłowy", raw.source_file),
+    rawRow("Zapisany dokument", raw.source_document),
     rawRow("Zapisana strona projektu", raw.detail_page),
     rawRow("Zapisana strona listy", raw.list_page),
   ]);
@@ -186,28 +189,45 @@ function renderDetail({record: r, raw_files: raw, data_file}) {
     ["Długość opisu", q.narrative_chars != null ? `${q.narrative_chars} znaków` : null],
   ]);
 
-  const loc = (o) => o.location ? [o.location.city, o.location.powiat && o.location.powiat !== o.location.city ? "pow. " + o.location.powiat : null, o.location.region, o.location.country].filter(Boolean).join(", ") : "";
+  const loc = (o) => o.location ? [o.location.street, [o.location.postal_code, o.location.city].filter(Boolean).join(" "),
+    o.location.powiat && o.location.powiat !== o.location.city ? "pow. " + o.location.powiat : null, o.location.region, o.location.country].filter(Boolean).join(", ") : "";
   const orgs = (r.organizations || []).map((o) => `<li>${esc(o.name)} <span class="raw">· ${esc(ROLE_PL[o.role] || o.role)}${o.type_hint ? " · typ (podpowiedź): " + esc(o.type_hint) : ""}${loc(o) ? " · " + esc(loc(o)) : ""}</span></li>`).join("");
-  const people = (r.people || []).map((x) => `<li>${esc(x.name)} <span class="raw">· ${esc(ROLE_PL[x.role] || x.role || "rola nieznana")}${x.titles ? " · " + esc(x.titles) : ""}</span></li>`).join("");
+  const people = (r.people || []).map((x) => `<li>${esc(x.name)} <span class="raw">· ${esc(ROLE_PL[x.role] || x.role || "rola nieznana")}${x.titles ? " · " + esc(x.titles) : ""}${x.country ? " · " + esc(x.country) : ""}</span></li>`).join("");
   const raws = f.raw || {};
   const inSource = (v) => v ? ` <span class="raw">· w źródle: ${esc(v)}</span>` : "";
+  const hasFunding = Object.keys(f).length > 0;
+  const pubLinks = (x) => [x.html && `<a href="${esc(safeUrl(x.html))}" target="_blank" rel="noopener">HTML</a>`,
+    x.pdf && `<a href="${esc(safeUrl(x.pdf))}" target="_blank" rel="noopener">PDF</a>`].filter(Boolean).join(" · ");
+  const patentRows = pat ? [
+    ["Numer zgłoszenia", `<code>${esc(pat.application_number)}</code>${pat.application_number_original ? ` <span class="raw">(${esc(pat.application_number_original)})</span>` : ""}`],
+    ["Data zgłoszenia", esc(pat.filing_date)],
+    ["Publikacje", (pat.publications || []).length ? `<ul>${pat.publications.map((x) => `<li><code>${esc(x.id)}</code> · ${esc(x.date)} ${pubLinks(x) ? "· " + pubLinks(x) : ""}</li>`).join("")}</ul>` : null],
+    ["Patent udzielony", pat.granted ? `tak · <code>${esc(pat.grant.publication)}</code> · ${esc(pat.grant.date)}` : '<span class="raw">brak publikacji B1 (w toku, wycofane lub odrzucone)</span>'],
+    pat.pct_application ? ["Zgłoszenie PCT", `<code>${esc(pat.pct_application)}</code>`] : null,
+    (pat.priorities || []).length ? ["Priorytety", pat.priorities.map((x) => `<code>${esc(x)}</code>`).join(", ")] : null,
+    pat.family ? ["Rodzina patentowa", `<code>${esc(pat.family)}</code>`] : null,
+    ["Klasy CPC", (pat.cpc || []).length ? pat.cpc.map((x) => `<code>${esc(x)}</code>`).join(" ") : null],
+    ["Klasy IPC", (pat.ipc || []).length ? pat.ipc.map((x) => `<code>${esc(x)}</code>`).join(" ") : null],
+    ["Tytuły", Object.entries(pat.titles || {}).map(([l, t]) => `<span class="raw">${esc(l)}:</span> ${esc(t)}`).join("<br>")],
+  ] : [];
   const data = kv([
     ["Tytuł", esc(r.title)],
     ["Organizacje", orgs ? `<ul>${orgs}</ul>` : null],
     people ? ["Osoby", `<ul>${people}</ul>`] : null,
-    ["Operator / program", [f.operator, f.programme].filter(Boolean).map(esc).join(" · ") || null],
+    ...patentRows,
+    hasFunding ? ["Operator / program", [f.operator, f.programme].filter(Boolean).map(esc).join(" · ") || null] : null,
     f.project_no ? ["Numer projektu", `<code>${esc(f.project_no)}</code>`] : null,
     f.contest ? ["Konkurs", esc(f.contest)] : null,
     f.fund ? ["Fundusz", esc(f.fund)] : null,
     f.specific_objective ? ["Cel szczegółowy", esc(f.specific_objective)] : null,
     f.intervention_field ? ["Zakres interwencji", esc(f.intervention_field)] : null,
-    ["Wartość projektu", f.total_value != null ? amount(f.total_value, f.currency) + inSource(raws.total_value) : (raws.total_value ? `<span class="raw">nieodczytane: ${esc(raws.total_value)}</span>` : null)],
-    ["Dofinansowanie", f.grant_value != null ? amount(f.grant_value, f.currency) + (f.grant_share != null ? ` (${Math.round(f.grant_share * 100)}%)` : "") +
+    !hasFunding ? null : ["Wartość projektu", f.total_value != null ? amount(f.total_value, f.currency) + inSource(raws.total_value) : (raws.total_value ? `<span class="raw">nieodczytane: ${esc(raws.total_value)}</span>` : null)],
+    !hasFunding ? null : ["Dofinansowanie", f.grant_value != null ? amount(f.grant_value, f.currency) + (f.grant_share != null ? ` (${Math.round(f.grant_share * 100)}%)` : "") +
       (f.grant_value_computed ? ' <span class="raw">· wyliczone: wartość × stopa dofinansowania</span>' : inSource(raws.grant_value)) : null],
     f.strategic_project != null ? ["Projekt strategiczny", yesno(f.strategic_project)] : null,
     f.above_5m_eur != null ? ["Powyżej 5 mln EUR", yesno(f.above_5m_eur)] : null,
-    ["Okres", per.start || per.end ? `${esc(per.start || "?")} – ${esc(per.end || (per.ongoing ? "w toku" : "?"))} · ${esc(STATUS_PL[per.status] || per.status || "")}${inSource(per.raw)}` : (per.raw ? `<span class="raw">nieodczytane: ${esc(per.raw)}</span>` : null)],
-    ["Województwo / region", (reg.voivodeships || []).length || reg.nationwide ? esc((reg.voivodeships || []).join(", ") || "cała Polska") + inSource(reg.raw)
+    pat ? null : ["Okres", per.start || per.end ? `${esc(per.start || "?")} – ${esc(per.end || (per.ongoing ? "w toku" : "?"))} · ${esc(STATUS_PL[per.status] || per.status || "")}${inSource(per.raw)}` : (per.raw ? `<span class="raw">nieodczytane: ${esc(per.raw)}</span>` : null)],
+    [pat ? "Miejscowość zgłaszającego (PL)" : "Województwo / region", (reg.voivodeships || []).length || reg.nationwide ? esc((reg.voivodeships || []).join(", ") || "cała Polska") + inSource(reg.raw)
       : (reg.raw ? esc(reg.raw) + (reg.country ? ` <span class="raw">· ${esc(reg.country)}</span>` : "") : null)],
     (r.keywords || []).length ? ["Słowa kluczowe", esc(r.keywords.join(", "))] : null,
     ["Prawa do treści", r.rights ? `${esc(r.rights.licence)} <span class="raw">· ${esc(r.rights.note || "")}</span>` : null],
@@ -225,7 +245,7 @@ function renderDetail({record: r, raw_files: raw, data_file}) {
     <div class="sub">${esc(r.source_name)} · rekord ${q.status === "ok" ? '<span class="status-ok">kompletny</span>' : '<span class="status-warn">do przeglądu</span>'}</div>
     <section><h3>Źródło wczytania</h3>${source}</section>
     <section><h3>Dane rekordu</h3>${data}</section>
-    <section><h3>${fileSource ? "Treść z pliku" : "Treść ze strony"}</h3><div class="text">${texts}</div></section>
+    <section><h3>${fileSource ? "Treść z pliku" : pat ? "Treść z dokumentu patentowego" : "Treść ze strony"}</h3><div class="text">${texts}</div></section>
     <section><h3>Jakość wczytania</h3>${quality}</section>
     <details><summary>Surowy JSON rekordu</summary><pre>${esc(JSON.stringify(r, null, 2))}</pre></details>
   </div>`;

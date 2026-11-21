@@ -47,6 +47,20 @@ python -X utf8 -m radar.sources.interreg --offline   # z zapisanego pliku, bez s
 - Jeden wiersz = jeden rekord `radar.record/v1`: tytuł, opis, partner wiodący z lokalizacją (kod, miejscowość, gmina, powiat, region, kraj), partnerzy, program, numer projektu, fundusz, cel szczegółowy, zakres interwencji, wartość w EUR, stopa i wyliczone dofinansowanie, okres ze statusem, województwo (dla partnerów z Polski), w `provenance` adres pliku i numer wiersza.
 - Źródło nie ma strony per projekt, więc `url` jest pusty; opisy dłuższe niż 4000 znaków są w pliku ucięte (ostrzeżenie `description_truncated_in_source`).
 
+**EPO – zgłoszenia patentów europejskich z polskim zgłaszającym** ([`radar/sources/epo.py`](radar/sources/epo.py)):
+
+```bash
+python -X utf8 -m radar.sources.epo --since 2020-01-01 --out data/normalized/epo.jsonl --csv data/normalized/epo.csv
+python -X utf8 -m radar.sources.epo --no-docs        # tylko dane bibliograficzne (szybko, bez abstraktów)
+python -X utf8 -m radar.sources.epo --offline        # z zapisanych odpowiedzi i dokumentów
+```
+
+- API EPO Register (OPS) wymaga klucza, więc konektor korzysta z tych samych danych EPO udostępnianych bez klucza: endpoint SPARQL EPO Linked Data (dane bibliograficzne) i dokumenty publikacji w XML (abstrakt, zastrzeżenia, opis, pełny adres zgłaszającego).
+- Zakres: pierwsze publikacje A1/A2 od `--since` (domyślnie 2020-01-01), w których co najmniej jeden zgłaszający ma kraj `--country` (domyślnie PL); ok. 3,3 tys. zgłoszeń.
+- Jeden rekord na zgłoszenie: tytuł (EN, wszystkie języki w `patent.titles`), zgłaszający z adresem, twórcy, numer i data zgłoszenia, publikacje z linkami (XML, HTML, PDF), udzielenie (publikacja B1 i data), PCT, priorytety, rodzina, CPC i IPC, abstrakt, zastrzeżenie 1, początek opisu; `url` prowadzi do strony zgłoszenia w EPO Register.
+- Publikacje Euro-PCT zawierają tylko bibliografię (abstrakt jest w publikacji WO): ostrzeżenie `abstract_not_in_ep_publication`. W danych EPO polskie litery w nazwiskach bywają zastąpione spacją (np. „Woli ska”); zostawione bez zmian.
+- Odpowiedzi SPARQL i dokumenty są zapisywane w `data/raw/epo/` (ponowne uruchomienie korzysta z dysku).
+
 Testy: `python -X utf8 -m unittest discover -s tests -t .`
 
 ## Karta innowacji (ekstrakcja → dojrzałość → ocena → odbiorcy)
