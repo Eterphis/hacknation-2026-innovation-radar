@@ -56,8 +56,7 @@ def fetch_bytes(url: str, timeout: float = 60.0, retries: int = 3, backoff: floa
     raise FetchError(f"giving up on {url}: {last}") from last
 
 
-def fetch(url: str, timeout: float = 30.0, retries: int = 3, backoff: float = 2.0,
-          accept: str = "text/html,application/xhtml+xml") -> Response:
+def fetch(url: str, timeout: float = 30.0, retries: int = 3, backoff: float = 2.0) -> Response:
     """GET `url`; retries timeouts, connection errors and 429/5xx with exponential backoff."""
     last: Exception | None = None
     for attempt in range(retries + 1):
@@ -65,7 +64,7 @@ def fetch(url: str, timeout: float = 30.0, retries: int = 3, backoff: float = 2.
             url,
             headers={
                 "User-Agent": USER_AGENT,
-                "Accept": accept,
+                "Accept": "text/html,application/xhtml+xml",
                 "Accept-Language": "pl,en;q=0.5",
             },
         )
