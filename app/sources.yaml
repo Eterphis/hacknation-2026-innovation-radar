@@ -89,8 +89,12 @@ sources:
       institution_type: institution_type
 
   # ------------------------------------------------------------------ LIVE: pull
+  # Biblioteka Nauki i RAD-on: jedna droga = harvester (harvester-bibliotekanauki, harvester-radon niżej). Jego konektory
+  # mają więcej pól (oai_openaire: słowa kluczowe, afiliacje, DOI; RAD-on: filtr NCN/NCBR, organizacje z REGON/typem/
+  # województwem i rejestr instytucji dla resolve_org). Te wpisy zostają jako wzór konfiguracji, wyłączone.
   - id: bibliotekanauki
     type: oaipmh
+    enabled: false   # zastąpione przez harvester-bibliotekanauki
     kind: publication
     schedule_s: 21600
     description: "Biblioteka Nauki, OAI-PMH, przyrostowo po datestamp"
@@ -139,6 +143,7 @@ sources:
 
   - id: radon-projekty
     type: rest
+    enabled: false   # zastąpione przez harvester-radon
     kind: project
     schedule_s: 604800
     description: "RAD-on projekty krajowe (NCN, NCBR), ok. 49 tys., stronicowanie tokenem (sprawdzone 2026-11-21)"
@@ -251,6 +256,24 @@ sources:
     id_path: record_id
     mapping: *record_v1
 
+  - id: harvester-bibliotekanauki
+    type: snapshot
+    kind: publication
+    schedule_s: 3600
+    description: "Biblioteka Nauki: artykuły z polskich czasopism, OAI-PMH oai_openaire, okno 10 dni (harvester; zamiennik Google Scholar i PAN dLibra)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/bibliotekanauki.jsonl", optional: true, min_abstract_chars: 200 }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-radon
+    type: snapshot
+    kind: project
+    schedule_s: 3600
+    description: "RAD-on: projekty krajowe finansowane przez NCN i NCBR, z instytucjami z rejestru POL-on (harvester)"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/radon.jsonl", optional: true, min_abstract_chars: 150 }
+    id_path: record_id
+    mapping: *record_v1
+
   - id: harvester-openalex
     type: snapshot
     kind: publication
@@ -293,6 +316,15 @@ sources:
     schedule_s: 3600
     description: "UPRP: import ręcznego eksportu e-Wyszukiwarki (bez zapytań do UPRP; harvester)"
     options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/uprp_import.jsonl", optional: true, min_abstract_chars: 60 }
+    id_path: record_id
+    mapping: *record_v1
+
+  - id: harvester-web
+    type: snapshot
+    kind: solution
+    schedule_s: 3600
+    description: "Crawler stron z config/sites.json (uczelnie, CTT, klastry, samorządy; robots.txt, 1 zapytanie / 2 s na host); eksport z bazy harvestera"
+    options: { path: "${RADAR_HARVEST_DIR:-../data/normalized}/web.jsonl", optional: true, min_abstract_chars: 300 }
     id_path: record_id
     mapping: *record_v1
 
