@@ -177,11 +177,24 @@ def audiences(rec, card, bc: dict) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------ entry points
-def pregenerate(rec, card, complete: Callable[[str, str], dict] | None = None) -> dict:
-    """All pregenerated content for one card. Pure: same inputs, same output (unless ``complete`` is given)."""
+def slogan_key(rec, card) -> str:
+    """Fingerprint of the text a slogan is written from. A new score or assessment does not change it, so the
+    daily reassess does not ask the model again for the same slogan."""
+    raw = "\x1f".join(str(x or "") for x in (SLOGAN_SYSTEM, rec.title, rec.abstract, card.solution_name,
+                                             card.problem_solved, card.summary_pl))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def pregenerate(rec, card, complete: Callable[[str, str], dict] | None = None, reuse: bool = True) -> dict:
+    """All pregenerated content for one card. Pure: same inputs, same output (unless ``complete`` is given).
+    ``reuse``: keep the stored slogan when its source text is unchanged (``card.pregen``), with no model call."""
     bc = business_case(rec, card)
     aud = audiences(rec, card, bc)
-    text, by = slogan(rec, card, complete)
+    key, prev = slogan_key(rec, card), getattr(card, "pregen", None) or {}
+    if reuse and prev.get("slogan_key") == key and prev.get("slogan"):  # computed once; `--force` redoes it
+        text, by, calls = prev["slogan"], prev["slogan_by"], 0
+    else:
+        (text, by), calls = slogan(rec, card, complete), int(complete is not None)
     return {
         "version": VERSION,
         "inputs_hash": inputs_hash(rec, card),
@@ -189,15 +202,16 @@ def pregenerate(rec, card, complete: Callable[[str, str], dict] | None = None) -
         "brief": reel_brief(rec, card),
         "slogan": text,
         "slogan_by": by,
+        "slogan_key": key,
         "business": bc,
         "audiences": aud,
         "top_audiences": sorted((k for k, v in aud.items() if v["fits"]), key=lambda k: -aud[k]["rank"]),
-        "llm_calls": 1 if complete is not None else 0,
+        "llm_calls": calls,
     }
 
 
 def pregenerate_many(pairs: Iterable[tuple], stored: dict | None = None,
-                     complete: Callable[[str, str], dict] | None = None) -> tuple[dict, dict]:
+                     complete: Callable[[str, str], dict] | None = None, reuse: bool = True) -> tuple[dict, dict]:
     """Pregenerate many ``(record, card)`` pairs, skipping cards whose stored content is still current.
 
     ``stored`` maps card id -> previously stored pregen dict. Returns ``(results by card id, stats)``; stats count
@@ -213,7 +227,7 @@ def pregenerate_many(pairs: Iterable[tuple], stored: dict | None = None,
         if not needs_refresh(stored.get(card.id), rec, card):
             stats["skipped"] += 1
             continue
-        results[card.id] = pregenerate(rec, card, complete)
+        results[card.id] = pregenerate(rec, card, complete, reuse)
         stats["computed"] += 1
     stats["no_large_llm_pct"] = round(100 * stats["no_large_llm"] / stats["cards"], 1) if stats["cards"] else 0.0
     return results, stats
@@ -224,7 +238,7 @@ def store(rec, card, force: bool = False) -> bool:
     """Write ``card.pregen`` when missing or stale. Returns True when it was (re)computed."""
     if not force and not needs_refresh(card.pregen, rec, card):
         return False
-    card.pregen = pregenerate(rec, card, local_slogan())
+    card.pregen = pregenerate(rec, card, local_slogan(), reuse=not force)
     return True
 
 
@@ -245,7 +259,7 @@ def run(force: bool = False, batch: int = 500) -> dict:
             cards = s.scalars(select(Card).where(Card.id.in_(ids[i:i + batch]))).all()
             pairs = [(c.record, c) for c in cards]
             stored = {} if force else {c.id: c.pregen for c in cards}
-            results, st = pregenerate_many(pairs, stored, local_slogan())
+            results, st = pregenerate_many(pairs, stored, local_slogan(), reuse=not force)
             for c in cards:
                 if c.id in results:
                     c.pregen = results[c.id]
