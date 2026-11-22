@@ -87,3 +87,17 @@ def test_harvester_records_become_assets():
     assert a["country"] == "PL" and a["status"] in ("granted", "filed", "utility_model", "utility_model_filed")
     assert a["titles"] and a["organizations"] and "POLITECHNIKA" in a["organizations"][0].upper()
     assert E.assets_from_harvest({"title": "x"}) is None
+
+
+def test_quota_answer_stops_the_run(tmp_path):
+    seen = []
+
+    def handler(req):
+        if req.url.path.endswith("/accesstoken"):
+            return httpx.Response(200, json={"access_token": "t", "expires_in": "1200"})
+        seen.append(req.url.params["q"])
+        return httpx.Response(403, headers={"X-Rejection-Reason": "IndividualQuotaPerHour"})
+
+    c = E.EpoOps("k", "s", cache=DiskCache("epo_ops", root=tmp_path), http=httpx.Client(transport=httpx.MockTransport(handler)))
+    assert E.harvest_orgs(c, [("a", "A"), ("b", "B"), ("c", "C")]) == {}
+    assert len(seen) == 1  # no more requests after the quota answer

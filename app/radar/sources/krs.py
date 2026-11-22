@@ -122,8 +122,12 @@ class KrsClient:
                 if r.status_code == 404:
                     continue
                 r.raise_for_status()
-                return company_profile(r.json())
-            return None
+                profile = company_profile(r.json())
+                if profile is None:
+                    # a 200 we cannot read (schema change, error page): not cached, so it is retried next run
+                    raise ValueError(f"KRS {num}: unreadable extract")
+                return profile
+            return None  # unknown in both registers: cached, the number really does not exist
 
         entry = self.cache.fetch(f"profile:{num}", load)
         return {**entry["value"], "fetched_at": entry["fetched_at"]} if entry["value"] else None

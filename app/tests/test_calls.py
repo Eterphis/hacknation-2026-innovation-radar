@@ -51,6 +51,9 @@ def test_dates_and_amounts():
     assert C.parse_when("luty 2028", end=True) == ("2028-02-29", "month")
     assert C.parse_when("do ustalenia") == (None, None)
     assert C._amount("1,5 mld zł") == 1.5e9 and C._amount("25 000 000,00") == 25e6
+    assert C._amount("1.5 mln zł") == 1.5e6 and C._amount("12.500.000,00 zł") == 12.5e6 and C._amount("1.500 tys.") == 1.5e6
+    assert C.parse_when("13.2026", end=True) == ("2026-12-31", "year")  # no month 13: not silently January
+    assert C.parse_when("03.2026", end=True) == ("2026-03-31", "month")
 
 
 def test_programme_regions():

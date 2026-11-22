@@ -95,3 +95,11 @@ def test_committed_companies_file_is_real_and_personless():
     companies = K.load_companies()
     assert companies and all(c["source"].startswith("KRS") and c["fetched_at"] for c in companies)
     assert all(not any(k in json.dumps(h) for k in ("nazwisko", "imiona")) for c in companies for h in c["shareholders"])
+
+
+def test_unreadable_200_is_not_cached(tmp_path):
+    answers = [httpx.Response(200, json={"odpis": {}}), httpx.Response(200, json=PUT)]
+    c = K.KrsClient(cache=DiskCache("krs", root=tmp_path),
+                    http=httpx.Client(transport=httpx.MockTransport(lambda req: answers.pop(0))))
+    assert K.fetch_many(c, ["626339"]) == []  # schema change / error page: skipped ...
+    assert c.odpis("626339")["krs"] == "0000626339"  # ... and retried next time, not cached as "no company"

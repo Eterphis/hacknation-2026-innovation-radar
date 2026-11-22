@@ -144,7 +144,7 @@ def parse_when(text: str | None, end: bool = False) -> tuple[str | None, str | N
         q = QUARTERS[m.group(1)]
         mon = q * 3 if end else q * 3 - 2
         return _month_edge(y, mon, end), "quarter"
-    if m := re.search(r"\b(\d{1,2})[./]" + str(y), t):
+    if (m := re.search(r"\b(\d{1,2})[./]" + str(y), t)) and 1 <= int(m.group(1)) <= 12:
         return _month_edge(y, int(m.group(1)), end), "month"
     for stem, mon in MONTHS.items():
         if re.search(rf"\b{stem}", t):
@@ -164,8 +164,12 @@ def _amount(text: str | None) -> float | None:
     m = re.search(r"(\d[\d \.]*(?:,\d+)?)\s*(mld|mln|tys)?", t)
     if not m:
         return None
+    num = m.group(1).replace(" ", "").rstrip(".")
+    if "," in num or re.fullmatch(r"\d{1,3}(\.\d{3})+", num):
+        num = num.replace(".", "").replace(",", ".")  # '12.500.000,00' / '1.500': dots group thousands
+    # otherwise a single dot is the decimal point: '1.5 mln' (written the English way) is 1 500 000, not 15 000 000
     try:
-        v = float(m.group(1).replace(" ", "").replace(".", "").replace(",", "."))
+        v = float(num)
     except ValueError:
         return None
     return v * {"mld": 1e9, "mln": 1e6, "tys": 1e3}.get(m.group(2) or "", 1)

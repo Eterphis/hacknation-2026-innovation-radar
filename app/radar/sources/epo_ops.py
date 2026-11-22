@@ -33,6 +33,7 @@ from radar.sources.disk_cache import DiskCache
 OPS = "https://ops.epo.org/3.2"
 SOURCE = "EPO OPS"
 PAGE = 100  # OPS returns at most 100 documents per request
+QUOTA_STATUS = (403, 429)  # OPS: 403 with X-Rejection-Reason when the quota or throttling limit is hit
 GENERIC_STEMS = {"sposob", "urzadz", "method", "device", "system", "zastos", "uklad", "srodek", "means",
                  "proces", "process", "wytwar", "produc", "oraz", "using", "for", "the", "and", "with", "from"}
 
@@ -147,13 +148,19 @@ class EpoOps:
 
 
 def harvest_orgs(client: EpoOps | None, orgs: Iterable[tuple[str, str]]) -> dict[str, dict]:
-    """org_key -> {"fetched_at", "assets"} for (key, name) pairs; {} without a client. One failing org is skipped."""
+    """org_key -> {"fetched_at", "assets"} for (key, name) pairs; {} without a client. One failing org is skipped;
+    a quota or throttling answer (OPS: 403 / 429) stops the run, so the remaining orgs do not burn the weekly quota
+    (what was fetched so far is returned and cached; the next run continues from the cache)."""
     if client is None:
         return {}
     out = {}
     for key, name in orgs:
         try:
             got = client.search_applicant(name)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code in QUOTA_STATUS:
+                break
+            continue
         except (httpx.HTTPError, KeyError, ValueError):
             continue
         out[key] = {"fetched_at": got["fetched_at"], "assets": [{**a, "org_key": key} for a in got["value"]]}
