@@ -51,6 +51,8 @@ def test_llm_slogan_is_opt_in_and_validated():
     assert pregen.slogan(r, c, invented)[1] == "reguły"
     assert pregen.slogan(r, c, broken)[1] == "reguły"
     assert pregen.slogan(r, c, lambda s, u: {"haslo": "x" * 200})[1] == "reguły"
+    assert pregen.slogan(r, c, lambda s, u: {"haslo": "Robotyka " * 10})[1] == "reguły"  # 90 chars: cut by the cap
+    assert pregen.slogan(r, c, lambda s, u: {"haslo": "**Robotyka dla małych szkół**"}) == ("Robotyka dla małych szkół", "local-llm")
     assert pregen.slogan(r, c, lambda s, u: {"haslo": "Program pomaga uczniom rozwijać kompetencje i pobudzać do"})[1] == "reguły"
     assert pregen.pregenerate(r, c, good)["llm_calls"] == 1
 

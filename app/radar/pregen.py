@@ -120,10 +120,12 @@ _DANGLING = re.compile(r"(?:\b(?:i|w|we|z|ze|do|na|dla|oraz|o|od|po|przez|a|ale|
 
 
 def validate_slogan(text, rec, card) -> str | None:
-    """Accept a model's slogan only if it is short, non-empty and adds no numbers absent from the source."""
+    """Accept a model's slogan only if it is short, complete and adds no numbers absent from the source."""
     if not isinstance(text, str):
         return None
-    t = re.sub(r"\s+", " ", text).strip().strip('"„”')
+    if len(text.strip()) >= SLOGAN_MAX - 1:  # hit the grammar's length cap: cut mid-word, not a finished slogan
+        return None
+    t = re.sub(r"\s+", " ", text.replace("**", "").replace("__", "")).strip().strip('"„”*/ ')
     if not 8 <= len(t) <= SLOGAN_MAX:
         return None
     source = " ".join(filter(None, (rec.title, rec.abstract, card.solution_name, card.problem_solved, card.summary_pl)))
