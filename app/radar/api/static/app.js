@@ -332,6 +332,9 @@ async function audienceTiles() {
   return `<section class="who reveal"><p class="pretitle">${icon("users")}Kim jesteś?</p><div class="who-grid">${PERSONAS.map(p =>
     `<a class="who-tile" href="#/dla/${p.key}" style="--hero:url('${heroImg(p.key)}')">${avatar(p.icon, "red")}<b>${esc(p.name)}</b><span>${esc(short(p.promise, 72))}</span>${icon("arrow-right", "go")}</a>`).join("")}</div></section>`;
 }
+// headline value: licence / spin-off for a technology, adopters' savings for an openly transferred way of working
+const headVal = (b, inv) => b?.valuation?.open_model ? [b.valuation.public_value_3y_pln, b.valuation.headline]
+  : [inv?.adjusted?.licence_or_spinoff_pln ?? b?.valuation?.licence_or_spinoff_pln ?? 0, "wartość licencji / spin-off"];
 const METRIC_PL = {licence_or_spinoff_pln: "wartość licencji / spin-off", savings_per_adopter_pln: "oszczędność na odbiorcę", royalty_3y_pln: "tantiemy w 3 lata",
   som_3y_pln: "rynek osiągalny w 3 lata", deploy_cost_pln: "koszt wdrożenia"};
 const money = n => n == null ? "—" : n >= 1e9 ? (n / 1e9).toLocaleString("pl-PL", {maximumFractionDigits: 1}) + " mld zł" : pln(n);
@@ -359,7 +362,7 @@ function bizSection(b) {
   if (!b) return "";
   const m = b.market, max = Math.max(m.tam_pln, 1), bar = (lab, val, cls) => `<div class="mk"><span>${lab}</span><div class="mini"><i style="width:${Math.max(2, val / max * 100)}%"></i></div><b class="mono">${money(val)}</b></div>`;
   return `<div class="sec"><p class="pretitle">${icon("briefcase")}Model biznesowy i wycena</p>
-    <div class="biz-kpis">${[["banknote", money(b.deploy_cost_pln), "koszt wdrożenia u odbiorcy"], ["trending-up", money(b.valuation.licence_or_spinoff_pln), "wartość licencji / spin-off"],
+    <div class="biz-kpis">${[["banknote", money(b.deploy_cost_pln), "koszt wdrożenia u odbiorcy"], ["trending-up", money(headVal(b)[0]), headVal(b)[1]],
       ["piggy-bank", money(b.savings_per_adopter_pln), "oszczędność vs budowa od zera"], ["clock", b.payback, "zwrot"]].map(([ic, v, t]) => `<div class="tile">${icon(ic)}<div><small>${t}</small><b>${v}</b></div></div>`).join("")}</div>
     <div class="market">${bar("TAM (cały rynek)", m.tam_pln)}${bar("SAM (region)", m.sam_pln)}${bar("SOM (3 lata)", m.som_3y_pln)}</div>
     <div class="plates" style="margin-top:.75rem">${plate("users", b.adopters.count.toLocaleString("pl-PL") + " " + b.adopters.who)}${plate("briefcase", b.model)}${b.funding.map(f => plate("piggy-bank", f.programme, f.for)).join("")}</div>
@@ -384,7 +387,7 @@ function dealActions(c) {
     <a class="btn-soft" href="/api/cards/${c.id}/memo?kind=wykonawca" target="_blank" rel="noopener">${icon("handshake")}Specyfikacja wdrożenia</a></div>`;
 }
 function bindDealActions(c) {
-  const val = c.investor?.adjusted?.licence_or_spinoff_pln ?? c.business?.valuation?.licence_or_spinoff_pln ?? 0;
+  const val = headVal(c.business, c.investor)[0];
   $("#adeal").onclick = () => { if (DEALS[c.id]) delete DEALS[c.id]; else DEALS[c.id] = {stage: "nowe", title: c.solution_name || c.record.title, value: val,
       readiness: c.investor?.readiness?.score ?? null, org: (c.record.affiliations || [])[0] || "", voivodeship: c.record.voivodeship, note: "", at: new Date().toISOString().slice(0, 10)};
     saveDeals(); $(".deal-actions").outerHTML = dealActions(c); bindDealActions(c); };
@@ -392,7 +395,7 @@ function bindDealActions(c) {
     if (CMP.length >= 2 && CMP.includes(c.id)) { closeCard(); go("porownaj", {ids: CMP.join(",")}); return; }
     $(".deal-actions").outerHTML = dealActions(c); bindDealActions(c); };
 }
-function investorSection(inv) {
+function investorSection(inv, b) {
   if (!inv) return "";
   const r = inv.readiness, t = inv.traction, ip = inv.ip, cp = inv.comparables, adj = inv.adjusted;
   const parts = Object.entries(r.parts), maxp = {"dojrzałość": 35, "ochrona IP": 20, "trakcja": 20, "zespół": 10, "ścieżka komercjalizacji": 15};
@@ -401,7 +404,8 @@ function investorSection(inv) {
     <div class="plates" style="margin-top:.75rem">${plate("shield-alert", STRENGTH_PL[ip.strength], "ochrona IP")}${plate("coins", t.grants ? money(t.public_funding_pln) + " w " + t.grants + " proj." : "brak w bazie", "trakcja instytucji")}
       ${inv.team.people ? plate("users", inv.team.people + " os." + (inv.team.prior_records ? ", " + inv.team.prior_records + " innych prac" : ""), "zespół") : ""}${inv.commercial.route ? plate("briefcase", inv.commercial.route, "komercjalizacja") : ""}
       ${cp.median_pln ? plate("git-compare-arrows", money(cp.median_pln), "mediana podobnych projektów") : ""}</div>
-    ${adj?.reasons?.length ? `<p class="faint" style="margin-top:.75rem">${icon("sparkles")} Wycena po dowodach: <b>${money(adj.licence_or_spinoff_pln)}</b> (szansa ${Math.round(adj.success_probability * 100)}%) · ${esc(adj.reasons.join("; "))}</p>` : ""}
+    ${b?.valuation?.open_model ? `<p class="faint" style="margin-top:.75rem">${icon("handshake")} Model działania przekazywany otwarcie (zwykle z pieniędzy publicznych): bez licencji do sprzedaży. Dla inwestora to raczej usługa wdrożeniowa niż udziały.</p>` : ""}
+    ${adj?.reasons?.length && !b?.valuation?.open_model ? `<p class="faint" style="margin-top:.75rem">${icon("sparkles")} Wycena po dowodach: <b>${money(adj.licence_or_spinoff_pln)}</b> (szansa ${Math.round(adj.success_probability * 100)}%) · ${esc(adj.reasons.join("; "))}</p>` : ""}
     ${cp.items.length ? `<details class="how"><summary>${icon("layers")}Porównywalne zrealizowane projekty (${cp.items.length})</summary><div class="items" style="margin-top:.5rem">${cp.items.map(x => `<div class="item" data-card="${x.card_id || ""}">${avatar("copy")}<h3>${esc(x.title)}</h3><span class="plate sm"><span class="pi">${icon("banknote")}</span>${money(x.amount)}</span><div class="plates">${x.voivodeship ? plate("map-pin", x.voivodeship, "", "sm red") : ""}${x.year ? plate("clock", String(x.year), "", "sm") : ""}</div></div>`).join("")}</div></details>` : ""}</div>`;
 }
 
@@ -434,7 +438,7 @@ async function pageCompare(v) {
     ["Dojrzałość", c => LVLK[c.maturity] ?? 0, x => LVL[x], "max"],
     ["Gotowość inwestycyjna", c => c.investor?.readiness?.score ?? 0, x => x + "/100", "max"],
     ["Ocena radaru", c => c.assessment?.total ?? c.score ?? 0, x => Math.round(x) + "/100", "max"],
-    ["Wartość licencji / spin-off", c => c.investor?.adjusted?.licence_or_spinoff_pln ?? c.business?.valuation?.licence_or_spinoff_pln ?? 0, money, "max"],
+    ["Wartość (licencja albo oszczędność odbiorców)", c => headVal(c.business, c.investor)[0], money, "max"],
     ["Szansa wdrożenia", c => c.investor?.adjusted?.success_probability ?? c.business?.valuation?.success_probability ?? 0, x => Math.round(x * 100) + "%", "max"],
     ["Koszt wdrożenia", c => c.business?.deploy_cost_pln ?? 0, money, "min"],
     ["Rynek 3 lata (SOM)", c => c.business?.market?.som_3y_pln ?? 0, money, "max"],

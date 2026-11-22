@@ -99,7 +99,9 @@ def render_memo(f: dict, kind: str, auto_print: bool = False) -> str:
     rd = sig["readiness"]
     adj = sig["adjusted"]
     inv = kind != "wykonawca"
-    kpis = ([("Wartość licencji / spin-off", zl(adj["licence_or_spinoff_pln"])), ("Szansa wdrożenia", f"{adj['success_probability']:.0%}"),
+    open_model = bc["valuation"].get("open_model")
+    kpis = ([("Oszczędność odbiorców w 3 lata", zl(bc["valuation"]["public_value_3y_pln"])) if open_model else
+             ("Wartość licencji / spin-off", zl(adj["licence_or_spinoff_pln"])), ("Szansa wdrożenia", f"{adj['success_probability']:.0%}"),
              ("Rynek 3 lata (SOM)", zl(bc["market"]["som_3y_pln"])), ("Gotowość inwestycyjna", f"{rd['score']}/100")] if inv else
             [("Koszt wdrożenia", zl(bc["deploy_cost_pln"])), ("Oszczędność vs. budowa od zera", zl(bc["savings_per_adopter_pln"])),
              ("Zwrot", bc["payback"]), ("Potencjalni odbiorcy", f"{bc['adopters']['count']:,}".replace(",", " "))])

@@ -152,11 +152,11 @@ async function pageIdea(v) {
   const idea = {card_id: c.id, title: c.solution_name || r.title, institution: (r.affiliations || [])[0] || "", sector: r.sector, voivodeship: r.voivodeship, maturity: c.maturity, score: a.total ?? c.score, likes: c.likes, cost_level: c.basal?.cost_level?.value};
   IDX[c.id] = idea;
   const info = {city: null, voivodeship: r.voivodeship};
-  const kpis = b ? [["trending-up", money(inv?.adjusted?.licence_or_spinoff_pln ?? b.valuation.licence_or_spinoff_pln), "wartość licencji / spin-off"], ["banknote", money(b.deploy_cost_pln), "koszt wdrożenia u odbiorcy"],
+  const kpis = b ? [["trending-up", money(headVal(b, inv)[0]), headVal(b, inv)[1]], ["banknote", money(b.deploy_cost_pln), "koszt wdrożenia u odbiorcy"],
     ["clock", b.payback, "zwrot"], ["users", b.adopters.count.toLocaleString("pl-PL"), "potencjalnych odbiorców"]] : [];
   const tabs = [
     ["biz", "Biznes", "briefcase", () => bizSection(b)],
-    ["inv", "Dla inwestora", "trending-up", () => investorSection(inv)],
+    ["inv", "Dla inwestora", "trending-up", () => investorSection(inv, b)],
     ["how", "Jak wdrożyć", "rocket", () => a.paths ? `<div class="sec">${a.paths.map(p => `<p class="path-h">${icon(PATH_ICON[p.path] || "arrow-right")}<b>${esc(p.path)}</b><span class="faint">${esc(p.why)}</span></p><ul class="steps">${p.steps.map(s => `<li>${icon("chevron-right")}<span>${esc(s.step)}<span class="who">${esc(s.who)}${s.time ? " · " + esc(s.time) : ""}</span></span></li>`).join("")}</ul>`).join("")}
       ${a.recipients ? `<p class="pretitle" style="margin-top:1.25rem">${icon("users")}Odbiorcy i partnerzy</p><div class="plates">${a.recipients.map(x => plate(x.kind === "typ odbiorcy" ? "users" : "building-2", x.name, x.kind)).join("")}</div>` : ""}</div>` : ""],
     ["risk", "Ryzyka", "shield-alert", () => a.risks ? `<div class="sec"><ul class="steps">${a.risks.map(x => `<li>${icon("shield-alert")}<span>${esc(x.risk)}<span class="who">${esc(x.level || "")} · mitygacja: ${esc(x.mitigation)} · ${esc(x.owner)}</span></span></li>`).join("")}</ul>

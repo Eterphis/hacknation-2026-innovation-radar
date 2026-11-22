@@ -345,8 +345,10 @@ def run(force: bool = False, batch: int = 200, llm_budget_s: float | None = None
 def business(rec, card) -> dict:
     """The stored business case. A card scored before pregeneration existed (until the next nightly run) gets
     the same rules computed on the spot: still no LLM, and counted in ``radar_pregen_cards{state="missing"}``."""
-    stored = card.pregen or {}
-    return stored.get("business") or business_case(rec, card)
+    from radar.business import BUSINESS_VERSION
+
+    stored = (card.pregen or {}).get("business")
+    return stored if stored and stored.get("version") == BUSINESS_VERSION else business_case(rec, card)
 
 
 CARD_VIEW = ("id", "solution_name", "problem_solved", "summary_pl", "maturity", "score", "decision", "assessment",
