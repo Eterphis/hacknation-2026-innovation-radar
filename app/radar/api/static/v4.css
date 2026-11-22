@@ -86,3 +86,23 @@
 .gsub span[data-w] { transition:color .15s; }
 .gaudio { display:flex; align-items:center; gap:.5rem; margin:.4rem 0 0; }
 .gaudio progress { flex:1; height:6px; accent-color:var(--red); }
+
+/* ---- header fits any zoom / text size: v4.js adds hdr-1..3 while the menu does not fit (measured, not guessed) */
+:root.fs-2 .nav a span, :root.fs-3 .nav a span { display:revert; }
+.nav-tools { flex-shrink:0; }
+.hdr-1 .scope-btn span { display:none; }
+.hdr-1 .scope-btn { padding:0 .7rem; }
+.hdr-1 .nav { gap:.15rem; } .hdr-1 .nav a { padding:.55rem .6rem; } .hdr-1 .nav-in { gap:.8rem; }
+.hdr-5 .nav a.desk-only { display:none; }
+:root.fs-2 .reel-ai, :root.fs-3 .reel-ai { display:none; }  /* with big text the badge would cover the reel's facts */  /* Odkrywaj and Zgłoś are also on the home page */
+.hdr-2 .nav a span { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.hdr-2 .nav a { padding:.55rem .65rem; }
+.hdr-3 .brand span { display:none; }
+.hdr-3 .nav-in { gap:.6rem; }
+.hdr-4 #theme, .hdr-4 .nav a.desk-only { display:none; }  /* both are reachable elsewhere: system theme, links on the home page */
+/* short screens (16:9 with browser zoom): smaller guide, no decorative badges over reel text */
+@media (max-height: 640px) and (min-width: 769px) {
+  .gface img { width:48px !important; height:48px !important; }
+  .gdock { left:14px; bottom:14px; }
+  .reel-ai { display:none; }
+}
