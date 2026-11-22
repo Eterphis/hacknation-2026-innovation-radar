@@ -272,3 +272,22 @@ h2.reel-title { margin:0; }
 .gdock .gai { left:-4px; top:auto; bottom:52px; } @media (max-width: 720px) { .gdock .gai { bottom:40px; } }
 /* zwinięty klaster nie zostawia niewidocznych elementów w kolejności Tab */
 .cluster:not(.open) .cl-items { visibility:hidden; }
+
+/* ---- issue #31: tryb ciemny v3 (tokeny --img-tint, --scrim-end z :root i [data-theme=dark]) */
+.hero::before { background-image:linear-gradient(var(--img-tint), var(--img-tint)), var(--hero); }
+.page-header.has-banner::before { background-image:linear-gradient(var(--img-tint), var(--img-tint)), var(--banner); }
+.idea-hero::before, .who-chip::before { background-image:linear-gradient(var(--img-tint), var(--img-tint)), var(--img); }
+.itile-img, .cl-img, .mcard-img { background:linear-gradient(var(--img-tint), var(--img-tint)), var(--img) center/cover, var(--band); }
+.reel-art { background:linear-gradient(var(--img-tint), var(--img-tint)), var(--img) center 30%/cover no-repeat; }
+/* scrim pod tekstem: kontrast nie zależy od obrazu (w jasnym końcówka przezroczysta jak dotąd) */
+.hero::after { background:linear-gradient(90deg, var(--scrim-solid) 0%, color-mix(in srgb, var(--bg) 85%, transparent) 42%, var(--scrim-end) 80%); }
+.page-header.has-banner::after { background:linear-gradient(90deg, var(--scrim-solid) 0%, color-mix(in srgb, var(--bg) 88%, transparent) 45%, var(--scrim-end) 100%); }
+.idea-hero::after { background:linear-gradient(90deg, var(--scrim-solid) 0%, color-mix(in srgb, var(--bg) 90%, transparent) 50%, var(--scrim-end) 100%); }
+/* przełączniki na banerze (np. Klastry: Tematy / Rynki) stoją na pełnym tle, nie na obrazie */
+.page-header.has-banner .tabs, .page-header.has-banner .chips { position:relative; }
+.page-header.has-banner .tabs { background:var(--bg); }
+@media (max-width: 720px) {
+  .hero::after { background:linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, transparent), var(--bg) 70%); }
+  .page-header.has-banner::after { background:color-mix(in srgb, var(--bg) 86%, transparent); }
+  .idea-hero::after { background:linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent), var(--bg) 75%); }
+}
