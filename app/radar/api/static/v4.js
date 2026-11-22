@@ -104,4 +104,17 @@ ROUTES.mapa = pageMap;
 // every page: the scope bar on top (route() in app.js renders, then we decorate)
 new MutationObserver(() => { const v = $("#view"); if (!v.hasAttribute("aria-busy")) scopeBar(v); }).observe($("#view"), {attributes: true, attributeFilter: ["aria-busy"]});
 
-headerTools().catch(() => {});
+// header: drop the least needed labels step by step until the menu fits (zoom, text size, window width)
+function fitHeader() {
+  const b = document.body, nav = $("#nav"); if (!nav) return;
+  const steps = ["hdr-1", "hdr-5", "hdr-2", "hdr-3", "hdr-4"];  // order = what we give up first
+  steps.forEach(c => b.classList.toggle(c, false));
+  if (matchMedia("(max-width: 768px)").matches) return;  // phones use the bottom bar
+  const fits = () => nav.scrollWidth <= nav.clientWidth + 1;
+  for (const c of steps) { if (fits()) return; b.classList.add(c); }
+}
+$$("#nav a").forEach(a => { a.title = a.textContent.trim(); });
+new ResizeObserver(() => fitHeader()).observe(document.documentElement);
+const _applyA11y4 = applyA11y; applyA11y = function () { _applyA11y4(); requestAnimationFrame(fitHeader); };
+headerTools().then(fitHeader).catch(() => {});
+fitHeader();

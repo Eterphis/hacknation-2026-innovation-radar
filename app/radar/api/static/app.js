@@ -201,7 +201,7 @@ function drawGraph(g) {
   // hub icons as images from the sprite (same grey icon set as the rest of the UI)
   const hubIcon = n => n.type === "sector" ? (SECTOR_ICON[n.id.split(":")[1]] || "layers") : n.type === "tech_area" ? (TECH_ICON[n.id.split(":")[1]] || "cpu") : "map-pin";
   const imgs = {};
-  N.filter(n => n.type !== "idea").forEach(n => { const name = hubIcon(n); if (!imgs[name]) { const img = new Image(); fetch("/static/icons.svg").then(r => r.text()).then(t => {
+  N.filter(n => n.type !== "idea").forEach(n => { const name = hubIcon(n); if (!imgs[name]) { const img = new Image(); fetch("/static/icons.svg?v=4").then(r => r.text()).then(t => {
     const m = t.match(new RegExp(`<symbol id="i-${name}" viewBox="0 0 24 24">([\\s\\S]*?)</symbol>`)); if (!m) return;
     img.src = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${C("--ink-3")}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m[1]}</svg>`); }); imgs[name] = img; } });
   let alpha = 1, drag = null, hover = null, ox = 0, oy = 0, sc = 1, pan = null, moved = false, dirty = true;
@@ -509,7 +509,7 @@ if (SR) { const mic = $("#mic"); mic.hidden = false; mic.innerHTML = icon("mic")
 
 // ------------------------------------------------------------------ boot
 // Inline the icon sprite once: <use> on same-document symbols works everywhere (external sprites do not).
-const SPRITE = fetch("/static/icons.svg").then(r => r.text()).then(t => { const d = document.createElement("div"); d.hidden = true; d.innerHTML = t; document.body.prepend(d); }).catch(() => {});
+const SPRITE = fetch("/static/icons.svg?v=4").then(r => r.text()).then(t => { const d = document.createElement("div"); d.hidden = true; d.innerHTML = t; document.body.prepend(d); }).catch(() => {});
 Promise.all([SPRITE, api("/api/config").then(c => CFG = c).catch(() => {}), api("/api/labels").then(l => LABELS = l).catch(() => {})]).then(() => {
   $("#foot").innerHTML = `<nav class="foot-nav"><a href="#/klastry">${icon("component")}Klastry</a><a href="#/graf">${icon("network")}Graf powiązań</a><a href="#/zrodla">${icon("radar")}Źródła danych</a><a href="#/dla">${icon("users")}Grupy odbiorców</a><a href="/docs" target="_blank" rel="noopener">${icon("external-link")}API</a></nav>${CFG.demo_mode ? "Tryb demo (dane przykładowe) · " : ""}LLM: ${esc((CFG.llm_providers || []).join(" → "))} · ikony Lucide (ISC) · granice województw: polska-geojson (MIT) · ilustracje: Higgsfield (AI, wizualizacje)`;
   route(); });
