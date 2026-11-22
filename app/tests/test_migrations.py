@@ -44,7 +44,7 @@ def test_create_all_database_of_current_models_goes_to_head(tmp_path, monkeypatc
 
     _fresh(tmp_path, monkeypatch, "current.db")
     create_all()
-    assert migrate() == "0002"
+    assert migrate() == "0004"
 
 
 def test_half_migrated_database_is_finished_not_broken(tmp_path, monkeypatch):
@@ -55,7 +55,7 @@ def test_half_migrated_database_is_finished_not_broken(tmp_path, monkeypatch):
         c.execute(text("CREATE TABLE llm_calls (id INTEGER PRIMARY KEY, provider VARCHAR(30) NOT NULL, model VARCHAR(120), "
                        "purpose VARCHAR(30) NOT NULL, ok BOOLEAN NOT NULL, latency_ms FLOAT NOT NULL, error VARCHAR(300), "
                        "tokens_in INTEGER, tokens_out INTEGER, created_at DATETIME NOT NULL)"))
-    assert migrate() == "0002"
+    assert migrate() == "0004"
     with engine().connect() as c:
         assert "duration_ms" in {col["name"] for col in inspect(c).get_columns("stage_runs")}
 
