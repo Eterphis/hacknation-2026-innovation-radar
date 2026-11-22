@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8">
+<title>Radar Innowacji: pitch</title>
+<!-- Pitch deck (10 slides, 1280x720). e2e/scripts/deck.mjs fills {{…}} with live numbers from the API, takes the
+     screenshots into docs/pitch/img and prints docs/pitch/pitch.pdf. -->
+<style>
+  @page { size:1280px 720px; margin:0; }
+  :root { --bg:#F1ECE4; --card:#F7F3EE; --ink:#141312; --ink2:#4A4741; --ink3:#7A756C; --red:#BE1A34; --line:#DCD3C4; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif; color:var(--ink); background:#ddd; }
+  .s { width:1280px; height:720px; background:var(--bg); position:relative; overflow:hidden; padding:64px 80px; page-break-after:always; display:flex; flex-direction:column; }
+  .s::after { content:""; position:absolute; left:80px; right:80px; bottom:34px; height:4px; border-radius:4px; background:linear-gradient(90deg, #fff 0 50%, var(--red) 50% 100%); box-shadow:0 0 0 1px var(--line); width:96px; }
+  .n { position:absolute; right:80px; bottom:26px; font:600 14px inherit; color:var(--ink3); }
+  .eyebrow { font:700 15px/1 inherit; letter-spacing:.16em; text-transform:uppercase; color:var(--red); margin:0 0 18px; }
+  h1 { font-size:64px; line-height:1.02; letter-spacing:-.035em; margin:0 0 22px; font-weight:800; }
+  h2 { font-size:44px; line-height:1.08; letter-spacing:-.03em; margin:0 0 28px; font-weight:800; max-width:980px; }
+  p.lead { font-size:24px; line-height:1.4; color:var(--ink2); margin:0; max-width:760px; }
+  .grid { display:grid; gap:22px; } .g3 { grid-template-columns:repeat(3, 1fr); } .g4 { grid-template-columns:repeat(4, 1fr); } .g2 { grid-template-columns:1fr 1fr; }
+  .card { background:var(--card); border-radius:22px; padding:26px 28px; box-shadow:0 1px 0 #fff inset, 0 10px 30px rgba(60,40,20,.08); }
+  .big { font-size:56px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--red); }
+  .lab { font-size:18px; color:var(--ink2); margin-top:10px; line-height:1.35; }
+  .card h3 { font-size:24px; margin:0 0 8px; letter-spacing:-.01em; } .card p { margin:0; font-size:18px; line-height:1.4; color:var(--ink2); }
+  .shot { border-radius:18px; overflow:hidden; box-shadow:0 18px 50px rgba(40,25,10,.18); border:1px solid var(--line); background:#fff; }
+  .shot img { display:block; width:100%; }
+  .row { display:flex; gap:40px; align-items:center; flex:1; }
+  .flow { display:flex; align-items:stretch; gap:14px; margin:8px 0 26px; }
+  .flow .st { flex:1; background:var(--card); border-radius:18px; padding:20px; box-shadow:0 10px 30px rgba(60,40,20,.08); }
+  .flow .st b { display:block; font-size:21px; margin-bottom:6px; } .flow .st span { font-size:16px; color:var(--ink2); line-height:1.35; }
+  .flow .ar { align-self:center; color:var(--red); font-size:28px; font-weight:800; }
+  .src { font-size:13px; color:var(--ink3); margin-top:auto; padding-top:14px; }
+  .title { justify-content:center; background:radial-gradient(circle at 78% 50%, #f7d9de 0, transparent 42%), var(--bg); }
+  .logo { display:flex; align-items:center; gap:16px; margin-bottom:34px; } .logo b { font-size:28px; letter-spacing:-.02em; }
+  ul.clean { list-style:none; padding:0; margin:0; display:grid; gap:14px; } ul.clean li { font-size:22px; line-height:1.35; padding-left:30px; position:relative; color:var(--ink2); }
+  ul.clean li::before { content:""; position:absolute; left:0; top:.45em; width:14px; height:14px; border-radius:4px; background:var(--red); }
+  ul.clean li b { color:var(--ink); }
+  .code { font-family:Consolas,monospace; font-size:16px; background:#1c1b1a; color:#f3efe8; border-radius:14px; padding:16px 20px; line-height:1.5; white-space:pre; }
+</style></head><body>
+
+<section class="s title"><div class="logo"><svg width="56" height="56" viewBox="0 0 48 48"><rect x="2" y="1" width="44" height="44" rx="12" fill="#BE1A34"/><circle cx="24" cy="23" r="13" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.6"/><circle cx="24" cy="23" r="7.5" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.6"/><circle cx="24" cy="23" r="2.6" fill="#fff"/><circle cx="31" cy="15.5" r="1.8" fill="#fff"/></svg><b>Radar Innowacji</b></div>
+  <h1>Od pomysłu<br>do wdrożenia.</h1>
+  <p class="lead">Radar, który sam znajduje polskie innowacje, wycenia je i pokazuje, kto może je wdrożyć.</p>
+  <p class="src">HackNation 2026 · Podkarpackie Centrum Innowacji</p><span class="n">1</span></section>
+
+<section class="s"><p class="eyebrow">Problem</p>
+  <h2>Polska tworzy świetne rozwiązania. Wiele z nich pozostaje nieodkrytych.</h2>
+  <div class="grid g3" style="margin-top:20px">
+    <div class="card"><h3>Rozproszone dane</h3><p>Pomysły leżą w kilkunastu bazach, raportach i serwisach uczelni.</p></div>
+    <div class="card"><h3>Brak decyzji</h3><p>Nikt nie mówi, czy pomysł jest gotowy, ile kosztuje i kto może go wdrożyć.</p></div>
+    <div class="card"><h3>Budowa od zera</h3><p>Gmina buduje to, co sąsiednia gmina już ma i co działa.</p></div>
+  </div><span class="n">2</span></section>
+
+<section class="s"><p class="eyebrow">Rozwiązanie</p>
+  <h2>Radar sam przeszukuje źródła i porządkuje to, co znalazł.</h2>
+  <div class="grid g4">
+    <div class="card"><div class="big">{{sources}}</div><div class="lab">publicznych źródeł danych</div></div>
+    <div class="card"><div class="big">{{ideas}}</div><div class="lab">ocenionych pomysłów</div></div>
+    <div class="card"><div class="big">{{institutions}}</div><div class="lab">instytucji</div></div>
+    <div class="card"><div class="big">{{voivodeships}}</div><div class="lab">województw</div></div>
+  </div>
+  <p class="lead" style="margin-top:30px">Nowy pomysł w źródle radar wykrywa sam, ocenia i po chwili pokazuje gotową kartę.</p>
+  <p class="src">źródło: /api/insights i /api/sources, {{stamp}}</p><span class="n">3</span></section>
+
+<section class="s"><p class="eyebrow">Dla kogo</p>
+  <h2>Każdy przychodzi z jedną decyzją.</h2>
+  <div class="row"><div class="grid g2" style="flex:1">
+    <div class="card"><h3>Samorząd</h3><p>Czy wdrożyć u siebie i za ile?</p></div>
+    <div class="card"><h3>Inwestor</h3><p>Czy wejść kapitałowo?</p></div>
+    <div class="card"><h3>Uczelnia</h3><p>Z kim skomercjalizować wynik?</p></div>
+    <div class="card"><h3>Szkoła i NGO</h3><p>Jaki sprawdzony program powtórzyć?</p></div></div>
+    <div class="shot" style="flex:1.15"><img src="img/kreator.png" alt=""></div></div><span class="n">4</span></section>
+
+<section class="s"><p class="eyebrow">Wartość biznesowa</p>
+  <h2>Najważniejsze liczby po pierwszym rzucie oka.</h2>
+  <div class="row"><div class="shot" style="flex:1.3"><img src="img/pomysl.png" alt=""></div>
+    <ul class="clean" style="flex:1"><li><b>Koszt wdrożenia</b> u odbiorcy i czas zwrotu</li><li><b>Potencjalni odbiorcy</b> z danych GUS</li>
+      <li><b>Jawne reguły</b> wyceny, bez dużego modelu</li><li>Technologia: <b>wartość licencji</b>. Model działania: <b>oszczędność odbiorców</b></li>
+      <li><b>{{ready}}</b> rozwiązań gotowych do powielenia</li></ul></div><span class="n">5</span></section>
+
+<section class="s"><p class="eyebrow">Jak to działa</p>
+  <h2>Prosty potok, który łatwo rozbudować.</h2>
+  <div class="flow"><div class="st"><b>Źródła</b><span>bazy projektów, uczelnie, programy UE, RSS</span></div><div class="ar">→</div>
+    <div class="st"><b>Klasyfikacja</b><span>sektor, technologia, koszt w milisekundach, bez LLM</span></div><div class="ar">→</div>
+    <div class="st"><b>Ocena i wycena</b><span>jawne kryteria, cytaty ze źródła</span></div><div class="ar">→</div>
+    <div class="st"><b>Dopasowanie</b><span>pod samorząd, inwestora, uczelnię</span></div></div>
+  <div class="grid g2"><div><p class="lead" style="font-size:21px">Nowe źródło danych to jeden wpis w konfiguracji, bez zmian w kodzie. Pobieranie respektuje limity serwisów i nie pobiera dwa razy tego samego.</p></div>
+    <div class="code">- id: rss-platformy
+  type: rss
+  schedule_s: 120
+  feeds_env: RADAR_RSS_FEEDS</div></div><span class="n">6</span></section>
+
+<section class="s"><p class="eyebrow">Gotowe do wdrożenia</p>
+  <h2>Skaluje się samo i rozkłada ruch.</h2>
+  <div class="row"><ul class="clean" style="flex:1">
+      <li><b>Kontenery i Helm</b>: wdrożenie na Kubernetesie jednym poleceniem</li>
+      <li><b>Autoskalowanie</b>: KEDA dokłada workery według długości kolejek, HPA dokłada API</li>
+      <li><b>Rozkład ruchu</b>: bezstanowe API za load balancerem, kolejki z priorytetami</li>
+      <li><b>{{rps}} zapytań/s</b> bez błędów na 2 vCPU, czyli setki osób naraz</li>
+      <li><b>Obserwowalność</b>: Prometheus, Grafana (22 panele), 8 alertów</li></ul>
+    <div class="shot" style="flex:1.2"><img src="img/grafana.png" alt=""></div></div>
+  <p class="src">test obciążeniowy na prawdziwych danych: .house/reports/load-real.md</p><span class="n">7</span></section>
+
+<section class="s"><p class="eyebrow">Koszt i niezależność</p>
+  <h2>Tani w utrzymaniu, bez uzależnienia od dostawców.</h2>
+  <div class="grid g3">
+    <div class="card"><div class="big">~50 zł</div><div class="lab">miesięcznie: serwer 4 vCPU / 8 GB z polską serwerownią</div></div>
+    <div class="card"><div class="big">0 zł</div><div class="lab">za modele: klasyfikacja i wycena to reguły, lokalny Bielik tylko w tle</div></div>
+    <div class="card"><div class="big">1 polecenie</div><div class="lab">uruchomienia całości: docker compose albo helm install</div></div>
+  </div>
+  <p class="lead" style="margin-top:30px">Po przekazaniu wszystko działa na infrastrukturze zamawiającego. Żadna płatna usługa nie jest potrzebna do działania.</p><span class="n">8</span></section>
+
+<section class="s"><p class="eyebrow">Dostępność i jakość</p>
+  <h2>Dla każdego, także dla osób z niepełnosprawnościami.</h2>
+  <div class="grid g3">
+    <div class="card"><h3>Dostępność</h3><p>Powiększenie tekstu, wysoki kontrast, czytelne odstępy, bez animacji, pełna obsługa klawiaturą.</p></div>
+    <div class="card"><h3>Jakość</h3><p>Testy automatyczne każdej strony w jasnym i ciemnym motywie, 0 błędów dostępności (axe), Lighthouse 99.</p></div>
+    <div class="card"><h3>Tryb regionalny</h3><p>Urząd marszałkowski widzi tylko swoje województwo: listy, mapę, dopasowanie i wdrożenia.</p></div>
+  </div><span class="n">9</span></section>
+
+<section class="s title"><p class="eyebrow">Następny krok</p>
+  <h2>Pilotaż z Podkarpackim Centrum Innowacji.</h2>
+  <ul class="clean" style="max-width:900px"><li>Prawdziwe źródła jednego regionu w trybie regionalnym</li><li>Cotygodniowy skrót dla samorządów, inwestorów i uczelni</li><li>Specyfikacja wdrożenia z karty pomysłu prosto do zapytania ofertowego</li></ul>
+  <p class="lead" style="margin-top:34px"><b>Radar Innowacji.</b> Sprawmy razem, aby każdy dobry pomysł miał szansę na wdrożenie.</p><span class="n">10</span></section>
+</body></html>
