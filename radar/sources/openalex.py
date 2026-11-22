@@ -2,7 +2,7 @@
 
 Google Scholar has no API and its terms forbid scraping; OpenAlex (CC0 metadata) indexes the same
 literature. The connector pages through https://api.openalex.org/works with
-`filter=institutions.country_code:PL` and a cursor (`cursor=*`, up to 200 works per page).
+`filter=institutions.country_code:PL` and a cursor (`cursor=*`, up to 200 works per page; page=N without a key).
 One work = one record in category `nauka`.
 
 Incremental runs: `--since YYYY-MM-DD` (or `--days N`, default 30) adds `from_publication_date`.
@@ -15,6 +15,8 @@ Credentials come only from the environment, never from code or fixtures:
 Both are stripped from every URL that is saved or printed. `.env` in the working directory is read too.
 Without a key the run is frugal (at most NO_KEY_MAX_PAGES pages, NO_KEY_MIN_DELAY s apart), and a 429
 never fails the run: records fetched before the limit are written, or the previous output stays.
+Since 2026-11 OpenAlex refuses cursor paging past the first page without a key (401), so keyless runs page
+with page=N (up to 10 000 results); a 401 without a key is treated like a 429.
 
 Run:  python -X utf8 -m radar.sources.openalex --limit 50 --out data/normalized/openalex.jsonl
 """
@@ -56,6 +58,7 @@ DEFAULT_DAYS = 30
 # without OPENALEX_API_KEY the daily budget is shared per IP: take a small slice, slowly, and never fail on 429
 NO_KEY_MAX_PAGES = 5
 NO_KEY_MIN_DELAY = 2.0
+BASIC_PAGING_MAX = 10_000  # page=N paging stops at 10 000 results
 SELECT = ("id,doi,title,display_name,publication_date,publication_year,type,language,"
           "abstract_inverted_index,authorships,topics,keywords,primary_location,open_access,"
           "cited_by_count,updated_date,grants,funders")
@@ -105,9 +108,14 @@ def build_filter(since: str | None = None, require_abstract: bool = True, extra:
     return ",".join(parts)
 
 
-def page_url(cursor: str, *, filt: str, per_page: int = MAX_PER_PAGE, mailto: str | None = None,
-             api_key: str | None = None, select: str | None = SELECT) -> str:
-    params = {"filter": filt, "per-page": str(max(1, min(per_page, MAX_PER_PAGE))), "cursor": cursor}
+def page_url(cursor: str | None, *, filt: str, per_page: int = MAX_PER_PAGE, mailto: str | None = None,
+             api_key: str | None = None, select: str | None = SELECT, page: int | None = None) -> str:
+    """cursor paging (needs an API key past the first page since 2026-11) or, with `page`, basic page=N paging."""
+    params = {"filter": filt, "per-page": str(max(1, min(per_page, MAX_PER_PAGE)))}
+    if page is not None:
+        params["page"] = str(page)
+    else:
+        params["cursor"] = cursor or "*"
     if select:
         params["select"] = select
     if mailto:
@@ -435,14 +443,23 @@ def _parse_page(text: str) -> dict:
 def _pages_online(store: RawStore, fetcher, *, api_filter: str, limit: int | None, max_pages: int | None,
                   mailto: str | None, api_key: str | None, delay: float, sleep) -> Iterator[tuple[dict, str]]:
     store.reset()
+    # Without a key OpenAlex refuses cursor paging past the first page (401 "API key required for cursor paging"),
+    # so keyless runs use basic page=N paging, which reaches the first BASIC_PAGING_MAX results.
+    by_page = not api_key
     cursor, no, got, select = "*", 0, 0, SELECT
     while cursor and (max_pages is None or no < max_pages) and (limit is None or got < limit):
+        if by_page and no * (MAX_PER_PAGE if limit is None else min(MAX_PER_PAGE, limit)) >= BASIC_PAGING_MAX:
+            break
         if no:
             sleep(delay)
         per_page = MAX_PER_PAGE if limit is None else min(MAX_PER_PAGE, limit - got)
+        if by_page:
+            # page=N offsets assume a constant page size; extra results are cut by `limit`
+            per_page = MAX_PER_PAGE if limit is None else min(MAX_PER_PAGE, limit)
+        page = no + 1 if by_page else None
         try:
             resp = fetcher(page_url(cursor, filt=api_filter, per_page=per_page, mailto=mailto, api_key=api_key,
-                                    select=select))
+                                    select=select, page=page))
         except FetchError as e:
             if not (select and "HTTP 400" in str(e)):
                 raise FetchError(redact_text(str(e))) from None
@@ -451,15 +468,20 @@ def _pages_online(store: RawStore, fetcher, *, api_filter: str, limit: int | Non
             sleep(delay)
             try:
                 resp = fetcher(page_url(cursor, filt=api_filter, per_page=per_page, mailto=mailto, api_key=api_key,
-                                        select=None))
+                                        select=None, page=page))
             except FetchError as e2:
                 raise FetchError(redact_text(str(e2))) from None
         no += 1
-        meta = store.save_page(no, resp, cursor=cursor, api_filter=api_filter)
+        meta = store.save_page(no, resp, cursor=f"page={page}" if by_page else cursor, api_filter=api_filter)
         yield meta, resp.text
         data = _parse_page(resp.text)
         got += len(data["results"])
-        cursor = (data.get("meta") or {}).get("next_cursor")
+        if by_page:
+            meta_ = data.get("meta") or {}
+            total, size = meta_.get("count"), meta_.get("per_page") or MAX_PER_PAGE
+            cursor = None if isinstance(total, int) and no * size >= total else "*"
+        else:
+            cursor = (data.get("meta") or {}).get("next_cursor")
         if not data["results"]:
             break
 
@@ -559,13 +581,19 @@ def main(argv: list[str] | None = None) -> int:
                 rows.append(_csv_row(rec))
     except FetchError as e:
         print(f"OpenAlex: {e}", file=sys.stderr)
-        if "429" not in str(e):
+        # 429 = budget used up; 401 without a key = a paging limit for keyless use. Neither is a broken source.
+        soft = "429" in str(e) or ("401" in str(e) and not api_key)
+        if not soft:
             tmp.unlink(missing_ok=True)
             return 2
-        # rate limit: not a failure of the source. Keep what came before the limit, or the previous output.
-        print("OpenAlex: wyczerpany limit zapytań (429). "
-              + ("" if api_key else "Ustaw OPENALEX_API_KEY (darmowy klucz z własnym budżetem) albo ")
-              + "spróbuj po północy UTC.", file=sys.stderr)
+        # not a failure of the source: keep what came before the limit, or the previous output
+        if "429" in str(e):
+            print("OpenAlex: wyczerpany limit zapytań (429). "
+                  + ("" if api_key else "Ustaw OPENALEX_API_KEY (darmowy klucz z własnym budżetem) albo ")
+                  + "spróbuj po północy UTC.", file=sys.stderr)
+        else:
+            print("OpenAlex: dalsze strony wymagają klucza (401). Ustaw OPENALEX_API_KEY "
+                  "(darmowy klucz: https://openalex.org/settings/api).", file=sys.stderr)
         if not rows:
             tmp.unlink(missing_ok=True)
             print("OpenAlex: nic nie pobrano, poprzedni wynik zostaje bez zmian.", file=sys.stderr)
