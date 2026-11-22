@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     local_llm_grammar: bool = True
     # pregeneration asks the local model for the slogan (GBNF-constrained, validated, rule fallback)
     pregen_local_slogan: bool = True
+    # model slogans in one `radar pregenerate` run stop after this many seconds (below Celery's 540 s soft limit);
+    # leftovers keep the rule slogan until the next run
+    pregen_llm_budget_s: float = 300.0
+    pregen_slogan_timeout_s: float = 30.0
+    # after a failed slogan call the model is skipped for this long (per process), so a hung server costs one timeout
+    pregen_slogan_cooldown_s: float = 120.0
     # a 1.5B model on a few vCPU needs ~1 min per agent step; a separate, longer timeout than the cloud APIs
     local_llm_timeout_s: float = 300.0
     llm_timeout_s: float = 60.0

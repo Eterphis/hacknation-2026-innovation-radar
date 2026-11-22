@@ -23,7 +23,8 @@ from sqlalchemy import select
 
 from radar.db import session
 from radar.models import Card, RawRecord, Record, SourceState, StageRun
-from radar.pregen import card_view, local_slogan, pregenerate as pregenerate_card, store as store_pregen
+from radar.pregen import (card_view, local_slogan, pregenerate as pregenerate_card, slogan_inputs, store as store_pregen,
+                          wants_model_slogan, with_model_slogan)
 from radar.pipeline import extract as ex
 from radar.pipeline.celery_app import app
 from radar.pipeline.normalize import apply_mapping, norm_title, programme_key, quality_gate, same_programme
@@ -491,9 +492,14 @@ def score(self, raw_id: int, h: str) -> str:
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
         a = assess(s, rec, rec.card)
         b = brief(rec, rec.card, a)
-        # pregen here, outside any write transaction: it may call the small local model for the slogan (~2-3 s)
-        pg = pregenerate_card(rec, card_view(rec.card, assessment=a, score=a["total"], brief=b), local_slogan())
+        # pregen rules here (fast); the slogan model is called below, after this session is closed
+        view = card_view(rec.card, assessment=a, score=a["total"], brief=b)
+        pg, slogan_src = pregenerate_card(rec, view, None), slogan_inputs(rec, view)
         s.rollback()  # read-only by contract: drop anything a tool might have touched
+    # small local model for the slogan (~2-3 s, breaker + short timeout), outside any transaction
+    complete = local_slogan()
+    if complete is not None and complete.ready() and wants_model_slogan(pg):
+        pg = with_model_slogan(pg, *slogan_src, complete)
     # Short write transaction; re-check, because a redelivered copy may have finished while the model worked.
     with session() as s:
         if _done(s, raw_id, "score", h):
@@ -541,7 +547,7 @@ def reassess(self) -> int:
                 continue
             a = assess(s, rec, rec.card)
             rec.card.assessment, rec.card.score, rec.card.brief = a, a["total"], brief(rec, rec.card, a)
-            store_pregen(rec, rec.card)
+            store_pregen(rec, rec.card)  # rules only: no model call inside this long transaction
     return len(ids)
 
 
@@ -549,7 +555,8 @@ def reassess(self) -> int:
 def pregenerate(force: bool = False) -> dict:
     """Nightly from beat and on demand (`radar pregenerate`): brief, slogan, business case, audience fit for every
     scored card whose inputs changed. Rules, plus the small local model for the slogan when RADAR_LOCAL_LLM_URL is
-    set (never a cloud model); the API reads the stored result."""
+    set (never a cloud model, never inside a transaction, within RADAR_PREGEN_LLM_BUDGET_S); the API reads the
+    stored result."""
     from radar.pregen import run
 
     return run(force=force)
