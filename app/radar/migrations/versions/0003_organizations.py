@@ -13,6 +13,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    if "organizations" in sa.inspect(op.get_bind()).get_table_names():  # made by a newer create_all
+        return
     op.create_table(
         "organizations",
         sa.Column("id", sa.Integer(), nullable=False),

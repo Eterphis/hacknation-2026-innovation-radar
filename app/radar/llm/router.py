@@ -13,10 +13,13 @@ from __future__ import annotations
 import logging
 import time
 
+import httpx
+
 from radar.config import get_settings
 from radar.llm.providers import PROVIDERS, BadOutput, Provider, ProviderError
 
 log = logging.getLogger(__name__)
+MIN_CALL_S = 5.0  # less budget than this left: do not start another LLM call
 
 
 class AllProvidersFailed(RuntimeError):
@@ -63,8 +66,12 @@ class LLMRouter:
         return any(p.name != "mock" and p.available() and self._open_until.get(p.name, 0) <= now for p in self.providers)
 
     def complete_json(self, system: str, user: str, purpose: str = "other",
-                      exclude: tuple[str, ...] = (), db=None) -> tuple[dict, dict]:
-        """Returns (result, provenance). Provenance names the provider and model that answered and its latency."""
+                      exclude: tuple[str, ...] = (), db=None, deadline: float | None = None) -> tuple[dict, dict]:
+        """Returns (result, provenance). Provenance names the provider and model that answered and its latency.
+
+        `deadline` (time.monotonic()): the caller's time budget. Each provider's HTTP timeout is capped to what is
+        left, and a provider is skipped when less than MIN_CALL_S is left. A timeout caused by that cap is the
+        caller's budget running out, not a dead server, so it does not open the circuit."""
         errors = []
         for p in self.providers:
             if p.name in exclude:
@@ -75,6 +82,15 @@ class LLMRouter:
             if self._open_until.get(p.name, 0) > time.monotonic():
                 errors.append(f"{p.name}: circuit open")
                 continue
+            own = getattr(p, "timeout", None)
+            capped = False
+            if deadline is not None:
+                left = deadline - time.monotonic()
+                if left < MIN_CALL_S:
+                    errors.append(f"{p.name}: budget exhausted")
+                    continue
+                if own is not None and left < own:
+                    p.timeout, capped = left, True
             t0 = time.perf_counter()
             p.last_usage = None
             try:
@@ -83,10 +99,15 @@ class LLMRouter:
                 ms = (time.perf_counter() - t0) * 1000
                 log.warning("LLM provider %s failed: %s", p.name, e, extra={"provider": p.name})
                 _record(db, p.name, p.model, purpose, False, ms, str(e))
-                if not isinstance(e, BadOutput):  # the server answered: no reason to skip it for the next records
+                budget_cut = capped and isinstance(e.__cause__, httpx.TimeoutException)
+                # BadOutput: the server answered; budget_cut: we cut the call short. Neither means it is down.
+                if not isinstance(e, BadOutput) and not budget_cut:
                     self._open_until[p.name] = time.monotonic() + self.cooldown_s
-                errors.append(f"{p.name}: {e}")
+                errors.append(f"{p.name}: budget exhausted ({e})" if budget_cut else f"{p.name}: {e}")
                 continue
+            finally:
+                if capped:
+                    p.timeout = own
             ms = (time.perf_counter() - t0) * 1000
             _record(db, p.name, p.model, purpose, True, ms, usage=p.last_usage)
             return out, {"provider": p.name, "model": p.model, "fallbacks": errors, "latency_ms": round(ms, 1)}

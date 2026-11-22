@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     # a 1.5B model on a few vCPU needs ~1 min per agent step; a separate, longer timeout than the cloud APIs
     local_llm_timeout_s: float = 300.0
     llm_timeout_s: float = 60.0
+    # Wall-time budget of one assessment's LLM work (agent steps + reviewer). It must end before the Celery limit
+    # of the `score` task (derived from it in pipeline/tasks.py), so a slow CPU model degrades to the rules
+    # instead of being killed and retried from scratch.
+    agent_budget_s: float = 420.0
+    # the LLM reviewer runs only if at least this much budget is left (else the rule-based reviewer)
+    agent_review_min_s: float = 60.0
     # Prices for the cost metric, USD per million tokens: {"anthropic": [in, out], "openai": [in, out]}.
     # Not hard-coded (they change); unset = cost 0, the token counters are still exported. Local model = 0.
     llm_prices: str = ""

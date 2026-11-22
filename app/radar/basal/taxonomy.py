@@ -6,6 +6,10 @@ Editing a label here changes classification everywhere; every decision stores wh
 
 from __future__ import annotations
 
+import re
+
+from radar.basal.embed import fold
+
 # --------------------------------------------------------------------------- sector (PKD 2007 sections)
 SECTORS: dict[str, dict] = {
     "A_rolnictwo": {"pl": "Rolnictwo, leśnictwo, żywność",
@@ -113,6 +117,10 @@ INSTITUTION_TYPES: dict[str, dict] = {
     "firma": {"pl": "firma prywatna", "kw": [r"sp\.? ?z ?o\.? ?o", r"\bs\.a\.?(?=[\s,;)]|$)", r"spolka", r"\bsp\. k\b", r"\bsp\. ?j\b", r"przedsiebiorstw",
                                              r"\bgmbh\b", r"\bb\.v\.", r"\ba\.s\.(?=[\s,;)]|$)"]},
 }
+# Company forms that are only unambiguous in capitals, matched case-sensitively on the ORIGINAL organisation names
+# (not folded): "PGE SA", "Orlen S.A.", "Kofola a.s." stays above. Lower-case "sa" is a Slovak/Czech word ("je sa",
+# "Policajný zbor sa ..."), which once turned the police into a company, so it never matches here.
+COMPANY_CASED = [r"\bS\.?\s?A\.?(?=[\s,;)]|$)", r"\bSp\.\s?k\.(?=[\s,;)]|$)"]
 # Associations and foundations: not a public institution and not a company -> the operator decides (hold).
 NGO_KW = [r"fundacj", r"stowarzysz", r"\bassociation\b", r"\bfoundation\b", r"\be\.v\.", r"\bverein\b", r"\bzdruzenie\b"]
 INSTITUTION_FIELD_MAP = {  # values typed in the submission form
@@ -143,6 +151,23 @@ NEGATIVE = [r"oferta pracy|oferty pracy|rekrutacj", r"przetarg|zapytanie ofertow
             r"deklaracja dostepnosci", r"wyniki wyborow|sesja rady", r"konkurs na stanowisko"]
 SPAM = [r"kup teraz", r"promocj\w* -?\d+ ?%", r"kasyno|casino", r"zarabiaj", r"kliknij tutaj", r"viagra", r"kredyt\w* bez"]
 OFFENSIVE = [r"\bkurw", r"\bchuj", r"\bpierdol", r"\bjeb\w*", r"\bspierdal"]
+# Large public works are investments, not transferable innovations: roads, pipelines, railway lines would crowd out
+# every queue and money ranking. Checked on the title and the first 300 characters of the description (folded).
+INFRASTRUCTURE = re.compile(
+    r"\b(budow\w* (?:drogi|odcink|obwodnic|gazociag|linii|mostu|wezla|trasy|tunelu)|droga ekspresow|autostrad|obwodnic|gazociag|"
+    r"modernizacj\w* linii kolejow|linii kolejow|rozbudow\w* (?:drogi|portu|lotniska)|przebudow\w* drogi|sieci\w* przesyl|terminal\w* (?:lng|kontener))")
+
+
+def infrastructure_match(title: str | None, abstract: str | None = None) -> str | None:
+    """The phrase that marks a record as an infrastructure investment, or None."""
+    m = INFRASTRUCTURE.search(fold(f"{title or ''} {(abstract or '')[:300]}"))
+    return m.group(0) if m else None
+
+
+def is_infrastructure(title: str | None, abstract: str | None = None) -> bool:
+    return infrastructure_match(title, abstract) is not None
+
+
 SIGNAL = [r"opracow", r"wdroz", r"prototyp", r"metod", r"system", r"program", r"pilota", r"model", r"rozwiaz", r"aplikac",
           r"narzedz", r"technolog", r"innowac", r"uslug", r"usprawni", r"develop", r"method", r"prototype", r"platform", r"urzadz"]
 

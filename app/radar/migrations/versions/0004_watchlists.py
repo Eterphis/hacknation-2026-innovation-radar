@@ -13,6 +13,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    if "watchlists" in sa.inspect(op.get_bind()).get_table_names():  # made by a newer create_all
+        return
     op.create_table(
         "watchlists",
         sa.Column("id", sa.Integer(), nullable=False),

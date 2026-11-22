@@ -255,7 +255,8 @@ def assess(s, rec: Record, card: Card) -> dict:
         return {"paths": _paths(rec, card), "risks": _risks(rec, card, ctx, box.cache.get("similar") or [])}
 
     llm = use_llm()
-    run = AG.run_agent(s, rec, card, baseline, llm)
+    deadline = AG.deadline_in() if llm else None  # agent + reviewer share one budget (RADAR_AGENT_BUDGET_S)
+    run = AG.run_agent(s, rec, card, baseline, llm, deadline=deadline)
     box = run["toolbox"]
     for name, args in AG.RulePolicy.PLAN:  # scores need every tool's facts, whatever the model chose to call
         if name not in {f["tool"] for f in box.facts.values()}:
@@ -276,7 +277,7 @@ def assess(s, rec: Record, card: Card) -> dict:
                    "citation_errors": run["errors"][:10], "provider": run["provenance"].get("provider")}}
     a["recheck"] = basal_recheck(a, rec, card) + [f"walidacja cytatów: {e}" for e in run["errors"][:5]]
     a["total"] = total(a["scores"])
-    against, rprov, rerr = (AG.llm_review(box, a, db=s) if llm else (None, {}, []))
+    against, rprov, rerr = (AG.llm_review(box, a, deadline=deadline) if llm else (None, {}, []))
     a["against"] = against or AG.rule_review(rec, card, box, scores, risks)
     a["against_by"] = f"LLM {rprov.get('provider')}/{rprov.get('model')}" if against else "reguły"
     if rerr:

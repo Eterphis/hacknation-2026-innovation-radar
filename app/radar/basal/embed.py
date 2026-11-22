@@ -116,11 +116,15 @@ class FastEmbedEmbedder:
 import json as _json
 
 CALIBRATION = {
-    # prototypes: raw cosine as before (lo/hi = identity); graph: p88 of real pairs (0.35), near-duplicates 0.9
-    "hashing": {"lo": 0.0, "hi": 1.0, "similar_min": 0.35, "dup_min": 0.9},
+    # prototypes: raw cosine as before (lo/hi = identity); graph: p88 of real pairs (0.35), near-duplicates 0.9.
+    # similar_floor/similar_q: the graph threshold adapts to the corpus (graph.similar_min): the similar_q quantile
+    # of pairwise similarity, clamped to [similar_floor, similar_min]. Short demo records (median pair 0.08) get
+    # ~0.2 as before PR #11, long real records (median 0.21) stay at 0.35.
+    "hashing": {"lo": 0.0, "hi": 1.0, "similar_min": 0.35, "similar_floor": 0.2, "similar_q": 0.88, "dup_min": 0.9},
     # prototypes: lo = p5 of record x prototype cosine (0.78), hi = p95 of the best prototype (0.88);
     # graph: similar = p95 of real pairs (0.885), duplicate 0.95 (max of distinct real pairs was 0.936)
-    "fastembed:intfloat/multilingual-e5-small": {"lo": 0.78, "hi": 0.88, "similar_min": 0.885, "dup_min": 0.95},
+    "fastembed:intfloat/multilingual-e5-small": {"lo": 0.78, "hi": 0.88, "similar_min": 0.885, "similar_floor": 0.85,
+                                                 "similar_q": 0.95, "dup_min": 0.95},
 }
 
 
@@ -133,10 +137,12 @@ def calibration(name: str | None = None) -> dict:
     return CALIBRATION["hashing"]  # hashing variants and uncalibrated models: raw cosine
 
 
-def closeness(sim: float, name: str | None = None) -> float:
-    """Graph similarity on a common scale: 0 at the `similar` threshold, 1 at the near-duplicate threshold."""
+def closeness(sim: float, name: str | None = None, similar_min: float | None = None) -> float:
+    """Graph similarity on a common scale: 0 at the `similar` threshold, 1 at the near-duplicate threshold.
+    `similar_min`: the threshold actually used for the corpus (graph.similar_min), default the calibrated one."""
     c = calibration(name)
-    return float(np.clip((sim - c["similar_min"]) / (c["dup_min"] - c["similar_min"]), 0.0, 1.0))
+    lo = c["similar_min"] if similar_min is None else similar_min
+    return float(np.clip((sim - lo) / max(1e-6, c["dup_min"] - lo), 0.0, 1.0))
 
 
 def rescale(sims: np.ndarray, name: str | None = None) -> np.ndarray:

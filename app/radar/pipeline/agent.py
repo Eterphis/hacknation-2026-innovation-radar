@@ -215,16 +215,44 @@ def _observation(fid: str, res) -> str:
     return f"{fid} = " + json.dumps(res, ensure_ascii=False, default=str)[:900]
 
 
+def deadline_in(budget_s: float | None = None) -> float:
+    """time.monotonic() deadline of one assessment's LLM work (RADAR_AGENT_BUDGET_S)."""
+    import time
+
+    from radar.config import get_settings
+
+    return time.monotonic() + (get_settings().agent_budget_s if budget_s is None else budget_s)
+
+
+def time_left(deadline: float | None) -> float:
+    import time
+
+    return float("inf") if deadline is None else deadline - time.monotonic()
+
+
+def _time_limit_errors() -> tuple[type[BaseException], ...]:
+    """Celery's soft time limit: the last safety net if a call outlives the budget (e.g. a slow DB, not the LLM)."""
+    try:
+        from celery.exceptions import SoftTimeLimitExceeded
+
+        return (SoftTimeLimitExceeded,)
+    except ImportError:  # pragma: no cover
+        return ()
+
+
 class LLMPolicy:
     name = "llm"
 
-    def __init__(self, db=None):
+    def __init__(self, db=None, deadline: float | None = None):
         from radar.llm.router import router
 
-        self.r, self.db, self.prov = router(), db, {}
+        # db=None: every LLM call is logged in its own short session, so the assessment's session stays read-only
+        # while the model works (no write lock held for minutes on SQLite, no long write transaction on Postgres)
+        self.r, self.db, self.prov, self.deadline = router(), db, {}, deadline
 
     def ask(self, system: str, user: str, purpose: str) -> dict:
-        out, prov = self.r.complete_json(system, user, purpose=purpose, exclude=("mock",), db=self.db)
+        out, prov = self.r.complete_json(system, user, purpose=purpose, exclude=("mock",), db=self.db,
+                                         deadline=self.deadline)
         self.prov = prov
         return out
 
@@ -249,9 +277,10 @@ def _rules_final(box: Toolbox, baseline: dict) -> dict:
     return {"paths": paths, "risks": risks, "summary": None}
 
 
-def run_agent(s, rec: Record, card: Card, baseline_fn, use_llm: bool) -> dict:
+def run_agent(s, rec: Record, card: Card, baseline_fn, use_llm: bool, deadline: float | None = None) -> dict:
     """Returns {"final", "trace", "facts", "by", "errors", "provenance", "toolbox"}.
-    baseline_fn(box) -> rule-based {"paths","risks"} built from the tool results (also the fallback)."""
+    baseline_fn(box) -> rule-based {"paths","risks"} built from the tool results (also the fallback).
+    deadline (time.monotonic()): when the LLM loop must stop; the rules then finish on the facts gathered so far."""
     box = Toolbox(s, rec, card)
     trace: list[dict] = []
     errors: list[str] = []
@@ -267,8 +296,10 @@ def run_agent(s, rec: Record, card: Card, baseline_fn, use_llm: bool) -> dict:
 
     from radar.llm.router import AllProvidersFailed
 
-    pol = LLMPolicy(db=s)
-    task = json.dumps({"karta": {"nazwa": card.solution_name, "problem": card.problem_solved, "co_nowego": card.what_is_new,
+    from radar.llm.router import MIN_CALL_S
+
+    pol = LLMPolicy(deadline=deadline)
+    task =json.dumps({"karta": {"nazwa": card.solution_name, "problem": card.problem_solved, "co_nowego": card.what_is_new,
                                  "dojrzalosc": card.maturity, "instytucje": (rec.affiliations or [])[:3]},
                        "basal": {k: (rec.basal or {}).get(k, {}).get("value") for k in
                                  ("sector", "tech_area", "innovation_type", "institution_type", "cost_level", "voivodeship")}},
@@ -280,6 +311,10 @@ def run_agent(s, rec: Record, card: Card, baseline_fn, use_llm: bool) -> dict:
     strikes = 0
     try:
         for step in range(1, MAX_STEPS + 3):
+            if time_left(deadline) < MIN_CALL_S:
+                errors.append(f"budżet czasu agenta wyczerpany po {step - 1} krokach (RADAR_AGENT_BUDGET_S)")
+                trace.append({"step": step, "error": "budżet czasu wyczerpany", "by": "reguły"})
+                break
             if step > MAX_STEPS:
                 transcript.append("Limit kroków: odpowiedz teraz action=final.")
             try:
@@ -320,6 +355,8 @@ def run_agent(s, rec: Record, card: Card, baseline_fn, use_llm: bool) -> dict:
             break
     except AllProvidersFailed as e:
         errors.append(f"LLM niedostępny: {e}")
+    except _time_limit_errors():
+        errors.append("limit czasu zadania (Celery soft time limit): ocena regułowa")
     if final is None:  # rules on the facts gathered so far (missing tools are run now)
         for name, args in RulePolicy.PLAN:
             if name not in {f["tool"] for f in box.facts.values()}:
@@ -358,10 +395,13 @@ def rule_review(rec: Record, card: Card, box: Toolbox, scores: dict, risks: list
     return out[:4]
 
 
-def llm_review(box: Toolbox, assessment: dict, db=None) -> tuple[list[dict] | None, dict, list[str]]:
+def llm_review(box: Toolbox, assessment: dict, db=None, deadline: float | None = None) -> tuple[list[dict] | None, dict, list[str]]:
+    from radar.config import get_settings
     from radar.llm.router import AllProvidersFailed
 
-    pol = LLMPolicy(db=db)
+    if time_left(deadline) < get_settings().agent_review_min_s:
+        return None, {}, ["recenzent LLM pominięty: za mało budżetu czasu (RADAR_AGENT_REVIEW_MIN_S)"]
+    pol = LLMPolicy(db=db, deadline=deadline)
     facts = {fid: f["result"] for fid, f in box.facts.items()}
     user = ("FAKTY:\n" + json.dumps(facts, ensure_ascii=False, default=str)[:4500] + "\n\nOCENA:\n"
             + json.dumps({k: assessment.get(k) for k in ("paths", "risks", "summary", "total")}, ensure_ascii=False, default=str)[:2500])
@@ -369,6 +409,8 @@ def llm_review(box: Toolbox, assessment: dict, db=None) -> tuple[list[dict] | No
         out = pol.ask(REVIEW_SYSTEM, user, "review")
     except AllProvidersFailed as e:
         return None, {}, [f"recenzent LLM niedostępny: {e}"]
+    except _time_limit_errors():
+        return None, {}, ["recenzent LLM przerwany limitem czasu zadania"]
     items, errs = check_citations(out.get("against") if isinstance(out.get("against"), list) else [], box.valid_ids(),
                                   ("point",), "against")
     for it in items:

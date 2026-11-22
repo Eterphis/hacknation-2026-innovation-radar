@@ -13,6 +13,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from radar.basal import taxonomy as T
 from radar.basal.classifier import label_pl
 from radar.basal.embed import fold
 
@@ -74,9 +75,6 @@ FUNDING = [  # (programme, who, when it fits)
 ]
 
 
-# Large public works are investments, not transferable innovations: they would dominate every money ranking.
-INFRA = re.compile(r"\b(budow\w* (?:drogi|odcink|obwodnic|gazociag|linii|mostu|wezla|trasy|tunelu)|droga ekspresow|autostrad|obwodnic|gazociag|"
-                   r"modernizacj\w* linii kolejow|linii kolejow|rozbudow\w* (?:drogi|portu|lotniska)|przebudow\w* drogi|sieci\w* przesyl|terminal\w* (?:lng|kontener))")
 PROGRAMME = re.compile(r"^(program priorytetowy|program operacyjny|regionalny program)")
 
 
@@ -114,7 +112,8 @@ def adopters_for(key: str, voivodeship: str | None = None) -> dict:
 
 
 def is_infrastructure(rec) -> bool:
-    return bool(INFRA.search(fold(f"{rec.title} {(rec.abstract or '')[:300]}")))
+    """The Basal rule (taxonomy.INFRASTRUCTURE); kept here for records Basal saw before the rule existed."""
+    return T.is_infrastructure(rec.title, rec.abstract)
 
 
 def dedup_key(rec) -> str:
