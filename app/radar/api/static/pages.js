@@ -4,7 +4,9 @@
 // ------------------------------------------------------------------ shared components
 const sectorImg = (s, wide = false) => s ? `/static/sectors/${wide ? "wide/" : ""}${s}.webp` : "";
 const bannerImg = k => `/static/banners/${k}.webp`;
+const BANNER_BY_ROUTE = {mapa: "mapa", wdrozenia: "wdrozenia", portfel: "portfel", zrodla: "zrodla", porownaj: "portfel", dla: "dopasuj", graf: "klastry"};
 function header(pre, preIcon, title, lead, actions = "", banner = "") {
+  banner = banner || BANNER_BY_ROUTE[location.hash.replace(/^#\/?/, "").split(/[/?]/)[0]] || "";
   return `<div class="page-header reveal ${banner ? "has-banner" : ""}" ${banner ? `style="--banner:url('${bannerImg(banner)}')"` : ""}><div><p class="pretitle">${icon(preIcon)}${pre}</p><h1>${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ""}</div>${actions}</div>`;
 }
 function emptyArt(kind, msg, action = "") {
@@ -351,7 +353,7 @@ async function pageClusters(v) {
       return `<article class="cluster reveal" data-k="${n}"><div class="cl-img" style="--img:url('${sectorImg(c.sector, true)}')"><span class="cl-n">${c.size}</span></div>
         <div class="cl-b"><h3>${esc(c.name)}</h3>${c.keywords?.length ? `<div class="kw">${c.keywords.slice(0, 4).map(w => `<span>${esc(w)}</span>`).join("")}</div>` : ""}
           <div class="mat" title="badania · technologia · gotowe · na rynku">${c.maturity.map((m, k) => `<i style="flex:${m / tot};" class="m${k}"></i>`).join("")}</div>
-          <div class="plates">${plate("circle-check", c.ready + " gotowych", "", "sm")}${plate("map-pin", c.regions + " woj.", "", "sm red")}${c.adopters ? plate("users", c.adopters.toLocaleString("pl-PL") + " odbiorców", "", "sm") : ""}${plate("heart", String(c.likes), "ocena społeczności", "sm")}</div>
+          <div class="plates">${plate("circle-check", c.ready + " gotowych", "", "sm")}${plate("map-pin", c.regions + " woj.", "", "sm red")}${c.adopters ? plate("users", c.adopters.toLocaleString("pl-PL") + " odbiorców", "", "sm") : ""}${plate("heart", c.likes + " polubień", "", "sm")}</div>
           <button class="link cl-open" aria-expanded="false">${icon("chevron-down")}Pokaż najlepsze</button></div>
         <div class="cl-items"><div class="items">${c.items.map(i => ideaItem(i)).join("")}</div>
           ${c.sector ? `<a class="more" href="#/odkrywaj?${qs({sector: c.sector, tech_area: c.tech_area || ""})}">Wszystkie ${c.size} ${icon("arrow-right")}</a>` : ""}</div></article>`; }).join("") || emptyArt("brak", "Za mało danych do grupowania.")}</div>`;
