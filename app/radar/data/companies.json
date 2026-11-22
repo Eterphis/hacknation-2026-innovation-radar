@@ -1,0 +1,80 @@
+{
+ "schema": "radar.companies/v1",
+ "source": "KRS (api-krs.ms.gov.pl)",
+ "fetched_at": "2026-11-22T01:26:27+00:00",
+ "note": "Spółki celowe i spin-offy uczelni z KRS (tylko dane podmiotu i wspólnicy będący osobami prawnymi). Generowane: python -m radar.sources.krs; aplikacja nie odpytuje KRS w czasie działania.",
+ "companies": [
+  {
+   "krs": "0000626339",
+   "name": "POLITECHNIKA INNOWACJE SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+   "legal_form": "SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+   "regon": "364850245",
+   "nip": "7831744037",
+   "registered": "2016-07-01",
+   "state_as_of": "2026-04-17",
+   "capital_pln": 5000.0,
+   "voivodeship": "wielkopolskie",
+   "city": "Poznań",
+   "pkd_main": {
+    "code": "74.90.Z",
+    "name": "Pozostała działalność profesjonalna, naukowa i techniczna, gdzie indziej niesklasyfikowana"
+   },
+   "pkd_other": [
+    "58",
+    "59.1",
+    "62.01.Z",
+    "62.02.Z",
+    "62.03.Z",
+    "62.09.Z",
+    "63",
+    "68.20.Z"
+   ],
+   "shareholders": [
+    {
+     "name": "POLITECHNIKA POZNAŃSKA",
+     "regon": "000001608",
+     "krs": null,
+     "whole": true
+    }
+   ],
+   "suspended": false,
+   "source": "KRS (api-krs.ms.gov.pl)",
+   "url": "https://wyszukiwarka-krs.ms.gov.pl/details?krs=0000626339",
+   "fetched_at": "2026-11-22T01:26:27+00:00",
+   "seed_source": "https://put.poznan.pl/en/node/2705"
+  },
+  {
+   "krs": "0000728981",
+   "name": "SPÓŁKA CELOWA UTP SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+   "legal_form": "SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+   "regon": "380078720",
+   "nip": "5542964872",
+   "registered": "2018-04-30",
+   "state_as_of": "2026-04-15",
+   "capital_pln": 20000.0,
+   "voivodeship": "kujawsko-pomorskie",
+   "city": "Bydgoszcz",
+   "pkd_main": {
+    "code": "70.10.Z",
+    "name": "Działalność firm centralnych i holdingów"
+   },
+   "pkd_other": [
+    "77.40.Z",
+    "74.90.Z"
+   ],
+   "shareholders": [
+    {
+     "name": "POLITECHNIKA BYDGOSKA IM. JANA I JĘDRZEJA ŚNIADECKICH",
+     "regon": "000001689",
+     "krs": null,
+     "whole": true
+    }
+   ],
+   "suspended": true,
+   "source": "KRS (api-krs.ms.gov.pl)",
+   "url": "https://wyszukiwarka-krs.ms.gov.pl/details?krs=0000728981",
+   "fetched_at": "2026-11-22T01:26:27+00:00",
+   "seed_source": "https://krs-pobierz.pl/spolka-celowa-utp-i0000728981"
+  }
+ ]
+}

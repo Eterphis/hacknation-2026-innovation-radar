@@ -1,0 +1,6 @@
+{"schema": "radar.krs_seed/v1",
+ "note": "Numery KRS kandydatów na spółki celowe / spin-offy uczelni i instytutów. Powiązanie z organizacją wynika z KRS (wspólnik z REGON/KRS/nazwą z rejestru), nie z tej listy. Dopisuj z podaniem źródła.",
+ "companies": [
+  {"krs": "0000626339", "name": "Politechnika Innowacje sp. z o.o.", "source": "https://put.poznan.pl/en/node/2705"},
+  {"krs": "0000728981", "name": "Spółka Celowa UTP sp. z o.o.", "source": "https://krs-pobierz.pl/spolka-celowa-utp-i0000728981"}
+ ]}
