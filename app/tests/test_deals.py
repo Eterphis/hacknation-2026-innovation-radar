@@ -73,3 +73,15 @@ def test_partner_api_needs_key_and_limits(monkeypatch):
 
         deals._BUCKETS["k1"] = [0.0, __import__("time").monotonic()]
         assert c.get("/api/v1/ideas", headers={"X-API-Key": "k1"}).status_code == 429
+
+
+def test_clusters_three_ways():
+    with _client() as c:
+        t = c.get("/api/clusters").json()
+        assert t["clusters"] and all(x["size"] >= 1 and len(x["maturity"]) == 4 and x["items"] for x in t["clusters"])
+        assert [x["size"] for x in t["clusters"]] == sorted((x["size"] for x in t["clusters"]), reverse=True)
+        r = c.get("/api/clusters", params={"mode": "rynki"}).json()
+        assert r["clusters"] and all(x["adopters"] > 0 for x in r["clusters"])
+        assert sum(x["size"] for x in r["clusters"]) == r["total"]
+        p = c.get("/api/clusters", params={"mode": "podobne", "k": 3}).json()
+        assert "clusters" in p
