@@ -26,7 +26,15 @@ class FakeApi:
 
     def __call__(self, url: str) -> Response:
         self.urls.append(url)
-        cursor = parse_qs(urlsplit(url).query)["cursor"][0]
+        q = parse_qs(urlsplit(url).query)
+        if "page" in q:  # keyless runs: basic page=N paging
+            body = {"1": PAGE1, "2": PAGE2}.get(q["page"][0])
+            if body is None:
+                raise AssertionError(f"unexpected page {q['page'][0]}")
+            return Response(url=url, status=200, text=body, fetched_at="2026-11-21T12:00:00+00:00")
+        if "api_key" not in q:
+            raise FetchError(f"HTTP 401 for {url}")  # cursor paging needs a key (OpenAlex, 2026-11)
+        cursor = q["cursor"][0]
         body = PAGE1 if cursor == "*" else PAGE2 if cursor == self.next_cursor else None
         if body is None:
             raise AssertionError(f"unexpected cursor {cursor}")
@@ -240,6 +248,39 @@ class HarvestTest(unittest.TestCase):
         def broken(url):
             raise FetchError(f"HTTP 500 for {url}")
         rc, out = self._main(broken)
+        self.assertEqual(rc, 2)
+        self.assertFalse(out.exists())
+
+    def test_without_key_pages_by_number_not_cursor(self):
+        api = FakeApi()
+        rc, out = self._main(api)
+        self.assertEqual(rc, 0)
+        queries = [parse_qs(urlsplit(u).query) for u in api.urls]
+        self.assertEqual([q["page"] for q in queries], [["1"], ["2"]])
+        self.assertTrue(all("cursor" not in q for q in queries))
+        self.assertEqual(len(out.read_text("utf-8").splitlines()), 3)
+
+    def test_with_key_pages_by_cursor(self):
+        api = FakeApi()
+        rc, _ = self._main(api, env={"OPENALEX_API_KEY": "test-key"})
+        self.assertEqual(rc, 0)
+        self.assertEqual([parse_qs(urlsplit(u).query)["cursor"][0] for u in api.urls], ["*", api.next_cursor])
+
+    def test_401_without_key_keeps_records_fetched_before(self):
+        api = FakeApi()
+
+        def refuse_page_two(url):
+            if parse_qs(urlsplit(url).query).get("page") == ["2"]:
+                raise FetchError(f"HTTP 401 for {url}")
+            return api(url)
+        rc, out = self._main(refuse_page_two)
+        self.assertEqual(rc, 0, "a keyless paging limit is not a failure of the source")
+        self.assertEqual(len(out.read_text("utf-8").splitlines()), 2)
+
+    def test_401_with_key_fails(self):
+        def refused(url):
+            raise FetchError(f"HTTP 401 for {url}")
+        rc, out = self._main(refused, env={"OPENALEX_API_KEY": "bad-key"})
         self.assertEqual(rc, 2)
         self.assertFalse(out.exists())
 
