@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><title>Radar Innowacji na telefonie</title>
+<!-- Film scene: the app on a phone (screenshots from e2e/scripts/deck.mjs, docs/pitch/img). -->
+<style>
+  html, body { margin:0; height:100%; background:#F1ECE4; font-family:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif; overflow:hidden; }
+  .stage { height:100%; display:flex; align-items:center; justify-content:center; gap:6vw; }
+  .txt h1 { font-size:4vw; line-height:1.05; letter-spacing:-.03em; margin:0 0 1.2vw; color:#141312; }
+  .txt p { font-size:1.6vw; color:#4A4741; margin:0; max-width:26ch; }
+  .eyebrow { font:700 1.1vw/1 inherit; letter-spacing:.18em; text-transform:uppercase; color:#BE1A34; margin-bottom:1.4vw; }
+  .phones { display:flex; gap:2.4vw; }
+  .phone { width:15vw; border-radius:2.4vw; padding:.6vw; background:#1c1b1a; box-shadow:0 2vw 4vw rgba(40,25,10,.25); opacity:0; transform:translateY(4vw); animation:up .9s cubic-bezier(.2,.8,.2,1) forwards; }
+  .phone:nth-child(2) { animation-delay:.35s; margin-top:4vw; }
+  .phone img { display:block; width:100%; border-radius:1.9vw; }
+  .txt { opacity:0; animation:fade .8s ease .2s forwards; }
+  @keyframes up { to { opacity:1; transform:none; } } @keyframes fade { to { opacity:1; } }
+  #film-cursor, #film-cap { display:none !important; }
+</style></head><body>
+<div class="stage"><div class="txt"><div class="eyebrow">Wersja mobilna</div><h1>Radar w telefonie.</h1><p>Ta sama aplikacja na każdym ekranie, z wygodną nawigacją i rolkami.</p></div>
+  <div class="phones"><div class="phone"><img src="../pitch/img/mobile-home.png" alt=""></div><div class="phone"><img src="../pitch/img/mobile-rolki.png" alt=""></div></div></div>
+</body></html>
