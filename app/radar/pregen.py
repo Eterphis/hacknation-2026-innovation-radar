@@ -110,7 +110,13 @@ def slogan_prompt(rec, card) -> str:
             "mówiące komu i w czym to pomaga.")
 
 
+# GBNF for llama.cpp: forces {"haslo": "..."} of 10-90 characters. A 1.5B model ignores "JSON only" in the prompt,
+# and this llama.cpp build fails on response_format/json_schema ("Failed to initialize samplers"); raw GBNF works.
+SLOGAN_GBNF = r'''root ::= "{\"haslo\": \"" [^"\\\n]{10,90} "\"}"'''
+
 _NUM = re.compile(r"\d+(?:[.,]\d+)?")
+_DANGLING = re.compile(r"(?:\b(?:i|w|we|z|ze|do|na|dla|oraz|o|od|po|przez|a|ale|lub|czy|że|aby|który|która|które)|[,:;–-])$",
+                       re.I)
 
 
 def validate_slogan(text, rec, card) -> str | None:
@@ -123,6 +129,8 @@ def validate_slogan(text, rec, card) -> str | None:
     source = " ".join(filter(None, (rec.title, rec.abstract, card.solution_name, card.problem_solved, card.summary_pl)))
     known = set(_NUM.findall(source))
     if any(n not in known for n in _NUM.findall(t)):
+        return None
+    if _DANGLING.search(t):  # cut off by the length limit mid-phrase
         return None
     return t
 
