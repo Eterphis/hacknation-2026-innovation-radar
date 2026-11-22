@@ -2,6 +2,9 @@
    Loaded after app.js and shares its globals (icon, plate, api, F, route…). */
 
 // ------------------------------------------------------------------ shared components
+// NCBR stories arrive as "Tytuł: … Zajawka: … Jaki problem rozwiązuje projekt: …": keep the prose, drop the form labels
+const tidy = s => String(s || "").replace(/^\s*Tytuł:.*?(?=Zajawka:|Jaki problem|Opis:|$)/i, "")
+  .replace(/\b(Zajawka|Jaki problem rozwiązuje projekt|Opis projektu|Opis|Efekty|Rezultaty):\s*/gi, "").replace(/\s+/g, " ").trim();
 const sectorImg = (s, wide = false) => s ? `/static/sectors/${wide ? "wide/" : ""}${s}.webp` : "";
 const bannerImg = k => `/static/banners/${k}.webp`;
 const BANNER_BY_ROUTE = {mapa: "mapa", wdrozenia: "wdrozenia", portfel: "portfel", zrodla: "zrodla", porownaj: "portfel", dla: "dopasuj", graf: "klastry"};
@@ -67,9 +70,11 @@ function closeCard() { $("#scrim")?.classList.remove("on"); $("#drawer")?.classL
 
 // ------------------------------------------------------------------ boot loader + route progress (Poland's border draws itself)
 const LOADER = {n: 0, total: 4, done() { this.n++; this.set(this.n / this.total); },
-  set(p) { const path = $("#ld-path"); if (!path) return; const L = path.getTotalLength(); path.style.strokeDasharray = L; path.style.strokeDashoffset = L * (1 - Math.min(1, p));
+  set(p) { const path = $("#ld-path"), shape = $("#pl-shape"); if (!path || !shape) return; const L = shape.getTotalLength(); path.style.strokeDasharray = L; path.style.strokeDashoffset = L * (1 - Math.min(1, p));
     const pct = $("#ld-pct"); if (pct) pct.textContent = Math.round(Math.min(1, p) * 100) + "%"; },
-  hide() { this.set(1); setTimeout(() => $("#loader")?.classList.add("off"), 380); setTimeout(() => $("#loader")?.remove(), 1100); } };
+  t0: performance.now(),
+  hide() { this.set(1); const wait = Math.max(450, 1400 - (performance.now() - this.t0));  // one full radar turn at least
+    setTimeout(() => $("#loader")?.classList.add("off"), wait); setTimeout(() => $("#loader")?.remove(), wait + 700); } };
 LOADER.set(.04);
 SPRITE.then(() => LOADER.done());
 let FIRST = true;
@@ -101,7 +106,7 @@ async function pageHome(v) {
       <p class="pretitle">${icon("radar")}Radar sam przeszukuje ${live} źródeł · ${records.toLocaleString("pl-PL")} rekordów</p>
       <h1>Polskie innowacje, które warto wdrożyć</h1>
       <p class="lead">Znajdujemy pomysły w uczelniach, szkołach, instytutach i samorządach, wyceniamy je i pokazujemy, kto może je wdrożyć.</p>
-      <div class="chips"><a class="btn big" href="#/dopasuj?edit=1">${icon("target")}Dopasuj w 30 sekund</a><a class="btn-soft" href="#/rolki">${icon("clapperboard")}Przeglądaj rolki</a></div></div></section>
+      <div class="chips"><a class="btn big" href="#/dopasuj?edit=1">${icon("target")}Dopasuj w 30 sekund</a><a class="btn-soft" href="#/rolki">${icon("clapperboard")}Przeglądaj rolki</a><a class="btn-soft" href="#/zglos">${icon("lightbulb")}Zgłoś innowację</a></div></div></section>
     <div class="kpis3">${[["copy", k.ready_to_copy, "gotowych do powielenia"], ["piggy-bank", k.cheap_wins, "szybkich wdrożeń za mały budżet"], ["map-pin", k.voivodeships, "województw z pomysłami"]]
       .map(([ic, n, t]) => `<div class="kpi reveal">${icon(ic)}<b data-count="${n}">${n}</b><span>${t}</span></div>`).join("")}</div>
     <section class="sec-block reveal"><div class="sec-h"><h2>Kim jesteś?</h2><span class="faint">pokażemy to, co ma dla Ciebie sens biznesowy</span></div>
@@ -152,7 +157,7 @@ async function pageIdea(v) {
       <div class="idea-meta"><span class="plate"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}<span>${LVL[lvl]}</span></span>${ring(a.total ?? c.score)}
         <button class="pill like-b ${liked.has(c.id) ? "on" : ""}" data-like="${c.id}" aria-pressed="${liked.has(c.id)}">${icon("heart")}<span>${c.likes}</span><small>ocena społeczności</small></button></div></div></section>
     ${kpis.length ? `<div class="kpis4">${kpis.map(([ic, val, t]) => `<div class="kpi reveal">${icon(ic)}<b>${val}</b><span>${t}</span></div>`).join("")}</div>` : ""}
-    <section class="card reveal idea-sum"><div class="card-b"><p class="pretitle">${icon("sparkles")}W skrócie</p><p class="clamp" id="sum">${esc(a.summary || c.summary_pl || "")}</p><button class="link" id="sum-more">Czytaj całość</button>
+    <section class="card reveal idea-sum"><div class="card-b"><p class="pretitle">${icon("sparkles")}W skrócie</p><p class="clamp" id="sum">${esc(tidy(a.summary || c.summary_pl || ""))}</p><button class="link" id="sum-more">Czytaj całość</button>
       <div class="idea-acts">${saveBtnBig(c.id)}${dealActions(c)}</div></div></section>
     <div class="tabs big reveal" role="tablist">${tabs.map(([k, l, ic], n) => `<button role="tab" class="tab ${n ? "" : "on"}" data-t="${k}" aria-selected="${!n}">${icon(ic)}${l}</button>`).join("")}</div>
     <section class="card reveal"><div class="card-b" id="tabbody"></div></section>`;
@@ -318,7 +323,7 @@ async function pageReels(v) {
           <div class="plates">${sectorPlate(i.sector, "sm glass")}${locPlate(i, "sm glass")}</div><span class="reel-ai">${icon("sparkles")}ilustracja AI</span></div>
         <div class="reel-body"><div class="reel-top">${avatar(INST_ICON[i.institution_type] || "building-2")}<div class="who"><b>${esc(i.institution || INST_PL[i.institution_type] || "Instytucja")}</b><small>${esc(INST_PL[i.institution_type] || "")} ${demo(i.synthetic)}</small></div>${ring(b.score, "sm")}</div>
           <div class="reel-title">${esc(b.solution)}</div>
-          <div class="reel-hook">${esc(b.hook)}</div>
+          <div class="reel-hook">${esc(tidy(b.hook))}</div>
           <div class="reel-facts"><div>${icon("banknote")}<small>Budżet</small><b>${esc(i.amount ? pln(i.amount) : (COST_RANGE[i.cost_level] || "—"))}</b></div>
             <div>${icon("gauge")}<small>Etap</small><b>${esc(LVL[lvl])}</b></div><div>${icon("target")}<small>Pierwszy krok</small><b>${esc(short(b.next_step || "—", 60))}</b></div></div>
           <div class="reel-foot"><button class="like ${liked.has(i.card_id) ? "on" : ""}" data-rlike="${i.card_id}" aria-pressed="${liked.has(i.card_id)}" aria-label="Lubię to">${icon("heart")}</button><span class="likes-n" id="ln-${i.card_id}">${i.likes}</span>
@@ -379,4 +384,47 @@ async function pageSaved(v) {
     (list.length ? `<div class="tiles">${list.map(ideaTile).join("")}</div>` : emptyArt("zapisane", "Nic jeszcze nie zapisano. Kliknij zakładkę przy pomyśle, aby go tu dodać.", `<a class="btn" href="#/rolki">${icon("clapperboard")}Przeglądaj rolki</a>`));
   bindCards(v);
   $$("[data-save]", v).forEach(b => b.addEventListener("click", () => setTimeout(() => !b.classList.contains("on") && b.closest(".itile")?.classList.add("gone"), 50)));
+}
+
+// ------------------------------------------------------------------ ZGŁOŚ (submission + live pipeline tracker)
+const STAGE_PL = {normalize: "Ujednolicenie danych", resolve_org: "Rozpoznanie instytucji", dedup: "Szukanie duplikatów", gate: "Klasyfikacja Basal",
+  link: "Powiązania", extract: "Karta pomysłu", maturity: "Dojrzałość", score: "Ocena i ścieżka"};
+ROUTES.zglos = pageSubmit;
+async function pageSubmit(v) {
+  const types = [["szkola", "Szkoła / placówka"], ["uczelnia", "Uczelnia"], ["instytut", "Instytut badawczy"], ["jst", "Samorząd (JST)"], ["inna_publiczna", "Inna instytucja publiczna"], ["firma", "Firma / startup"]];
+  v.innerHTML = header("Zgłoś innowację", "lightbulb", "Masz pomysł albo rozwiązanie, które działa?", "Zgłoszenie przechodzi ten sam potok co dane z baz publicznych: klasyfikacja, karta, ocena, ścieżka i odbiorcy. Bez konta. Nie podawaj danych osobowych.", "", "dopasuj") +
+    `<div class="grid g-7-5 start"><form class="card reveal sub-form" id="subf"><div class="card-b">
+      <label>Nazwa rozwiązania<input name="title" required minlength="8" maxlength="200" placeholder="np. Wspólny kalendarz zajęć pozalekcyjnych gminy"></label>
+      <label>Opis: problem, co robicie inaczej, efekt<textarea name="description" required minlength="80" rows="6" placeholder="Jaki problem rozwiązuje, kto z tego korzysta, co już działa (min. 80 znaków)"></textarea><small class="faint" id="cnt">0 / 80</small></label>
+      <div class="two"><label>Instytucja<input name="institution" maxlength="200" placeholder="np. SP nr 1 w Rzeszowie"></label>
+        <label>Typ instytucji<select name="institution_type"><option value="">—</option>${types.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label></div>
+      <div class="two"><label>Województwo<select name="region"><option value="">—</option>${(LABELS.voivodeship || []).map(x => `<option>${esc(x)}</option>`).join("")}</select></label>
+        <label>Link (opcjonalnie)<input name="url" type="url" placeholder="https://"></label></div>
+      <label>Słowa kluczowe (po przecinku)<input name="keywords" placeholder="edukacja, harmonogram, rodzice"></label>
+      <div class="chips" style="margin-top:1rem"><button class="btn big" type="submit">${icon("arrow-right")}Wyślij do radaru</button><span class="faint">Ocena pojawi się zwykle w ciągu minuty.</span></div></div></form>
+      <aside class="card reveal" id="track">${cardH("radar", "Co się stanie", "ten sam potok co dla danych z baz publicznych")}<div class="card-b"><ol class="track">${Object.values(STAGE_PL).map(s => `<li><i></i>${s}</li>`).join("")}</ol>
+        <p class="faint">Zgłoszenia mają najwyższy priorytet w kolejce i nigdy nie są odrzucane po cichu: wątpliwości Basala trafiają do operatora razem z kartą.</p></div></aside></div>`;
+  const f = $("#subf"), d = $("textarea", f);
+  d.oninput = () => $("#cnt").textContent = `${d.value.length} / 80`;
+  f.onsubmit = async e => { e.preventDefault(); const fd = Object.fromEntries(new FormData(f));
+    const body = {...fd, keywords: (fd.keywords || "").split(",").map(x => x.trim()).filter(Boolean)};
+    Object.keys(body).forEach(k => body[k] === "" && delete body[k]);
+    const btn = $("button[type=submit]", f); btn.disabled = true; btn.classList.add("busy");
+    try { const r = await api("/api/ingest/zgloszenia/manual", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body)});
+      saveJSON("radar-submissions", [...loadJSON("radar-submissions", []), {raw_id: r.raw_id, title: body.title, at: new Date().toISOString()}].slice(-20));
+      trackSubmission(r.raw_id); toast("Zgłoszenie przyjęte"); }
+    catch (err) { toast("Nie udało się wysłać: " + String(err).slice(0, 80)); btn.disabled = false; btn.classList.remove("busy"); } };
+}
+async function trackSubmission(rawId) {
+  const box = $("#track"); if (!box) return;
+  const t0 = Date.now();
+  const draw = st => { const done = st.stages.filter(s => s.status !== "pending").length;
+    box.innerHTML = cardH("radar", st.card_id ? "Gotowe: pomysł oceniony" : "Radar przetwarza zgłoszenie", `#${rawId} · ${Math.round((Date.now() - t0) / 1000)} s`, "", true) +
+      `<div class="card-b"><div class="wiz-bar"><i style="width:${done / st.stages.length * 100}%"></i></div><ol class="track live">${st.stages.map(s => `<li class="${s.status === "pending" ? "" : s.status === "ok" ? "ok" : "warn"}"><i></i>${STAGE_PL[s.stage] || s.stage}${s.detail && s.status !== "ok" ? `<small>${esc(String(s.detail).slice(0, 90))}</small>` : ""}</li>`).join("")}</ol>
+      ${st.labels ? `<div class="plates">${st.labels.sector ? sectorPlate(st.labels.sector, "sm") : ""}${st.labels.voivodeship ? plate("map-pin", st.labels.voivodeship, "", "sm red") : ""}${st.labels.innovation_type ? plate("lightbulb", lp("innovation_type", st.labels.innovation_type), "", "sm") : ""}</div>` : ""}
+      ${st.review_reasons?.length ? `<p class="faint">${icon("shield-alert")} Do weryfikacji przez operatora: ${esc(st.review_reasons.join("; ").slice(0, 200))}</p>` : ""}
+      ${st.card_id ? `<a class="btn" href="#/pomysl/${st.card_id}">${icon("arrow-right")}Zobacz ocenę, wycenę i ścieżkę</a>` : ""}</div>`; };
+  for (let i = 0; i < 120; i++) { let st; try { st = await api(`/api/submissions/${rawId}`); } catch (e) { break; }
+    if (!document.body.contains(box)) return; draw(st); if (st.card_id || st.record_status === "rejected") return;
+    await new Promise(r => setTimeout(r, i < 20 ? 1500 : 4000)); }
 }

@@ -3,7 +3,10 @@
    Icons: one Lucide sprite (/static/icons.svg), always grey (--ink-3) unless they carry state (red). */
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-const api = (p, o) => fetch(p, o).then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)));
+const opTok = () => { try { return localStorage.getItem("radar-operator") || ""; } catch (e) { return ""; } };
+const api = (p, o = {}, retry = true) => fetch(p, {...o, headers: {...(o.headers || {}), ...(opTok() ? {"X-Operator-Token": opTok()} : {})}}).then(r => {
+  if (r.status === 401 && retry && (o.method || "GET") !== "GET") { const t = prompt("Akcja operatora PCI: podaj token operatora"); if (t) { try { localStorage.setItem("radar-operator", t); } catch (e) {} return api(p, o, false); } }
+  return r.ok ? r.json() : r.text().then(t => Promise.reject(t)); });
 const qs = o => new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== "")).toString();
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
@@ -498,5 +501,5 @@ if (SR) { const mic = $("#mic"); mic.hidden = false; mic.innerHTML = icon("mic")
 // Inline the icon sprite once: <use> on same-document symbols works everywhere (external sprites do not).
 const SPRITE = fetch("/static/icons.svg").then(r => r.text()).then(t => { const d = document.createElement("div"); d.hidden = true; d.innerHTML = t; document.body.prepend(d); }).catch(() => {});
 Promise.all([SPRITE, api("/api/config").then(c => CFG = c).catch(() => {}), api("/api/labels").then(l => LABELS = l).catch(() => {})]).then(() => {
-  $("#foot").innerHTML = `<nav class="foot-nav"><a href="#/graf">${icon("network")}Graf powiązań</a><a href="#/zrodla">${icon("radar")}Źródła danych</a><a href="#/dla">${icon("users")}Grupy odbiorców</a><a href="/docs" target="_blank" rel="noopener">${icon("external-link")}API</a></nav>${CFG.demo_mode ? "Tryb demo (dane przykładowe) · " : ""}LLM: ${esc((CFG.llm_providers || []).join(" → "))} · ikony Lucide (ISC) · granice województw: polska-geojson (MIT) · ilustracje: Higgsfield (AI, wizualizacje)`;
+  $("#foot").innerHTML = `<nav class="foot-nav"><a href="#/klastry">${icon("component")}Klastry</a><a href="#/graf">${icon("network")}Graf powiązań</a><a href="#/zrodla">${icon("radar")}Źródła danych</a><a href="#/dla">${icon("users")}Grupy odbiorców</a><a href="/docs" target="_blank" rel="noopener">${icon("external-link")}API</a></nav>${CFG.demo_mode ? "Tryb demo (dane przykładowe) · " : ""}LLM: ${esc((CFG.llm_providers || []).join(" → "))} · ikony Lucide (ISC) · granice województw: polska-geojson (MIT) · ilustracje: Higgsfield (AI, wizualizacje)`;
   route(); });
