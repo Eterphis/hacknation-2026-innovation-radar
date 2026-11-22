@@ -143,3 +143,95 @@ def test_parse_json_takes_first_object_and_bad_output_keeps_circuit_closed(scrip
     assert any(t.get("error") for t in a["agent"]["trace"])
     assert a["risks"]  # the model gave none: the rule-based risks stay
     assert R.router().real_available()  # one malformed answer did not open the circuit
+
+
+# --------------------------------------------------------------------------- time budget (PR #11 review, risk 1)
+def test_exhausted_budget_falls_back_to_rules_without_calling_the_model(scripted, monkeypatch):
+    monkeypatch.setenv("RADAR_AGENT_BUDGET_S", "0")
+    from radar.config import get_settings
+
+    get_settings.cache_clear()
+    scripted.script = [{"action": "tool", "name": "find_similar", "args": {}}]
+    scripted.seen.clear()  # the fixture's harvest asked the model for extraction
+    with session() as s:
+        rec, card = _a_ready_card(s)
+        a = assess(s, rec, card)
+    assert a["by"] == "reguły (fallback po LLM)" and a["paths"] and a["against_by"] == "reguły"
+    assert any("budżet czasu" in e for e in a["agent"]["citation_errors"])
+    assert scripted.seen == []  # no agent or reviewer call was started with no time left
+    assert R.router().real_available()  # running out of budget is not a dead server
+
+
+def test_timeout_cut_by_the_budget_keeps_the_circuit_closed(scripted):
+    import time
+
+    import httpx
+
+    from radar.llm.router import AllProvidersFailed
+
+    class Slow(Scripted):
+        timeout = 300.0
+        caps: list = []
+
+        def complete_json(self, system, user):
+            Slow.caps.append(self.timeout)
+            raise ProviderError("local: timed out") from httpx.ReadTimeout("timed out")
+
+    R._router = None
+    PROVIDERS["local"] = Slow
+    r = R.router()
+    with pytest.raises(AllProvidersFailed, match="budget exhausted"):
+        r.complete_json("s", "u", exclude=("mock",), deadline=time.monotonic() + 20)
+    assert 5 < Slow.caps[0] <= 20  # the HTTP timeout was capped to the budget left
+    assert r.providers[0].timeout == 300.0  # and restored afterwards
+    assert r.real_available()
+    with pytest.raises(AllProvidersFailed):  # without a deadline the same timeout is a dead server
+        r.complete_json("s", "u", exclude=("mock",))
+    assert not r.real_available()
+
+
+def test_celery_soft_time_limit_is_caught_by_the_agent(scripted):
+    from celery.exceptions import SoftTimeLimitExceeded
+
+    def killed(_user):
+        raise SoftTimeLimitExceeded()
+
+    scripted.script = [killed, killed]
+    with session() as s:
+        rec, card = _a_ready_card(s)
+        a = assess(s, rec, card)
+    assert a["by"] == "reguły (fallback po LLM)" and a["paths"]
+    assert any("limit czasu zadania" in e for e in a["agent"]["citation_errors"])
+
+
+def test_score_limits_follow_the_budget_and_skip_retries_on_time_limit():
+    from celery.exceptions import SoftTimeLimitExceeded
+
+    from radar.config import get_settings
+    from radar.pipeline.tasks import score
+
+    budget = get_settings().agent_budget_s
+    assert score.soft_time_limit == budget + 60 and score.time_limit == budget + 120
+    assert SoftTimeLimitExceeded in score.dont_autoretry_for
+
+
+# --------------------------------------------------------------------------- no write lock while the model works (risk 3)
+def test_other_writers_are_not_blocked_while_the_agent_waits_for_the_model(scripted):
+    import time
+
+    from radar.models import Setting
+
+    waited = []
+
+    def probe(_user):
+        t0 = time.perf_counter()
+        with session() as s2:  # another worker committing while this assessment is mid-flight
+            s2.merge(Setting(key=f"probe-{len(waited)}", value={}))
+        waited.append(time.perf_counter() - t0)
+        return {"action": "tool", "name": "find_similar", "args": {}}
+
+    scripted.script = [{"action": "tool", "name": "recipients", "args": {}}, probe]
+    with session() as s:
+        rec, card = _a_ready_card(s)
+        assess(s, rec, card)
+    assert waited and max(waited) < 2.0

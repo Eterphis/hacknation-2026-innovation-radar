@@ -117,6 +117,10 @@ INSTITUTION_TYPES: dict[str, dict] = {
     "firma": {"pl": "firma prywatna", "kw": [r"sp\.? ?z ?o\.? ?o", r"\bs\.a\.?(?=[\s,;)]|$)", r"spolka", r"\bsp\. k\b", r"\bsp\. ?j\b", r"przedsiebiorstw",
                                              r"\bgmbh\b", r"\bb\.v\.", r"\ba\.s\.(?=[\s,;)]|$)"]},
 }
+# Company forms that are only unambiguous in capitals, matched case-sensitively on the ORIGINAL organisation names
+# (not folded): "PGE SA", "Orlen S.A.", "Kofola a.s." stays above. Lower-case "sa" is a Slovak/Czech word ("je sa",
+# "Policajný zbor sa ..."), which once turned the police into a company, so it never matches here.
+COMPANY_CASED = [r"\bS\.?\s?A\.?(?=[\s,;)]|$)", r"\bSp\.\s?k\.(?=[\s,;)]|$)"]
 # Associations and foundations: not a public institution and not a company -> the operator decides (hold).
 NGO_KW = [r"fundacj", r"stowarzysz", r"\bassociation\b", r"\bfoundation\b", r"\be\.v\.", r"\bverein\b", r"\bzdruzenie\b"]
 INSTITUTION_FIELD_MAP = {  # values typed in the submission form
