@@ -291,3 +291,7 @@ h2.reel-title { margin:0; }
   .page-header.has-banner::after { background:color-mix(in srgb, var(--bg) 86%, transparent); }
   .idea-hero::after { background:linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent), var(--bg) 75%); }
 }
+/* minimapa rysuje się dopiero w widoku: miejsce zarezerwowane, bez przesunięcia układu (CLS) */
+#minimap:empty { min-height:360px; }
+/* stabilny układ od pierwszego malowania: szkielet jest w index.html, widok zajmuje ekran, stopka nie skacze (CLS) */
+#view { min-height:calc(100svh - 4rem); display:flow-root; }  /* flow-root: margines pierwszego elementu nie przesuwa całego <main> */

@@ -39,3 +39,14 @@ test("prefers-reduced-motion: animacje loadera, tras i przejść mają czas 0", 
     expect.soft(d.transition, `${d.cls}: transition-duration`).toBeLessThanOrEqual(0.01);
   }
 });
+
+test("pełny poland.json: nie przy starcie, dopiero na mapie (loader rysuje granicę z wbudowanego obrysu)", async ({ page, theme }) => {
+  const fetched: string[] = [];
+  page.on("request", r => { if (r.url().includes("/static/poland")) fetched.push(new URL(r.url()).pathname); });
+  await openRoute(page, "#/odkrywaj", theme);
+  expect(fetched).toEqual([]);
+  const map = page.waitForResponse(r => r.url().endsWith("/static/poland.json"));
+  await openRoute(page, "#/mapa", theme);
+  expect((await map).status()).toBe(200);
+  await expect(page.getByRole("group", { name: /Mapa Polski/ })).toBeVisible();
+});

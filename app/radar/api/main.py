@@ -17,6 +17,7 @@ from typing import Literal
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from sqlalchemy import func, select, text
 
@@ -280,13 +281,27 @@ def index():
     return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
 
 
+# Images, the icon sprite and the map outline change rarely: a week in the browser cache. Code and styles (app.js,
+# pages.js, *.css, index.html) change with every deploy: no-cache, so browsers revalidate (ETag -> cheap 304).
+LONG_CACHE = (".webp", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff2")
+LONG_CACHE_FILES = ("poland.json", "poland-outline.json")
+
+
+def static_cache_control(path: str) -> str:
+    name = path.rsplit("/", 1)[-1]
+    return "public, max-age=604800" if name.endswith(LONG_CACHE) or name in LONG_CACHE_FILES else "no-cache"
+
+
 @app.middleware("http")
 async def _revalidate_static(request: Request, call_next):
-    """UI assets change with every deploy: browsers revalidate (ETag makes it a cheap 304)."""
     resp = await call_next(request)
     if request.url.path.startswith("/static/"):
-        resp.headers["Cache-Control"] = "no-cache"
+        resp.headers["Cache-Control"] = static_cache_control(request.url.path)
     return resp
+
+
+# Without Caddy in front (local, k3d, CI) responses would go out uncompressed; app.js alone is ~65 KB.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

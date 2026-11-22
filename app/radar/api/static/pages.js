@@ -82,7 +82,7 @@ function openCard(id) { if (id) location.hash = "#/pomysl/" + id; }
 function closeCard() { $("#scrim")?.classList.remove("on"); $("#drawer")?.classList.remove("on"); }
 
 // ------------------------------------------------------------------ boot loader + route progress (Poland's border draws itself)
-const LOADER = {n: 0, total: 4, done() { this.n++; this.set(this.n / this.total); },
+const LOADER = {n: 0, total: 3, done() { this.n++; this.set(this.n / this.total); },
   set(p) { const path = $("#ld-path"), shape = $("#pl-shape"); if (!path || !shape) return; const L = shape.getTotalLength(); path.style.strokeDasharray = L; path.style.strokeDashoffset = L * (1 - Math.min(1, p));
     const pct = $("#ld-pct"); if (pct) pct.textContent = Math.round(Math.min(1, p) * 100) + "%"; },
   t0: performance.now(),
@@ -99,7 +99,8 @@ route = async function () {
   if (FIRST) { FIRST = false; LOADER.hide(); }
 };
 window.removeEventListener("hashchange", _route); window.addEventListener("hashchange", () => route());
-api("/static/poland.json").then(p => { POLAND = POLAND || p; LOADER.done(); }).catch(() => LOADER.done());
+// the loader draws Poland from the outline inlined in index.html (#pl-shape); the full 92 KB poland.json is fetched
+// only by drawPoland(): on #/mapa, #/wdrozenia, or when the home page's mini map scrolls into view (cached in POLAND)
 api("/api/labels").then(() => LOADER.done()).catch(() => LOADER.done());
 api("/api/personas").then(p => { PERSONAS = PERSONAS || p; LOADER.done(); }).catch(() => LOADER.done());
 
@@ -136,7 +137,10 @@ async function pageHome(v) {
   ariaTabs($(".sec-h [role=tablist]", v), $("#hpicks"), b => show(b.dataset.tab)); show("standouts");
   countUp(v);
   $$(".bar[data-tech]", v).forEach(b => b.onclick = () => go("odkrywaj", {tech_area: b.dataset.tech}));
-  drawPoland($("#minimap"), await api("/api/regions"), {compact: true});
+  const mm = $("#minimap"), drawMini = () => api("/api/regions").then(reg => drawPoland(mm, reg, {compact: true}))
+    .catch(e => { mm.innerHTML = empty("Nie udało się wczytać mapy: " + e); });
+  if (window.IntersectionObserver) { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); drawMini(); } }, {rootMargin: "300px"}); io.observe(mm); }
+  else await drawMini();
 }
 function countUp(root) { $$("[data-count]", root).forEach(el => { const n = +el.dataset.count; if (!n || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const t0 = performance.now(), dur = 900; const step = t => { const p = Math.min(1, (t - t0) / dur); el.textContent = Math.round(n * (1 - Math.pow(1 - p, 3))).toLocaleString("pl-PL"); if (p < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); }); }
