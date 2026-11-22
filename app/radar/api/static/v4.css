@@ -126,6 +126,9 @@
 }
 @media (max-height: 600px) { .reel-facts { display:none; } }
 
+/* ---- idea page: the details tab bar keeps its distance from the summary card above and the panel below */
+.tabs.big[aria-label="Szczegóły pomysłu"] { margin:1.6rem 0 1.1rem; }
+
 /* ---- empty states: the "AI illustration" note sits centred under its picture */
 .empty.art img { display:block; margin:0 auto 1rem; }
 .empty.art .ai-note { display:flex; justify-content:center; margin:-.5rem auto .8rem; }
