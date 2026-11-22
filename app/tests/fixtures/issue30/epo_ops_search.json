@@ -1,0 +1,21 @@
+{"_comment": "Synthetic fixture in the EPO OPS 3.2 biblio-search JSON format (numbers and titles are made up).",
+ "ops:world-patent-data": {"ops:biblio-search": {"@total-result-count": "3", "ops:range": {"@begin": "1", "@end": "3"},
+  "ops:search-result": {"exchange-documents": [
+   {"exchange-document": {"@system": "ops.epo.org", "@family-id": "70000001", "@country": "PL", "@doc-number": "999001", "@kind": "B1",
+     "bibliographic-data": {
+       "publication-reference": {"document-id": [
+         {"@document-id-type": "docdb", "country": {"$": "PL"}, "doc-number": {"$": "999001"}, "kind": {"$": "B1"}, "date": {"$": "20240315"}},
+         {"@document-id-type": "epodoc", "doc-number": {"$": "PL999001"}, "date": {"$": "20240315"}}]},
+       "invention-title": [{"@lang": "pl", "$": "Sposób wytwarzania kompozytu do magazynowania wodoru"},
+                           {"@lang": "en", "$": "Method of producing a hydrogen storage composite"}],
+       "parties": {"applicants": {"applicant": [{"@data-format": "epodoc", "applicant-name": {"name": {"$": "POLITECHNIKA RZESZOWSKA"}}}]},
+                   "inventors": {"inventor": [{"@data-format": "epodoc", "inventor-name": {"name": {"$": "KOWALSKI JAN"}}}]}}}}},
+   {"exchange-document": {"@system": "ops.epo.org", "@family-id": "70000002", "@country": "PL", "@doc-number": "445566", "@kind": "A1",
+     "bibliographic-data": {
+       "publication-reference": {"document-id": {"@document-id-type": "docdb", "country": {"$": "PL"}, "doc-number": {"$": "445566"}, "kind": {"$": "A1"}, "date": {"$": "20250102"}}},
+       "invention-title": {"@lang": "pl", "$": "Czujnik drgań łopat turbiny wiatrowej"}}}},
+   {"exchange-document": {"@system": "ops.epo.org", "@family-id": "70000001", "@country": "WO", "@doc-number": "2024123456", "@kind": "A1",
+     "bibliographic-data": {
+       "publication-reference": {"document-id": [{"@document-id-type": "docdb", "country": {"$": "WO"}, "doc-number": {"$": "2024123456"}, "kind": {"$": "A1"}, "date": {"$": "20240620"}}]},
+       "invention-title": [{"@lang": "en", "$": "Hydrogen storage composite and method"}]}}}
+  ]}}}}

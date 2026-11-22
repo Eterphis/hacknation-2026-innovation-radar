@@ -61,6 +61,11 @@ def beat_schedule() -> dict:
     # novelty, recipients and regional gaps depend on the whole collection: refresh all scores daily
     sched["reassess-daily"] = {"task": "radar.pipeline.tasks.reassess", "schedule": 86400.0,
                                "options": {"queue": "score", "routing_key": "score"}}
+    # pregenerated content (brief, slogan, business case, audience fit) for cards whose inputs changed; 03:30 local
+    from celery.schedules import crontab
+
+    sched["pregenerate-nightly"] = {"task": "radar.pipeline.tasks.pregenerate", "schedule": crontab(hour=3, minute=30),
+                                    "options": {"queue": "score", "routing_key": "score"}}
     sched["notify-watchlists-daily"] = {"task": "radar.pipeline.tasks.notify_watchlists", "schedule": 86400.0,
                                         "options": {"queue": "score", "routing_key": "score"}}
     return sched

@@ -10,5 +10,11 @@
 	# internal endpoints stay private
 	@private path /metrics /api/basal/train
 	respond @private 404
+	# regenerating a guide's narration spends time on the shared llama.cpp server: operator only
+	@fresh_pitch {
+		path /api/cards/*/pitch
+		expression {query.fresh} != ""
+	}
+	respond @fresh_pitch 403
 	reverse_proxy api:8000
 }

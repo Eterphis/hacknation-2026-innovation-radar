@@ -136,6 +136,8 @@ class Card(Base):
     # agent output: paths (who does what), risks + mitigations, recipients, criteria scores, metrics, recheck
     assessment: Mapped[dict] = mapped_column(JSON, default=dict)
     brief: Mapped[dict] = mapped_column(JSON, default=dict)
+    # computed once by radar.pregen (brief, slogan, business case, audience fit); the API only reads it
+    pregen: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     score: Mapped[float | None] = mapped_column(Float, index=True)
     likes: Mapped[int] = mapped_column(Integer, default=0)
     # pending | approved | rejected

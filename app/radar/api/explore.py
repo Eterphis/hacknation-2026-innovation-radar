@@ -149,6 +149,7 @@ def feed(offset: int = 0, limit: int = 10, sector: str | None = None, voivodeshi
         for r in s.scalars(q):
             d = idea_dict(r)
             d["brief"] = r.card.brief
+            d["slogan"] = (r.card.pregen or {}).get("slogan")
             out.append(d)
         return out
 
@@ -227,7 +228,8 @@ def personas():
 @router.get("/personas/{key}")
 def persona(key: str, voivodeship: str | None = None, limit: int = 24):
     """Ideas matched to one audience, ranked by its money metric x quality, with deterministic business cases."""
-    from radar.business import PERSONAS, business_case, dedup_key, is_infrastructure, metric_value
+    from radar.business import PERSONAS, dedup_key, is_infrastructure, metric_value
+    from radar.pregen import business as stored_business
 
     p = PERSONAS.get(key)
     if p is None:
@@ -245,7 +247,7 @@ def persona(key: str, voivodeship: str | None = None, limit: int = 24):
             if k in seen:
                 continue
             seen.add(k)
-            bc = business_case(r, r.card)
+            bc = stored_business(r, r.card)
             d = idea_dict(r)
             d["business"] = {"metric": metric_value(bc, p["metric"]), "deploy_cost_pln": bc["deploy_cost_pln"],
                              "adopters": bc["adopters"], "som_3y_pln": bc["market"]["som_3y_pln"],
@@ -271,12 +273,13 @@ STAGES = ["exploring", "tech_ready", "business_ready", "market_ready"]
 def _match_corpus() -> list[dict]:
     """What /api/match needs per record that does not depend on the profile: business case, labels, the idea card.
     Computed once per data version (radar.api.cache); scoring one profile is then plain arithmetic."""
-    from radar.business import business_case, dedup_key, is_infrastructure
+    from radar.business import dedup_key, is_infrastructure
+    from radar.pregen import business as stored_business
 
     with session() as s:
         recs = s.scalars(select(Record).join(Card, Card.record_id == Record.id).options(contains_eager(Record.card))
                          .where(_filters(), Card.decision != "rejected").order_by(Card.score.desc().nulls_last()).limit(600)).all()
-        return [{"source_id": r.source_id, "infra": is_infrastructure(r), "dedup": dedup_key(r), "bc": business_case(r, r.card),
+        return [{"source_id": r.source_id, "infra": is_infrastructure(r), "dedup": dedup_key(r), "bc": stored_business(r, r.card),
                  "lvl": STAGES.index(r.card.maturity) if r.card.maturity in STAGES else 0,
                  "cost_i": COSTS.index(r.cost_level) if r.cost_level in COSTS else 1,
                  "sector": r.sector, "voivodeship": r.voivodeship, "maturity": r.card.maturity, "score": r.card.score,

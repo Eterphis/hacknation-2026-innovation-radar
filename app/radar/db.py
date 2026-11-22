@@ -97,6 +97,7 @@ def _has_column(insp, table: str, column: str) -> bool:
 # reports dialect noise (types on SQLite), which used to stamp an up-to-date database at 0001 and make 0002 fail
 # on an existing table. Every new migration adds its marker on top (test_migrations checks the newest is head).
 SCHEMA_MARKERS: tuple[tuple[str, object], ...] = (
+    ("0005", lambda insp: "watchlists" in insp.get_table_names() and _has_column(insp, "cards", "pregen")),
     ("0004", lambda insp: "watchlists" in insp.get_table_names() and "organizations" in insp.get_table_names()),
     ("0003", lambda insp: "organizations" in insp.get_table_names() and "llm_calls" in insp.get_table_names()),
     ("0002", lambda insp: "llm_calls" in insp.get_table_names() and _has_column(insp, "stage_runs", "duration_ms")),

@@ -1,0 +1,89 @@
+{
+ "odpis": {
+  "rodzaj": "Aktualny",
+  "naglowekA": {
+   "rejestr": "RejP",
+   "numerKRS": "0000728981",
+   "stanZDnia": "15.04.2026",
+   "dataRejestracjiWKRS": "30.04.2018"
+  },
+  "dane": {
+   "dzial1": {
+    "danePodmiotu": {
+     "formaPrawna": "SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+     "identyfikatory": {
+      "regon": "38007872000000",
+      "nip": "5542964872"
+     },
+     "nazwa": "SPÓŁKA CELOWA UTP SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+     "daneOWczesniejszejRejestracji": {},
+     "czyProwadziDzialalnoscZInnymiPodmiotami": false,
+     "czyPosiadaStatusOPP": false
+    },
+    "siedzibaIAdres": {
+     "siedziba": {
+      "kraj": "POLSKA",
+      "wojewodztwo": "KUJAWSKO-POMORSKIE",
+      "powiat": "BYDGOSZCZ",
+      "gmina": "BYDGOSZCZ",
+      "miejscowosc": "BYDGOSZCZ"
+     }
+    },
+    "kapital": {
+     "wysokoscKapitaluZakladowego": {
+      "wartosc": "20000,00",
+      "waluta": "PLN"
+     },
+     "wniesioneAporty": {}
+    },
+    "wspolnicySpzoo": [
+     {
+      "nazwa": "POLITECHNIKA BYDGOSKA IM. JANA I JĘDRZEJA ŚNIADECKICH",
+      "identyfikator": {
+       "regon": "00000168900000"
+      },
+      "krs": {
+       "krs": "0000000000"
+      },
+      "posiadaneUdzialy": "400 UDZIAŁÓW O ŁĄCZNEJ WARTOŚCI 20.000,00 ZŁ",
+      "czyPosiadaCaloscUdzialow": true
+     }
+    ]
+   },
+   "dzial3": {
+    "przedmiotDzialalnosci": {
+     "przedmiotPrzewazajacejDzialalnosci": [
+      {
+       "opis": "DZIAŁALNOŚĆ FIRM CENTRALNYCH I HOLDINGÓW",
+       "kodDzial": "70",
+       "kodKlasa": "10",
+       "kodPodklasa": "Z"
+      }
+     ],
+     "przedmiotPozostalejDzialalnosci": [
+      {
+       "opis": "DZIERŻAWA PRAW WŁASNOŚCI INTELEKTUALNEJ",
+       "kodDzial": "77",
+       "kodKlasa": "40",
+       "kodPodklasa": "Z"
+      },
+      {
+       "opis": "POZOSTAŁA DZIAŁALNOŚĆ PROFESJONALNA, NAUKOWA I TECHNICZNA, GDZIE INDZIEJ NIESKLASYFIKOWANA",
+       "kodDzial": "74",
+       "kodKlasa": "90",
+       "kodPodklasa": "Z"
+      }
+     ]
+    }
+   },
+   "dzial6": {
+    "zawieszenieWznowienie": [
+     {
+      "dataZawieszenia": "01.07.2025"
+     }
+    ]
+   }
+  }
+ },
+ "_comment": "Trimmed real response of api-krs.ms.gov.pl OdpisAktualny (fetched 2026-11-22); dzial2 (board) removed."
+}
