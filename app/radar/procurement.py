@@ -121,7 +121,7 @@ def dossier(rec, card, bc: dict, implementers: list[dict] | None = None) -> dict
         "version": "procurement/v1",
         "card_id": card.id,
         "subject": subject,
-        "estimated_value": {"net_pln": value, "basis": "koszt wdrożenia u odbiorcy z business case (business/v1)",
+        "estimated_value": {"net_pln": value, "basis": "koszt wdrożenia u odbiorcy z business case (business/v2)",
                             "assumption": next((a for a in bc.get("assumptions", []) if a.startswith("koszt wdrożenia")), None),
                             "savings_vs_own_build_pln": bc.get("savings_per_adopter_pln"), "payback": bc.get("payback")},
         "criteria": criteria(rec, card),

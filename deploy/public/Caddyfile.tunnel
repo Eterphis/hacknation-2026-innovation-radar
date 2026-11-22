@@ -12,7 +12,7 @@
 	# the internet (the UI never sends `fresh`; the API also requires the operator token when one is set)
 	@fresh_pitch {
 		path /api/cards/*/pitch
-		expression {query.fresh} != ""
+		expression {query.fresh} != "" || {query.llm} != ""
 	}
 	respond @fresh_pitch 403
 	reverse_proxy api:8000

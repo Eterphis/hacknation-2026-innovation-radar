@@ -60,6 +60,13 @@ REVENUE_MULTIPLE = 3.0  # licence / spin-off value ≈ 3x expected yearly revenu
 ROYALTY = .05  # typical university licence royalty on adopter spend
 COPY_CAP_PLN = 2_000_000  # a copied, already working solution rarely costs an adopter more than this
 VALUE_CAP_PLN = 50_000_000  # early-stage licence/spin-off values above this are not credible without due diligence
+BUSINESS_VERSION = "business/v2"
+# Organisational, educational, social, process and service innovations are copied as a way of working (procedures,
+# training, materials), usually paid from public money and handed over openly: no licence to sell, and a copy costs
+# far less than a technology. Their value is what the adopters save, not a licence price.
+MODEL_TYPES = {"organizacyjna", "edukacyjna", "spoleczna", "procesowa", "uslugowa"}
+MODEL_UNIT_PLN = {"niski": 30_000, "sredni": 150_000, "wysoki": 600_000, "bardzo_wysoki": 1_500_000}
+MODEL_COPY_SHARE = .1  # a copy of a funded programme ~10% of its budget (training, materials, adaptation)
 
 FUNDING = [  # (programme, who, when it fits)
     ("FENG — Ścieżka SMART", "firmy i konsorcja z uczelniami", lambda r, lvl: r.innovation_type == "technologiczna" and lvl >= 1),
@@ -137,10 +144,12 @@ def business_case(rec, card) -> dict:
     lvl_name = card.maturity or "exploring"
     lvl = LEVELS.index(lvl_name) if lvl_name in LEVELS else 0
     cost = rec.cost_level or "sredni"
-    unit = UNIT_PLN.get(cost, 600_000)
+    open_model = rec.innovation_type in MODEL_TYPES
+    unit = (MODEL_UNIT_PLN if open_model else UNIT_PLN).get(cost, 150_000 if open_model else 600_000)
+    share = MODEL_COPY_SHARE if open_model else .3
     amounts = [v for v in (rec.amounts or {}).values() if isinstance(v, (int, float)) and v > 0]
-    # a recorded project budget is the cost of the original build, not of a copy: a copy costs ~30% of it
-    deploy_cost = min(COPY_CAP_PLN, min(unit, max(amounts) * .3) if amounts else unit)
+    # a recorded project budget is the cost of the original build, not of a copy: a copy costs a share of it
+    deploy_cost = min(COPY_CAP_PLN, min(unit, max(amounts) * share) if amounts else unit)
     key = adopter_key(rec)
     a = adopters_for(key, rec.voivodeship)
     n = a["count"]
@@ -150,29 +159,36 @@ def business_case(rec, card) -> dict:
     som_3y = n * ADOPTION_3Y.get(cost, .02) * deploy_cost
     p = SUCCESS_P[lvl_name]
     yearly_rev = som_3y / 3
-    licence_value = min(VALUE_CAP_PLN, yearly_rev * REVENUE_MULTIPLE * p)
-    royalty_3y = som_3y * ROYALTY * p
+    licence_value = 0 if open_model else min(VALUE_CAP_PLN, yearly_rev * REVENUE_MULTIPLE * p)
+    royalty_3y = 0 if open_model else som_3y * ROYALTY * p
     own_build = deploy_cost * 3  # building the same thing from scratch in another institution
+    adopters_3y = round(n * ADOPTION_3Y.get(cost, .02))
+    public_value_3y = adopters_3y * (own_build - deploy_cost) * p
     funding = [{"programme": prog, "for": who} for prog, who, fits in FUNDING if fits(rec, lvl)][:4]
     model = ("licencja / sprzedaż" if rec.innovation_type == "technologiczna" else "transfer modelu działania + szkolenie")
     return {
-        "version": "business/v1",
+        "version": BUSINESS_VERSION,
         "adopters": a,
         "deploy_cost_pln": round(deploy_cost),
         "market": {"tam_pln": round(tam), "sam_pln": round(sam), "som_3y_pln": round(som_3y),
                    "adoption_3y": ADOPTION_3Y.get(cost, .02)},
         "valuation": {"success_probability": p, "licence_or_spinoff_pln": round(licence_value),
-                      "royalty_3y_pln": round(royalty_3y), "multiple": REVENUE_MULTIPLE},
+                      "royalty_3y_pln": round(royalty_3y), "multiple": REVENUE_MULTIPLE, "open_model": open_model,
+                      "adopters_3y": adopters_3y, "public_value_3y_pln": round(public_value_3y),
+                      "headline_pln": round(public_value_3y if open_model else licence_value),
+                      "headline": "oszczędność odbiorców w 3 lata" if open_model else "wartość licencji / spin-off"},
         "savings_per_adopter_pln": round(own_build - deploy_cost),
         "payback": "< 1 rok" if cost == "niski" else "1–2 lata" if cost == "sredni" else "3–5 lat",
         "model": model,
         "funding": funding,
         "assumptions": [
             _adopters_line(a),
-            f"koszt wdrożenia u odbiorcy: {round(deploy_cost):,} zł ({'30% budżetu projektu' if amounts else 'środek przedziału kosztu ' + label_pl('cost_level', cost)})".replace(",", " "),
+            f"koszt wdrożenia u odbiorcy: {round(deploy_cost):,} zł ({f'{share:.0%} budżetu projektu' if amounts else 'środek przedziału kosztu ' + label_pl('cost_level', cost)}{', transfer modelu działania' if open_model else ''})".replace(",", " "),
             f"realna adopcja w 3 lata: {ADOPTION_3Y.get(cost, .02):.1%} odbiorców",
             f"szansa wdrożenia przy dojrzałości „{lvl_name}”: {p:.0%}",
-            f"wartość licencji/spin-off: {REVENUE_MULTIPLE:g}× roczny przychód × szansa wdrożenia (maks. 50 mln zł); tantiemy {ROYALTY:.0%}",
+            (f"model działania przekazywany otwarcie (bez licencji): wartość = oszczędność {adopters_3y:,} odbiorców w 3 lata × szansa wdrożenia".replace(",", " ")
+             if open_model else
+             f"wartość licencji/spin-off: {REVENUE_MULTIPLE:g}× roczny przychód × szansa wdrożenia (maks. 50 mln zł); tantiemy {ROYALTY:.0%}"),
             "koszt kopii u odbiorcy: maks. 2 mln zł (gotowe rozwiązanie, nie budowa od zera)",
             "własne opracowanie od zera ≈ 3× koszt wdrożenia gotowego rozwiązania",
         ],

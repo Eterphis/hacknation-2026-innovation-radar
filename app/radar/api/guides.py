@@ -87,7 +87,10 @@ def facts(card: Card, guide: str) -> list[str]:
 
             sig = signals(object_session(card), r, card, bc)
             out.append(f"To pomysł {LVL.get(card.maturity, '')}, gotowość inwestycyjna {sig['readiness']['score']} na 100.")
-            out.append(f"Wartość licencji lub spółki szacujemy na {zl(sig['adjusted']['licence_or_spinoff_pln'])}, przy szansie wdrożenia {round(sig['adjusted']['success_probability'] * 100)} procent.")
+            if bc["valuation"].get("open_model"):
+                out.append(f"To model działania przekazywany otwarcie, bez licencji; odbiorcy oszczędzą razem około {zl(bc['valuation']['public_value_3y_pln'])} w trzy lata.")
+            else:
+                out.append(f"Wartość licencji lub spółki szacujemy na {zl(sig['adjusted']['licence_or_spinoff_pln'])}, przy szansie wdrożenia {round(sig['adjusted']['success_probability'] * 100)} procent.")
         elif guide in ("tomek", "ola"):
             out.append(f"Wdrożenie u siebie kosztuje około {zl(bc['deploy_cost_pln'])}, a zwrot to {bc['payback'].replace('<', 'mniej niż')}.")
             if bc["funding"]:

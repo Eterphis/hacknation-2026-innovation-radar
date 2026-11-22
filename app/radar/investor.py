@@ -180,7 +180,7 @@ def adjust(bc: dict, sig: dict) -> dict:
     if sig["team"]["prior_records"] >= 3:
         delta += .03; reasons.append("+3 pp: zespół ma inne prace w bazie")
     p2 = min(.95, p + delta)
-    base = bc["valuation"]["licence_or_spinoff_pln"]
+    base = bc["valuation"]["licence_or_spinoff_pln"]  # 0 for an openly transferred way of working (business.MODEL_TYPES)
     value = round(base * p2 / p) if p else base
     anchor = sig["comparables"]["median_pln"]
     return {"success_probability": round(p2, 2), "licence_or_spinoff_pln": min(50_000_000, value), "reasons": reasons,
