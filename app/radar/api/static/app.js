@@ -41,18 +41,10 @@ const ring = (score, cls = "") => { const s = Math.round(score || 0), c = 2 * Ma
     <circle cx="25" cy="25" r="21" fill="none" stroke="var(--red)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c * s / 100).toFixed(1)} ${c.toFixed(1)}"/></svg><b>${s}</b></span>`; };
 const demo = s => s ? `<span class="badge-demo" title="Dane przykładowe (syntetyczne)">${icon("flask-conical")}przykład</span>` : "";
 const empty = (msg, action = "") => `<div class="empty">${avatar("inbox")}<p>${esc(msg)}</p>${action}</div>`;
-function ideaItem(i, extra = "") {
-  const lvl = i.maturity_i ?? LVLK[i.maturity] ?? 0;
-  return `<div class="item reveal" tabindex="0" data-card="${i.card_id}">${avatar(SECTOR_ICON[i.sector] || "lightbulb")}
-    <h3>${esc(i.title)} ${demo(i.synthetic)}</h3>${ring(i.score, "sm")}
-    <div class="plates">${locPlate(i, "sm")}${moneyPlate(i, "sm")}<span class="plate sm"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}</span>${extra}</div></div>`;
-}
-function bindCards(root) { $$("[data-card]", root).forEach(el => { el.onclick = e => { e.preventDefault(); openCard(+el.dataset.card); }; el.onkeydown = e => { if (e.key === "Enter") openCard(+el.dataset.card); }; }); }
 function tip(html, e) { const t = $("#tip"); if (!html) { t.style.opacity = 0; return; } t.innerHTML = html; t.style.opacity = 1;
   t.style.left = Math.min(e.clientX + 14, innerWidth - t.offsetWidth - 8) + "px"; t.style.top = Math.min(e.clientY + 14, innerHeight - t.offsetHeight - 8) + "px"; }
 const stagger = root => { const els = $$(".reveal", root); els.forEach((el, i) => el.style.animationDelay = Math.min(i, 14) * 70 + "ms");
   setTimeout(() => els.forEach(el => el.classList.remove("reveal")), 1700); };  // never leave content hidden
-const header = (pre, preIcon, title, lead, actions = "") => `<div class="page-header reveal"><div><p class="pretitle">${icon(preIcon)}${pre}</p><h1>${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ""}</div>${actions}</div>`;
 const cardH = (ic, title, sub, tools = "", red = false) => `<div class="card-h">${avatar(ic, red ? "red" : "")}<div><h2>${title}</h2>${sub ? `<div class="faint">${sub}</div>` : ""}</div>${tools ? `<div class="tools">${tools}</div>` : ""}</div>`;
 
 // ------------------------------------------------------------------ theme
@@ -70,7 +62,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => THEM
 applyTheme(THEME);
 
 // ------------------------------------------------------------------ router
-const ROUTES = {"": pageHome, dla: pageAudience, dopasuj: pageMatch, portfel: pageDeals, porownaj: pageCompare, wdrozenia: pageDeploy, mapa: pageMap, odkrywaj: pageExplore, graf: pageGraph, rolki: pageReels, zrodla: pageSources};
+const ROUTES = {dla: pageAudience, mapa: pageMap, graf: pageGraph, zrodla: pageSources, porownaj: pageCompare, wdrozenia: pageDeploy, portfel: pageDeals};
 $$("#nav a").forEach(a => a.innerHTML = icon(a.dataset.i) + `<span>${a.textContent}</span>`);
 $("#cmdbtn").innerHTML = icon("search"); $("#cmdicon").innerHTML = icon("search", "faint");
 async function route() {
@@ -88,60 +80,6 @@ const go = (path, f) => { const q = qs(f || {}); location.hash = "#/" + path + (
 window.addEventListener("hashchange", route);
 
 // ------------------------------------------------------------------ PRZEGLĄD
-async function pageHome(v) {
-  const [d, src] = await Promise.all([api("/api/insights"), api("/api/sources")]);
-  const live = src.filter(s => s.active && s.mode === "pull"), records = src.reduce((a, s) => a + s.records, 0);
-  if (d.empty) { v.innerHTML = header("Radar innowacji", "radar", "Radar czeka na pierwsze pobranie", "Uruchom źródła w zakładce Źródła.") + `<a class="btn" href="#/zrodla">${icon("radar")}Źródła</a>`; return; }
-  const k = d.kpi, maxHeat = Math.max(...d.trends.map(t => t.heat), 1);
-  // Readability: 4 items per insight + "Więcej" into Explore with the matching filter; the rule hides behind an (i) button.
-  const MORE = {standouts: {sort: "score"}, advanced: {maturity: "business_ready,market_ready"}, realized: {maturity: "business_ready,market_ready", innovation_type: "organizacyjna,edukacyjna,spoleczna,procesowa,uslugowa"},
-    cheap: {cost_level: "niski,sredni", maturity: "tech_ready,business_ready,market_ready"}, budget: {cost_level: "wysoki,bardzo_wysoki"}, hidden: {institution_type: "szkola,uczelnia,instytut"}};
-  const list = (key, extra) => { const all = d[key] || [];
-    return `<div class="items">${all.slice(0, 4).map(i => ideaItem(i, extra ? extra(i) : "")).join("") || `<p class="faint">Brak pozycji spełniających regułę.</p>`}</div>` +
-      (MORE[key] && all.length ? `<a class="more" href="#/odkrywaj?${qs(MORE[key])}">Więcej ${icon("arrow-right")}</a>` : ""); };
-  const info = key => `<button class="info" data-info="${key}" aria-expanded="false" aria-label="Jak liczymy">${icon("filter")}</button>`;
-  const section = (ic, title, sub, key, body, red) => `<div class="card reveal">${cardH(ic, title, sub, info(key), red)}<div class="card-b"><p class="info-pop" id="pop-${key}">${esc(d.rules[key])}</p>${body}</div></div>`;
-  v.innerHTML = header(`Radar sam przeszukuje ${live.length} źródeł · ${records.toLocaleString("pl-PL")} rekordów`, "radar", "Ukryte innowacje z instytucji publicznych",
-    "Pomysły z publikacji, projektów, patentów i inwestycji: odsiane przez Basala, ocenione przez agenta wdrożeniowego według jawnych kryteriów i skierowane do odbiorców.",
-    `<div class="chips"><a class="btn" href="#/dopasuj">${icon("target")}Dopasuj radar do mnie</a><a class="btn-soft" href="#/dla">${icon("users")}Wybierz grupę</a></div>`) + `
-  <div id="who"></div>
-  <div class="grid g-4">${[
-    ["copy", k.ready_to_copy, "gotowych do powielenia w innej instytucji", true],
-    ["piggy-bank", k.cheap_wins, "szybkich wdrożeń przy małym budżecie"],
-    ["banknote", k.need_budget, `czeka na duże finansowanie${k.budget_needed_pln ? " · " + pln(k.budget_needed_pln) : ""}`],
-    ["users", k.nontech_share + "%", "to innowacje nietechnologiczne"]].map(([ic, n, t, red]) => `<div class="card stat reveal">${avatar(ic, red ? "red" : "")}<div><b>${n}</b><span>${t}</span></div></div>`).join("")}</div>
-  <section class="band"><div class="grid g-5-7">
-    <div class="card reveal">${cardH("map", "Gdzie powstają", `${k.voivodeships} województw z pomysłami`, `<a class="btn-soft" href="#/mapa">${icon("arrow-right")}</a>`)}<div class="card-b" id="minimap"></div></div>
-    <div class="card reveal">${cardH("target", "Portfel: koszt × dojrzałość", "kliknij komórkę, by zobaczyć pomysły")}<div class="card-b"><div class="chart" id="portfolio"></div><div class="legend" id="plegend"></div>
-      <details class="how"><summary>${icon("layers")}Pokaż jako tabelę</summary><div id="ptable"></div></details></div></div></div></section>
-  <div class="grid g-2">
-    ${section("trending-up", "Gorące trendy", "obszary technologii z największym rozpędem", "trends",
-      `<div class="bars">${d.trends.map(t => `<div class="bar" data-tech="${esc(t.key)}">${icon(TECH_ICON[t.key] || "layers")}<span>${esc(t.pl)}</span><div class="track"><i style="width:${Math.round(t.heat / maxHeat * 100)}%"></i></div><span class="v">${t.heat}</span></div>`).join("")}</div>`, true)}
-    ${section("sparkles", "Wyróżniają się", "wysoki wynik i brak bliskich odpowiedników", "standouts", list("standouts"))}
-    ${section("rocket", "Najbardziej zaawansowane", "najmocniejsze dowody: wdrożenia, patenty, pilotaże", "advanced", list("advanced"))}
-    ${section("circle-check", "Gotowe do powielenia", "działa u twórcy, można przenieść", "realized", list("realized", i => i.path ? plate(PATH_ICON[i.path] || "arrow-right", i.path, "", "sm") : ""))}
-    ${section("piggy-bank", "Tanio i szybko", "niski koszt, gotowy co najmniej prototyp", "cheap", list("cheap"))}
-    ${section("banknote", "Wymaga dużego budżetu", "kandydaci do funduszy UE, NCBR i partnerstw", "budget", list("budget"))}
-    ${section("gem", "Ukryte perełki", "szkoły, uczelnie i instytuty, o których mało kto wie", "hidden", list("hidden"))}
-    ${section("git-compare-arrows", "Dublowanie prac", "te zespoły rozwiązują ten sam problem", "duplicates",
-      `<div class="items">${d.duplicates.map(p => `<div class="item reveal" data-card="${p.a.card_id}">${avatar("copy")}<h3>${esc(p.a.title)}</h3>${ring(p.similarity * 100, "sm")}
-        <div class="plates">${plate("arrow-right", p.b.title, "", "sm")}${plate("map-pin", [p.a.voivodeship, p.b.voivodeship].filter(Boolean).join(" ↔ "), "", "sm red")}</div></div>`).join("") || '<p class="faint">Brak par powyżej progu.</p>'}</div>`)}
-  </div>
-  <section class="band">${cardH("map-pin", "Luki regionalne", "sektory z pomysłami w kraju, ale bez podaży w części województw — tu warto przenieść rozwiązania")}
-    <div class="card-b"><div class="grid g-2">${d.gaps.map(g => `<a class="item reveal" href="#/mapa?sector=${esc(g.sector)}&mode=gap">${avatar(SECTOR_ICON[g.sector] || "layers")}<h3>${esc(g.pl)}</h3>
-      <span class="plate sm red"><span class="pi">${icon("map-pin")}</span>${g.missing.length}/16 bez podaży</span><div class="plates">${plate("trending-up", g.source_regions.join(", "), "", "sm")}${plate("lightbulb", g.ideas + " pomysłów", "", "sm")}</div></a>`).join("")}</div></div></section>`;
-  drawPortfolio($("#portfolio"), d.portfolio);
-  $("#who").innerHTML = await audienceTiles();
-  const reg = await api("/api/regions");
-  await drawPoland($("#minimap"), reg, {compact: true});
-  $$("[data-info]", v).forEach(b => b.onclick = () => { const open = b.getAttribute("aria-expanded") !== "true";
-    b.setAttribute("aria-expanded", open); $("#pop-" + b.dataset.info).classList.toggle("on", open); });
-  $$(".bar[data-tech]", v).forEach(b => { const t = d.trends.find(x => x.key === b.dataset.tech);
-    b.onmousemove = e => tip(`<b>${esc(t.pl)}</b><br>${t.ideas} pomysłów · ${t.likes} polubień<br>średnia ocena ${t.avg_score} · ${t.regions} woj. · ${t.ready} gotowych`, e);
-    b.onmouseleave = () => tip(); b.onclick = () => go("odkrywaj", {tech_area: t.key}); });
-  bindCards(v);
-}
-
 function drawPortfolio(el, pts) {
   const W = 640, H = 420, L = 64, R = 12, T = 16, B = 44, cw = (W - L - R) / 4, ch = (H - T - B) / 4, cell = {}, r = s => 5 + Math.max(0, s - 40) / 10;
   const pos = pts.map(p => { const key = p.cost_i + ":" + p.maturity_i, i = cell[key] = (cell[key] || 0) + 1, ang = i * 2.399, rad = Math.min(12 * Math.sqrt(i - 1), Math.min(cw, ch) / 2 - 12);
@@ -225,31 +163,6 @@ async function pageMap(v) {
 }
 
 // ------------------------------------------------------------------ ODKRYWAJ
-async function pageExplore(v) {
-  v.innerHTML = header("Odkrywaj", "layers", "Wszystkie pomysły", "Filtruj po każdej osi Basala. Wyniki od najlepszych.",
-    `<div style="display:flex;gap:.75rem;flex-wrap:wrap"><input type="search" id="q" placeholder="Szukaj w tytułach i opisach" value="${esc(F.q || "")}" style="width:280px">
-     <select id="sort" style="width:auto"><option value="score">najlepsze</option><option value="likes">najczęściej lubiane</option><option value="priority">priorytet Basala</option><option value="newest">najnowsze</option></select></div>`) +
-    `<div class="grid g-side"><aside class="card"><div class="card-b" id="facets"></div></aside><div id="results"></div></div>`;
-  $("#sort").value = F.sort || "score";
-  $("#q").oninput = debounce(e => { F.q = e.target.value; loadExplore(); }, 300);
-  $("#sort").onchange = e => { F.sort = e.target.value; loadExplore(); };
-  await loadExplore();
-}
-async function loadExplore() {
-  const r = await api("/api/ideas?" + qs({...F, sort: F.sort || "score"}));
-  const ax = {sector: ["Sektor", "factory"], tech_area: ["Obszar technologii", "cpu"], maturity: ["Dojrzałość", "gauge"], cost_level: ["Koszt", "banknote"],
-    innovation_type: ["Typ innowacji", "lightbulb"], institution_type: ["Instytucja", "building-2"], voivodeship: ["Województwo", "map-pin"]};
-  $("#facets").innerHTML = Object.entries(ax).map(([a, [nm, ic]]) => `<div style="margin-bottom:1.25rem"><p class="pretitle">${icon(ic)}${nm}</p><div class="chips">${(r.facets[a] || []).map(o =>
-    `<button class="chip ${(F[a] || "").split(",").includes(o.value) ? "on" : ""}" data-ax="${a}" data-v="${esc(o.value)}">${esc(a === "maturity" ? LVL[LVLK[o.value]] : a === "institution_type" ? (INST_PL[o.value] || o.value) : o.pl.split(" (")[0])}<span class="n">${o.count}</span></button>`).join("")}</div></div>`).join("")
-    + `<div class="chips"><button class="btn-soft" id="fclear">${icon("x")}Wyczyść</button><button class="btn-soft" id="fgraph">${icon("network")}Na grafie</button></div>`;
-  $$("[data-ax]", $("#facets")).forEach(b => b.onclick = () => { const a = b.dataset.ax, val = b.dataset.v, cur = new Set((F[a] || "").split(",").filter(Boolean));
-    cur.has(val) ? cur.delete(val) : cur.add(val); F[a] = [...cur].join(","); history.replaceState(null, "", "#/odkrywaj?" + qs(F)); loadExplore(); });
-  $("#fclear").onclick = () => { F = {sort: F.sort}; history.replaceState(null, "", "#/odkrywaj"); loadExplore(); };
-  $("#fgraph").onclick = () => go("graf", F);
-  $("#results").innerHTML = `<div class="card">${cardH("lightbulb", r.total + " pomysłów", "kliknij, by otworzyć kartę")}<div class="card-b"><div class="items">${r.items.map(i => ideaItem(i, i.path ? plate(PATH_ICON[i.path] || "arrow-right", i.path, "", "sm") : "")).join("") || empty("Nic nie pasuje do filtrów.")}</div></div></div>`;
-  bindCards($("#results")); stagger($("#results"));
-}
-
 // ------------------------------------------------------------------ GRAF
 async function pageGraph(v) {
   // 120 best ideas: enough to read the structure, small enough to stay calm and fast on a phone
@@ -351,53 +264,6 @@ function drawGraph(g) {
 let voter; try { voter = localStorage.getItem("radar-voter") || crypto.randomUUID(); localStorage.setItem("radar-voter", voter); } catch (e) { voter = "anon-" + Math.random().toString(36).slice(2, 12); }
 let liked = new Set(); try { liked = new Set(JSON.parse(localStorage.getItem("radar-liked") || "[]")); } catch (e) {}
 const saveLiked = () => { try { localStorage.setItem("radar-liked", JSON.stringify([...liked])); } catch (e) {} };
-async function pageReels(v) {
-  const items = await api("/api/feed?limit=50");
-  v.innerHTML = `<div class="reels" id="reels">${items.map((i, n) => { const b = i.brief || {}, lvl = LVLK[b.maturity] ?? 0;
-    const bgKey = {szkola: "szkoly", uczelnia: "uczelnie", instytut: "inwestorzy", jst: "samorzady", inna_publiczna: "samorzady", firma: "startupy"}[i.institution_type] || "innowatorzy";
-    return `<section class="reel" data-n="${n}" aria-label="Pomysł ${n + 1} z ${items.length}" style="--reel-bg:url('${heroImg(bgKey)}')"><span class="reel-ai">${icon("sparkles")}ilustracja AI</span><article class="reel-card"><div class="reel-progress" aria-hidden="true"><i></i></div>
-      <div class="reel-top">${avatar(INST_ICON[i.institution_type] || "building-2")}<div class="who"><b>${esc(i.institution || INST_PL[i.institution_type] || "Instytucja")}</b><small>${esc(INST_PL[i.institution_type] || "")} ${demo(i.synthetic)}</small></div>${ring(b.score)}</div>
-      <div class="plates">${locPlate(i)}${sectorPlate(i.sector)}</div>
-      <div class="reel-title">${esc(b.solution)}</div>
-      <div class="reel-hook">${esc(b.hook)}</div>
-      <div class="reel-grid">
-        <div class="tile">${icon("banknote")}<div><small>Budżet</small><b>${esc(i.amount ? pln(i.amount) : (COST_RANGE[i.cost_level] || "—"))}</b></div></div>
-        <div class="tile">${icon("gauge")}<div><small>${esc(LVL[lvl])}</small>${stepper(lvl)}</div></div>
-        <div class="tile">${icon(PATH_ICON[b.path] || "arrow-right")}<div><small>Ścieżka</small><b>${esc(b.path || "—")}</b></div></div>
-        <div class="tile">${icon("users")}<div><small>Dla kogo</small><b>${esc((b.for_whom || [])[0] || "—")}</b></div></div>
-        <div class="tile wide">${icon("target")}<div><small>Pierwszy krok</small><b>${esc(b.next_step || "—")}</b></div></div>
-      </div>
-      <div class="reel-foot"><button class="like ${liked.has(i.card_id) ? "on" : ""}" data-like="${i.card_id}" aria-pressed="${liked.has(i.card_id)}" aria-label="Lubię to">${icon("heart")}</button>
-        <span class="likes-n" id="ln-${i.card_id}">${i.likes}</span><a class="btn-soft" style="margin-left:auto" href="#" data-card="${i.card_id}">${icon("arrow-right")}Karta</a></div>
-    </article></section>`; }).join("") || empty("Brak briefów.")}</div><div class="reel-dots" id="dots">${items.map(() => "<i></i>").join("")}</div>
-    <div class="reel-nav"><button class="btn-icon" id="rprev" aria-label="Poprzedni pomysł (strzałka w górę)">${icon("chevron-down", "flip")}</button>
-      <button class="btn-icon" id="rnext" aria-label="Następny pomysł (strzałka w dół)">${icon("chevron-down")}</button><span class="kbd-hint">↑ ↓ · L</span></div>`;
-  const box = $("#reels"), reels = $$(".reel", v), dots = $$("#dots i");
-  let cur = 0;
-  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("active"); cur = +e.target.dataset.n;
-    dots.forEach((d, k) => d.classList.toggle("on", k === cur)); } else e.target.classList.remove("active"); }), {root: box, threshold: .6});
-  reels.forEach(r => io.observe(r)); if (reels[0]) reels[0].classList.add("active");
-  const goTo = n => { n = Math.max(0, Math.min(reels.length - 1, n)); reels[n]?.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"}); };
-  $("#rprev").onclick = () => goTo(cur - 1); $("#rnext").onclick = () => goTo(cur + 1);
-  const onKey = e => { if (!document.body.contains(box)) { document.removeEventListener("keydown", onKey); return; }
-    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || $("#drawer").classList.contains("on")) return;
-    if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); goTo(cur + 1); }
-    else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); goTo(cur - 1); }
-    else if (e.key === "l" || e.key === "L") { const b = $("[data-like]", reels[cur]); if (b) toggleLike(b); } };
-  document.addEventListener("keydown", onKey);
-  async function toggleLike(btn, force) {
-    const id = +btn.dataset.like; if (force && liked.has(id)) return;
-    const r = await api(`/api/cards/${id}/like`, {method: "POST", headers: {"X-Voter": voter}});
-    r.liked ? liked.add(id) : liked.delete(id); saveLiked();
-    btn.classList.toggle("on", r.liked); btn.setAttribute("aria-pressed", r.liked); $("#ln-" + id).textContent = r.likes;
-    btn.classList.remove("pop"); void btn.offsetWidth; btn.classList.add("pop");
-  }
-  $$("[data-like]", v).forEach(b => b.onclick = () => toggleLike(b));
-  $$(".reel-card", v).forEach(c => c.ondblclick = e => { if (e.target.closest("button,a")) return; const b = $("[data-like]", c); const burst = document.createElement("div");
-    burst.className = "burst"; burst.innerHTML = icon("heart"); c.appendChild(burst); setTimeout(() => burst.remove(), 800); toggleLike(b, true); });
-  bindCards(v);
-}
-
 // ------------------------------------------------------------------ ŹRÓDŁA (operator)
 async function pageSources(v) {
   const tab = F.tab || "zrodla";
@@ -494,57 +360,6 @@ function bizSection(b) {
 }
 
 // ------------------------------------------------------------------ PERSONALIZATION ("Dopasuj radar")
-const MQ = [
-  {k: "role", q: "Kim jesteś?", opts: () => (PERSONAS || []).map(p => [p.key, p.name, p.icon])},
-  {k: "voivodeship", q: "Gdzie działasz?", opts: () => [["", "Cała Polska", "map"], ...(LABELS.voivodeship || []).map(v => [v, v, "map-pin"])]},
-  {k: "sectors", q: "Jakie obszary Cię interesują?", multi: true, opts: () => Object.entries(LABELS.sector || {}).map(([k, v]) => [k, v.split(",")[0], SECTOR_ICON[k] || "layers"])},
-  {k: "budget", q: "Jaki budżet na wdrożenie?", opts: () => [["niski", "do 100 tys. zł", "piggy-bank"], ["sredni", "do 2 mln zł", "banknote"], ["wysoki", "do 20 mln zł", "wallet"], ["bardzo_wysoki", "bez limitu", "trending-up"]]},
-  {k: "goal", q: "Czego szukasz?", opts: () => [["zysk", "Zwrotu z inwestycji", "trending-up"], ["wdrozenie", "Rozwiązania do wdrożenia u siebie", "circle-check"], ["partner", "Partnera do współpracy", "users"], ["finansowanie", "Finansowania dla pomysłu", "piggy-bank"]]},
-];
-const loadProfile = () => { try { return JSON.parse(localStorage.getItem("radar-profile") || "null"); } catch (e) { return null; } };
-const saveProfile = p => { try { localStorage.setItem("radar-profile", JSON.stringify(p)); } catch (e) {} };
-async function pageMatch(v) {
-  PERSONAS = PERSONAS || await api("/api/personas");
-  let prof = F.edit ? null : loadProfile();
-  if (!prof) { prof = {role: "", voivodeship: "", sectors: [], budget: "", goal: "", step: 0}; return wizard(v, prof); }
-  const r = await api("/api/match?" + qs({role: prof.role, voivodeship: prof.voivodeship, sectors: (prof.sectors || []).join(","), budget: prof.budget, goal: prof.goal, stage: prof.goal === "zysk" ? "tech_ready" : "exploring"}));
-  const who = (PERSONAS.find(p => p.key === prof.role) || {}).name || "";
-  v.innerHTML = header("Dopasowane do Ciebie", "target", `${r.total} pomysłów, od najlepiej dopasowanych`,
-    `${esc(who)}${prof.voivodeship ? " · " + esc(prof.voivodeship) : ""} · budżet: ${esc(COST_RANGE[prof.budget] || "—")} · cel: ${esc({zysk: "zwrot z inwestycji", wdrozenie: "wdrożenie u siebie", partner: "partner", finansowanie: "finansowanie"}[prof.goal] || "")}`,
-    `<div class="chips"><a class="btn-soft" href="#/dopasuj?edit=1">${icon("filter")}Zmień odpowiedzi</a><button class="btn" id="wsub">${icon("rss")}Powiadamiaj o nowych</button></div>`) + `<div id="wsubout"></div>` +
-    `<div class="grid g-2">${r.items.map(i => matchCard(i, r.metric)).join("") || empty("Nic nie pasuje: poszerz budżet albo sektory.")}</div>`;
-  bindCards(v);
-  $("#wsub").onclick = async () => {
-    const w = await api("/api/watch", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({profile: prof, min_match: 70})});
-    $("#wsubout").innerHTML = `<div class="card reveal" style="margin:1rem 0"><div class="card-b"><p class="pretitle">${icon("rss")}Subskrypcja bez logowania i bez e-maila</p>
-      <p>Nowe pomysły z dopasowaniem od 70% trafią do tego kanału (czytnik RSS, Slack, Teams, Zapier):</p>
-      <div class="chips"><code class="mono" style="word-break:break-all">${esc(w.feed_url)}</code><button class="btn-soft" id="wcopy">${icon("copy")}Kopiuj</button></div></div></div>`;
-    $("#wcopy").onclick = () => navigator.clipboard?.writeText(w.feed_url);
-  };
-}
-function wizard(v, prof) {
-  const st = MQ[prof.step], opts = st.opts(), sel = val => st.multi ? (prof[st.k] || []).includes(val) : prof[st.k] === val;
-  v.innerHTML = `<section class="wiz reveal"><div class="wiz-top"><p class="pretitle">${icon("target")}Dopasuj radar · krok ${prof.step + 1} z ${MQ.length}</p>
-      <div class="wiz-bar"><i style="width:${(prof.step + 1) / MQ.length * 100}%"></i></div></div><h1>${esc(st.q)}</h1>
-    <div class="wiz-opts ${opts.length > 8 ? "many" : ""}">${opts.map(([val, lab, ic]) => `<button class="wiz-opt ${sel(val) ? "on" : ""}" data-v="${esc(val)}">${avatar(ic, sel(val) ? "red" : "")}<span>${esc(lab)}</span></button>`).join("")}</div>
-    <div class="chips" style="margin-top:1.5rem">${prof.step ? `<button class="btn-soft" id="wback">${icon("chevron-down", "flip")}Wstecz</button>` : ""}${st.multi ? `<button class="btn" id="wnext">${icon("arrow-right")}${(prof.sectors || []).length ? "Dalej" : "Wszystkie obszary"}</button>` : ""}</div></section>`;
-  const next = () => { if (prof.step < MQ.length - 1) { prof.step++; wizard(v, prof); } else { delete prof.step; saveProfile(prof); go("dopasuj", {}); route(); } };
-  $$(".wiz-opt", v).forEach(b => b.onclick = () => {
-    if (st.multi) { const s = new Set(prof[st.k] || []); s.has(b.dataset.v) ? s.delete(b.dataset.v) : s.add(b.dataset.v); prof[st.k] = [...s]; wizard(v, prof); }
-    else { prof[st.k] = b.dataset.v; next(); } });
-  if ($("#wnext")) $("#wnext").onclick = next;
-  if ($("#wback")) $("#wback").onclick = () => { prof.step--; wizard(v, prof); };
-  stagger(v);
-}
-function matchCard(i, metric) {
-  const b = i.business, lvl = LVLK[i.maturity] ?? 0;
-  return `<article class="card biz reveal" data-card="${i.card_id}" tabindex="0"><div class="card-h">${avatar(SECTOR_ICON[i.sector] || "lightbulb")}<div><h3>${esc(i.title)}</h3><div class="faint">${esc(i.institution || "")}</div></div>
-      ${ring(i.match, "match")}</div>
-    <div class="card-b"><div class="biz-value"><small>dopasowanie ${i.match}% · ${esc(METRIC_PL[metric] || "wartość")}</small><b>${money(b.metric)}</b></div>
-      <div class="plates">${i.why.map(w => plate("circle-check", w, "", "sm")).join("")}</div>
-      <div class="plates" style="margin-top:.5rem">${locPlate(i, "sm")}${plate("users", b.adopters.count.toLocaleString("pl-PL") + " odbiorców", "", "sm")}${plate("clock", b.payback, "", "sm")}<span class="plate sm"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}</span></div></div></article>`;
-}
-
 // ------------------------------------------------------------------ DEAL FLOW (investor pipeline), COMPARE, DEPLOYMENTS
 const STAGES_D = [["nowe", "Nowe", "inbox"], ["kontakt", "Kontakt", "users"], ["dd", "Due diligence", "shield-alert"], ["term", "Term sheet", "file-text"], ["odrzucone", "Odrzucone", "ban"]];
 const loadJSON = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch (e) { return d; } };
@@ -666,33 +481,6 @@ async function pageDeploy(v) {
 }
 
 // ------------------------------------------------------------------ CARD drawer
-async function openCard(id) {
-  $("#scrim").classList.add("on"); $("#drawer").classList.add("on"); $("#drawer-in").innerHTML = '<div class="skel" style="height:2rem;width:60%"></div><div class="skel"></div>';
-  const c = await api(`/api/cards/${id}`), a = c.assessment || {}, r = c.record, lvl = LVLK[c.maturity] ?? 0;
-  const info = {city: null, voivodeship: r.voivodeship, amount: Math.max(0, ...Object.values(r.amounts || {}).filter(x => typeof x === "number")) || null, cost_level: c.basal?.cost_level?.value};
-  $("#drawer-in").innerHTML = `<div style="display:flex;align-items:center;gap:.75rem">${avatar(SECTOR_ICON[r.sector] || "lightbulb", "red")}<p class="pretitle" style="margin:0">Karta pomysłu · ${esc(r.source_id)}</p><button class="btn-icon" id="dclose" style="margin-left:auto" aria-label="Zamknij">${icon("x")}</button></div>
-    <div style="display:flex;gap:1rem;align-items:center;margin-top:1rem"><h2 style="font-size:1.6rem;line-height:1.2;flex:1">${esc(c.solution_name || r.title)}</h2>${ring(a.total)}</div>
-    <div class="plates" style="margin-top:1rem">${locPlate(info)}${moneyPlate(info)}<span class="plate"><span class="pi">${icon("gauge")}</span>${stepper(lvl)}<span>${LVL[lvl]}</span></span>${sectorPlate(r.sector)}${r.tech_area ? plate(TECH_ICON[r.tech_area] || "cpu", lp("tech_area", r.tech_area)) : ""}${instPlate(c.basal?.institution_type?.value)}${demo(c.synthetic)}</div>
-    <p class="muted" style="margin-top:1rem">${esc(a.summary || c.summary_pl || "")}</p>
-    ${r.affiliations?.length ? `<p class="faint">${icon("building-2")} ${esc(r.affiliations.join("; "))}${r.url ? ` · <a href="${esc(r.url)}" target="_blank" rel="noopener">${icon("external-link")} źródło</a>` : ""}</p>` : ""}
-    ${dealActions(c)}${investorSection(c.investor)}${bizSection(c.business)}
-    ${a.scores ? `<div class="sec"><p class="pretitle">${icon("target")}Ocena wg jawnych kryteriów</p><div class="crit">${Object.entries(a.scores).map(([k, x]) => `<span>${esc(CRIT[k] || k)} <span class="faint">${Math.round((a.criteria?.[k]?.weight || 0) * 100)}%</span></span><div class="mini"><i style="width:${x.score * 20}%"></i></div><b class="mono">${x.score}</b><span class="why">${esc(x.why)}</span>`).join("")}</div></div>` : ""}
-    ${a.paths ? `<div class="sec"><p class="pretitle">${icon("rocket")}Ścieżki wdrożenia · kto co robi</p>${a.paths.map(p => `<p style="margin:.75rem 0 .5rem;display:flex;gap:.5rem;align-items:center">${icon(PATH_ICON[p.path] || "arrow-right")}<b>${esc(p.path)}</b><span class="faint">${esc(p.why)}</span></p><ul class="steps">${p.steps.map(s => `<li>${icon("chevron-right")}<span>${esc(s.step)}<span class="who">${esc(s.who)}${s.time ? " · " + esc(s.time) : ""}</span></span></li>`).join("")}</ul>`).join("")}</div>` : ""}
-    ${a.recipients ? `<div class="sec"><p class="pretitle">${icon("users")}Odbiorcy i partnerzy</p><div class="plates">${a.recipients.map(x => plate(x.kind === "typ odbiorcy" ? "users" : "building-2", x.name, x.kind)).join("")}</div></div>` : ""}
-    ${a.risks ? `<div class="sec"><p class="pretitle">${icon("shield-alert")}Ryzyka i mitygacje</p><ul class="steps">${a.risks.map(x => `<li>${icon("shield-alert")}<span>${esc(x.risk)}<span class="who">${esc(x.level || "")} · mitygacja: ${esc(x.mitigation)} · ${esc(x.owner)}</span></span></li>`).join("")}</ul></div>` : ""}
-    ${a.metrics ? `<div class="sec"><p class="pretitle">${icon("activity")}Mierniki skuteczności</p><ul class="steps">${a.metrics.map(m => `<li>${icon("target")}<span>${esc(m)}</span></li>`).join("")}</ul></div>` : ""}
-    <details class="how sec"><summary>${icon("layers")}Podobne rozwiązania, region, dowody</summary>
-      ${a.similar?.length ? `<div class="items" style="margin-top:.75rem">${a.similar.map(s => `<div class="item" data-card="${s.card_id || ""}">${avatar("copy")}<h3>${esc(s.title)}</h3>${ring(s.similarity * 100, "sm")}<div class="plates">${s.voivodeship ? plate("map-pin", s.voivodeship, "", "sm red") : ""}</div></div>`).join("")}</div>` : ""}
-      ${(c.reasoning || []).slice(0, 1).map(s => `<ul class="steps" style="margin-top:.75rem">${s.items.map(i => `<li>${icon("book-open")}<span>${esc(i)}</span></li>`).join("")}</ul>`).join("")}
-      <p class="faint">ocena: ${esc(a.by || "")} · ekstrakcja: ${esc(c.provenance?.provider)}/${esc(c.provenance?.model)} · basal: ${esc(c.basal?.version)} (${esc(c.basal?.embedder)})</p></details>
-    <div class="chips" style="margin-top:2rem"><button class="btn-soft good" data-d="approved">${icon("circle-check")}Zatwierdź</button><button class="btn-soft bad" data-d="rejected">${icon("ban")}Odrzuć</button><span class="faint" style="align-self:center">decyzja: ${esc(c.decision)}</span></div>`;
-  $("#dclose").onclick = closeCard; bindDealActions(c);
-  $$("[data-card]", $("#drawer-in")).forEach(x => x.onclick = () => x.dataset.card && openCard(+x.dataset.card));
-  $$("[data-d]", $("#drawer-in")).forEach(b => b.onclick = async () => { await api(`/api/cards/${id}/decision`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({decision: b.dataset.d})}); closeCard(); route(); });
-}
-function closeCard() { $("#scrim").classList.remove("on"); $("#drawer").classList.remove("on"); }
-$("#scrim").onclick = closeCard;
-
 // ------------------------------------------------------------------ command bar (+ voice where supported)
 const cmd = $("#cmd"), cq = $("#cmdq");
 function openCmd() { cmd.classList.add("on"); cq.value = ""; cq.focus();
@@ -710,5 +498,5 @@ if (SR) { const mic = $("#mic"); mic.hidden = false; mic.innerHTML = icon("mic")
 // Inline the icon sprite once: <use> on same-document symbols works everywhere (external sprites do not).
 const SPRITE = fetch("/static/icons.svg").then(r => r.text()).then(t => { const d = document.createElement("div"); d.hidden = true; d.innerHTML = t; document.body.prepend(d); }).catch(() => {});
 Promise.all([SPRITE, api("/api/config").then(c => CFG = c).catch(() => {}), api("/api/labels").then(l => LABELS = l).catch(() => {})]).then(() => {
-  $("#foot").innerHTML = `${CFG.demo_mode ? "Tryb demo (dane przykładowe) · " : ""}LLM: ${esc((CFG.llm_providers || []).join(" → "))} · ikony Lucide (ISC) · granice województw: polska-geojson (MIT) · ilustracje: Higgsfield (AI, wizualizacje)`;
+  $("#foot").innerHTML = `<nav class="foot-nav"><a href="#/graf">${icon("network")}Graf powiązań</a><a href="#/zrodla">${icon("radar")}Źródła danych</a><a href="#/dla">${icon("users")}Grupy odbiorców</a><a href="/docs" target="_blank" rel="noopener">${icon("external-link")}API</a></nav>${CFG.demo_mode ? "Tryb demo (dane przykładowe) · " : ""}LLM: ${esc((CFG.llm_providers || []).join(" → "))} · ikony Lucide (ISC) · granice województw: polska-geojson (MIT) · ilustracje: Higgsfield (AI, wizualizacje)`;
   route(); });
