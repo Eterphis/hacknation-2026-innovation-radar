@@ -59,7 +59,8 @@ def validate(out: dict, text: str) -> list[str]:
             errors.append(f"{f}: brak cytatu")
         elif q not in hay:
             errors.append(f"{f}: cytat nie występuje w tekście źródłowym: {v.get('quote')[:80]!r}")
-    it = (out.get("innovation_type") or {}).get("value")
+    it_obj = out.get("innovation_type")
+    it = it_obj.get("value") if isinstance(it_obj, dict) else None  # a small model may answer a bare string
     if it and it not in INNOVATION_TYPES:
         errors.append(f"innovation_type spoza listy: {it!r}")
     return errors
@@ -77,9 +78,19 @@ def extract(text: str, max_retries: int = 2) -> tuple[dict | None, list[str], di
         except AllProvidersFailed as e:
             return None, [f"żaden dostawca LLM nie odpowiedział: {e}"], prov
         prov.update(p, attempts=attempt + 1)
-        errors = validate(out, text)
+        errors = validate(out, text) if isinstance(out, dict) else ["odpowiedź nie jest obiektem JSON"]
         if not errors:
             return out, [], prov
+    # The model kept failing validation (typical for a 1.5B on long texts): the rule-based extractor still makes a
+    # card from verbatim quotes, so a record never stalls; the model's errors stay in the provenance.
+    real = tuple(p.name for p in router().providers if p.name != "mock")
+    if prov.get("provider") and prov.get("provider") != "mock":
+        try:
+            out, p = router().complete_json(SYSTEM, user, purpose="extract", exclude=real)
+            if isinstance(out, dict) and not validate(out, text):
+                return out, [], {**prov, **p, "fallback_after": prov.get("provider"), "model_errors": errors[:5]}
+        except AllProvidersFailed:
+            pass
     return None, errors, prov
 
 

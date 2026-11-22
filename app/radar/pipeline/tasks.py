@@ -382,7 +382,7 @@ def extract(self, raw_id: int, h: str) -> str:
             return "not_innovation"
         card = s.scalar(select(Card).where(Card.record_id == rec.id)) or Card(record_id=rec.id)
         s.add(card)
-        val = lambda f: (out.get(f) or {}).get("value")  # noqa: E731
+        val = lambda f: (out.get(f) if isinstance(out.get(f), dict) else {}).get("value")  # noqa: E731
         card.solution_name, card.problem_solved, card.what_is_new = val("solution_name"), val("problem_solved"), val("what_is_new")
         card.target_users = val("target_users") or []
         # A real model's type (with a verified quote) wins over Basal; the offline heuristic never overrides Basal.
@@ -392,8 +392,8 @@ def extract(self, raw_id: int, h: str) -> str:
             rec.innovation_type = {"społeczna": "spoleczna", "usługowa": "uslugowa"}.get(llm_type, llm_type)
         card.innovation_type = rec.innovation_type or val("innovation_type")
         card.summary_pl = out.get("summary_pl")
-        card.evidence = {f: {"quote": (out.get(f) or {}).get("quote"), "confidence": (out.get(f) or {}).get("confidence")}
-                         for f in ex.QUOTED_FIELDS}
+        obj = lambda f: out.get(f) if isinstance(out.get(f), dict) else {}  # noqa: E731
+        card.evidence = {f: {"quote": obj(f).get("quote"), "confidence": obj(f).get("confidence")} for f in ex.QUOTED_FIELDS}
         card.provenance = prov
         card.decision = "pending" if card.decision is None else card.decision
         rec.status = "extracted"

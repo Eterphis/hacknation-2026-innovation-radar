@@ -1,0 +1,90 @@
+{{- /*
+Scaling and monitoring for the workers and the API.
+- keda.enabled: one ScaledObject per worker Deployment, scaled by the length of its RabbitMQ queues (needs KEDA in
+  the cluster). Workers go to minReplicaCount when idle and up to maxReplicaCount under a burst (e.g. a big pull).
+- otherwise, workers with `autoscaling` get a CPU HorizontalPodAutoscaler.
+- pdb.enabled: PodDisruptionBudget for the API (node drains keep it serving).
+- serviceMonitor.enabled: Prometheus Operator scrapes /metrics of the API.
+*/ -}}
+{{- if .Values.keda.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "radar.fullname" . }}-keda-rabbitmq
+  labels: {{- include "radar.labels" . | nindent 4 }}
+stringData:
+  host: {{ include "radar.brokerUrl" . | quote }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ include "radar.fullname" . }}-rabbitmq
+  labels: {{- include "radar.labels" . | nindent 4 }}
+spec:
+  secretTargetRef:
+    - { parameter: host, name: {{ include "radar.fullname" . }}-keda-rabbitmq, key: host }
+---
+{{- range .Values.workers }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "radar.fullname" $ }}-worker-{{ .name }}
+  labels: {{- include "radar.labels" $ | nindent 4 }}
+spec:
+  scaleTargetRef: { name: {{ include "radar.fullname" $ }}-worker-{{ .name }} }
+  minReplicaCount: {{ $.Values.keda.minReplicas }}
+  maxReplicaCount: {{ (.autoscaling).maxReplicas | default $.Values.keda.maxReplicas }}
+  cooldownPeriod: {{ $.Values.keda.cooldownSeconds }}
+  pollingInterval: 15
+  triggers:
+    {{- range .queues }}
+    - type: rabbitmq
+      metadata: { protocol: amqp, queueName: {{ . | quote }}, mode: QueueLength, value: {{ $.Values.keda.messagesPerReplica | quote }} }
+      authenticationRef: { name: {{ include "radar.fullname" $ }}-rabbitmq }
+    {{- end }}
+---
+{{- end }}
+{{- else }}
+{{- range .Values.workers }}
+{{- if (.autoscaling).enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "radar.fullname" $ }}-worker-{{ .name }}
+  labels: {{- include "radar.labels" $ | nindent 4 }}
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ include "radar.fullname" $ }}-worker-{{ .name }} }
+  minReplicas: {{ .autoscaling.minReplicas | default 1 }}
+  maxReplicas: {{ .autoscaling.maxReplicas | default 6 }}
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: {{ .autoscaling.targetCPU | default 70 }} } }
+---
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "radar.fullname" . }}-api
+  labels: {{- include "radar.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {{- include "radar.selector" (dict "root" . "component" "api") | nindent 6 }}
+---
+{{- end }}
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "radar.fullname" . }}-api
+  labels: {{- include "radar.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.labels }}{{ toYaml . | nindent 4 }}{{- end }}
+spec:
+  selector:
+    matchLabels: {{- include "radar.selector" (dict "root" . "component" "api") | nindent 6 }}
+  endpoints:
+    - { port: http, path: /metrics, interval: {{ .Values.serviceMonitor.interval }} }
+{{- end }}
