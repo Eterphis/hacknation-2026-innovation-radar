@@ -31,7 +31,7 @@ async function like(id) {
 }
 const IDX = {};  // card_id -> idea (for save buttons inside lists)
 // visible count first in the accessible name (WCAG 2.5.3 label in name), the action after it for screen readers
-const likeBtn = (id, n) => `<button class="mini-act like-b ${liked.has(id) ? "on" : ""}" data-like="${id}" aria-pressed="${liked.has(id)}" title="Ocena społeczności">${icon("heart")}<span>${n || 0}</span><span class="sr-only"> polubień, polub (ocena społeczności)</span></button>`;
+const likeBtn = (id, n) => `<button class="mini-act like-b ${liked.has(id) ? "on" : ""}" data-like="${id}" aria-pressed="${liked.has(id)}" title="Ocena społeczności">${icon("heart")}<span>${n || ""}</span><span class="sr-only"> polubień, polub (ocena społeczności)</span></button>`;
 const saveBtn = id => `<button class="mini-act save-b ${SAVED[id] ? "on" : ""}" data-save="${id}" aria-pressed="${!!SAVED[id]}" aria-label="Zapisz" title="${SAVED[id] ? "Zapisane" : "Zapisz na później"}">${icon("bookmark")}</button>`;
 
 // WAI-ARIA tabs: arrows / Home / End move between tabs (roving tabindex), the panel is labelled by the active tab

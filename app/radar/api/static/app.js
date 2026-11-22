@@ -68,6 +68,8 @@ applyTheme(THEME);
 const ROUTES = {dla: pageAudience, mapa: pageMap, graf: pageGraph, zrodla: pageSources, porownaj: pageCompare, wdrozenia: pageDeploy, portfel: pageDeals};
 $$("#nav a").forEach(a => a.innerHTML = icon(a.dataset.i) + `<span>${a.textContent}</span>`);
 $("#cmdbtn").innerHTML = icon("search"); $("#cmdicon").innerHTML = icon("search", "faint");
+const RLOAD = `<div class="rload" role="status"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="rl-ring" cx="50" cy="50" r="46"/><circle class="rl-ring" cx="50" cy="50" r="30"/><circle class="rl-ring" cx="50" cy="50" r="14"/>
+  <path class="rl-sweep" d="M50 50 L50 4 A46 46 0 0 1 89.8 27 Z" fill="var(--red)" opacity=".18"/><circle class="rl-dot" cx="68" cy="30" r="3"/><circle class="rl-dot d2" cx="30" cy="62" r="3"/><circle class="rl-dot d3" cx="72" cy="66" r="3"/></svg><span>Wczytuję…</span></div>`;
 async function route() {
   const [full, query] = location.hash.replace(/^#\/?/, "").split("?");
   const [path, sub] = full.split("/");  // #/dla/samorzady -> path "dla", sub "samorzady"
@@ -76,7 +78,7 @@ async function route() {
   document.body.classList.toggle("reels-on", path === "rolki");
   const v = $("#view");
   v.setAttribute("aria-busy", "true");  // screen readers wait for the view; tests wait for this instead of sleeping
-  v.innerHTML = '<div class="skel" style="width:40%;height:2.4rem;margin-top:2rem"></div><div class="skel"></div><div class="skel" style="width:70%"></div>';
+  v.innerHTML = RLOAD;
   try { await (ROUTES[path] || pageHome)(v); } catch (e) { v.innerHTML = empty("Nie udało się wczytać widoku: " + e); }
   v.removeAttribute("aria-busy");
   stagger(v); window.scrollTo(0, 0);

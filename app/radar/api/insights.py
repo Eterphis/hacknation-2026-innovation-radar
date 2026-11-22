@@ -13,6 +13,7 @@ from sqlalchemy import select
 
 from radar.basal import taxonomy as T
 from radar.basal.classifier import city, label_pl
+from radar.api.cache import cached
 from radar.db import session
 from radar.models import Card, Edge, Record
 from radar.sources.registry import hidden_source_ids
@@ -47,12 +48,15 @@ def _top(rows, key, n=6, cond=lambda x: True):
     return sorted([x for x in rows if cond(x)], key=key)[:n]
 
 
-@router.get("/insights")
-def insights():
+def _insights(voivodeship: str | None = None):
+    """voivodeship: the regional work mode (one region's office sees only its own ideas)."""
     with session() as s:
-        recs = s.scalars(select(Record).join(Card, Card.record_id == Record.id)
-                         .where(Record.status == "ready", Card.decision != "rejected", Card.score.is_not(None),
-                                Record.source_id.not_in(hidden_source_ids() or ["-"]))).all()
+        q = (select(Record).join(Card, Card.record_id == Record.id)
+             .where(Record.status == "ready", Card.decision != "rejected", Card.score.is_not(None),
+                    Record.source_id.not_in(hidden_source_ids() or ["-"])))
+        if voivodeship:
+            q = q.where(Record.voivodeship == voivodeship)
+        recs = s.scalars(q).all()
         rows = [_row(r) for r in recs]
         by_id = {r.id: r for r in recs}
         edges = s.scalars(select(Edge).where(Edge.weight >= 0.3).order_by(Edge.weight.desc()).limit(50)).all()
@@ -159,3 +163,10 @@ def insights():
         "gaps": gaps[:6],
         "portfolio": portfolio,
     }
+
+
+# ---- read endpoints behind the versioned cache (radar.api.cache): same answer, computed once per data version
+
+@router.get("/insights")
+def insights(voivodeship: str | None = None):
+    return cached("insights", (voivodeship,), lambda: _insights(voivodeship))

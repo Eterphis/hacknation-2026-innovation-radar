@@ -4,8 +4,9 @@ The narration is built from facts the pipeline already has (card, business case,
 it always works. When a small local model is configured (Bielik 1.5B behind llama.cpp, RADAR_LOCAL_LLM_URL), it may
 rewrite those facts into spoken Polish; the result is accepted only if it adds no number that is not in the facts
 and is a finished text of sane length; otherwise the rule text is used. Each (card, guide) is generated once and
-kept in the card's `brief`, so the model never runs twice for the same story. The browser reads it aloud
-(speechSynthesis, pl-PL) while the portrait animates; no audio leaves the browser.
+kept in the card's `brief`, so the model never runs twice for the same story. The model runs only offline, on the
+operator's request (never while a user waits). Voices are pre-recorded mp3 files (ElevenLabs, one voice per guide,
+`static/audio/`); no speech is synthesized in the browser or on request.
 """
 
 from __future__ import annotations
@@ -161,11 +162,14 @@ def _guide_llm_url() -> str:
 
 
 @router.get("/cards/{card_id}/pitch")
-def pitch(card_id: int, guide: str = "radek", llm: bool = True, fresh: bool = False,
+def pitch(card_id: int, guide: str = "radek", llm: bool = False, fresh: bool = False,
           x_operator_token: str | None = Header(default=None)):
+    """Nothing is generated while a user waits: the UI gets the stored narration (prepared in advance by the
+    operator with Bielik, `scripts/bielik_examples.py`) or the rule text built from the card's facts. Running the
+    model (llm=1) or regenerating (fresh=1) is an operator action."""
     if guide not in GUIDES:
         raise HTTPException(404, "nieznany przewodnik")
-    if fresh:  # regenerating spends model time: an operator action (the UI never asks for it)
+    if fresh or llm:
         operator(x_operator_token)
     key = f"pitch_{guide}"
     # short read, then the model with no session open (it may take up to two minutes), then a short write
