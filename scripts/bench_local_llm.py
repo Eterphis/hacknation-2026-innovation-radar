@@ -3,7 +3,8 @@
 Measures what a NEW record costs on CPU when the pipeline stays rules-first:
 
 * ``record``  end-to-end for one new record on the small-model path: Basal classification (rules + embeddings),
-              pregeneration (radar.pregen, rules) and one small-model call for the slogan ("hasło").
+              pregeneration (radar.pregen, rules) and one small-model call for the slogan ("hasło"),
+              constrained by the GBNF grammar radar.pregen.SLOGAN_GBNF.
 * ``slogan``  only the small-model call; quality = share of slogans that pass ``radar.pregen.validate_slogan``
               (length, no invented numbers), are Polish and are not just the title copied.
 * ``extract`` the full extraction prompt of radar.pipeline.extract, one attempt; quality = share of answers that
@@ -67,7 +68,8 @@ def load_records(path: Path, n: int, max_chars: int) -> list[dict]:
             if len(body) < 200 or not title:
                 continue
             orgs = [o.get("name") for o in r.get("organizations") or [] if isinstance(o, dict) and o.get("name")]
-            region = (r.get("region") or {}).get("voivodeships", [None])[0] if isinstance(r.get("region"), dict) else r.get("region")
+            region = ((r["region"].get("voivodeships") or [None])[0] if isinstance(r.get("region"), dict)
+                      else r.get("region"))
             amount = (r.get("funding") or {}).get("total_value") if isinstance(r.get("funding"), dict) else None
             out.append({"id": r.get("record_id") or r.get("id"), "title": title, "abstract": body[:max_chars],
                         "affiliations": orgs or ([r["institution"]] if r.get("institution") else []),
@@ -84,10 +86,11 @@ class Client:
         self.url, self.model, self.max_tokens, self.timeout = url.rstrip("/"), model, max_tokens, timeout
         self.out_tokens, self.gen_seconds = 0, 0.0
 
-    def complete(self, system: str, user: str, max_tokens: int | None = None) -> dict:
+    def complete(self, system: str, user: str, max_tokens: int | None = None, grammar: str | None = None) -> dict:
         t = time.perf_counter()
         r = httpx.post(self.url + "/chat/completions", timeout=self.timeout, json={
             "model": self.model, "temperature": 0.2, "max_tokens": max_tokens or self.max_tokens,
+            **({"grammar": grammar} if grammar else {}),
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
         r.raise_for_status()
         body = r.json()
@@ -117,7 +120,8 @@ def run_record_and_slogan(recs: list[dict], cli: Client) -> tuple[list[float], l
                           affiliations=d["affiliations"], region=d["region"], amounts=d["amounts"])
         rec, card = as_rec_card(d, labels)
         t1 = time.perf_counter()
-        out = pregen.pregenerate(rec, card, complete=lambda s, u: cli.complete(s, u, max_tokens=80))
+        out = pregen.pregenerate(rec, card, complete=lambda s, u: cli.complete(s, u, max_tokens=80,
+                                                                              grammar=pregen.SLOGAN_GBNF))
         t2 = time.perf_counter()
         end_to_end.append(t2 - t0)
         llm_times.append(t2 - t1)  # includes rules pregen (microseconds), dominated by the model call
@@ -177,7 +181,10 @@ def main(argv=None):
         print(f"only {len(recs)} records with enough text in {a.input}", file=sys.stderr)
     quant = a.gguf.rsplit(":", 1)[-1] if ":" in a.gguf else "?"
     cli = Client(a.url, a.model, 700, a.timeout)
-    cli.complete("Odpowiadasz JSON.", 'Zwróć {"ok": true}', max_tokens=10)  # warm-up: model load, not measured
+    try:  # warm-up: model load and first prompt cache, not measured
+        cli.complete("Odpowiadasz JSON.", 'Zwróć {"ok": true}', max_tokens=20)
+    except Exception:  # noqa: BLE001 - only the timing matters here
+        pass
     cli.out_tokens, cli.gen_seconds = 0, 0.0
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     cmd = "python scripts/bench_local_llm.py " + " ".join(argv if argv is not None else sys.argv[1:])
