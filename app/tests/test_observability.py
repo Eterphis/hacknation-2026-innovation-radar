@@ -44,3 +44,34 @@ def test_static_assets_served():
         assert "i-map-pin" in c.get("/static/icons.svg").text
         pl = c.get("/static/poland.json").json()
         assert len(pl["regions"]) == 16
+
+
+def test_cost_rule_metrics_and_dashboard():
+    """#13: share of cards without a large LLM, pregen state, cloud flag; every metric on the cost panel exists."""
+    import re
+    from pathlib import Path
+
+    for src in ("demo-zgloszenia", "demo-kohesio", "demo-publikacje"):
+        harvest.apply((src,)).get()
+    from radar.api.main import app
+
+    with TestClient(app) as c:
+        body = c.get("/metrics").text
+    assert "radar_cards_without_large_llm_ratio 1.0" in body  # demo: rules/mock only
+    assert 'radar_cards_by_llm_path{path="cloud"} 0' in body
+    assert re.search(r'radar_pregen_cards\{state="current"\} [1-9]', body) and 'radar_pregen_cards{state="missing"} 0' in body
+    assert "radar_llm_cloud_allowed 0" in body and 'radar_pregen_slogans{by="reguły"}' in body
+    dash = json.loads((Path(__file__).resolve().parents[2] / "deploy/observability/grafana/dashboards/costs.json").read_text("utf-8"))
+    used = {m for p in dash["panels"] for t in p["targets"] for m in re.findall(r"radar_[a-z_]+", t["expr"])}
+    exported = set(re.findall(r"^# TYPE (radar_[a-z_]+)", body, re.M))
+    assert used <= exported, used - exported
+
+
+def test_llm_path_counts_cloud_agent():
+    from types import SimpleNamespace as N
+
+    from radar.observability import llm_path
+
+    assert llm_path(N(provenance={"provider": "mock"}, assessment={})) == "rules"
+    assert llm_path(N(provenance={"provider": "local"}, assessment={"agent": {"provider": None}})) == "local"
+    assert llm_path(N(provenance={"provider": "local"}, assessment={"agent": {"provider": "anthropic"}})) == "cloud"

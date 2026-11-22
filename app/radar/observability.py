@@ -71,6 +71,48 @@ def _prices() -> dict:
         return {}
 
 
+CLOUD_NAMES = {"anthropic", "openai"}
+LOCAL_NAMES = {"local"}
+
+
+def llm_path(card) -> str:
+    """How a card was produced: "cloud" if a large cloud model wrote any part of it (extraction or the assessment
+    agent), "local" if only the small local model did, else "rules" (Basal, rule agent, mock heuristic)."""
+    used = {(card.provenance or {}).get("provider"), (((card.assessment or {}).get("agent") or {}).get("provider"))}
+    if used & CLOUD_NAMES:
+        return "cloud"
+    if used & LOCAL_NAMES:
+        return "local"
+    return "rules"
+
+
+def _cost_rule_metrics(s, emit) -> None:
+    """Cost rule of #13: how many cards never touched a large cloud model, and whether pregen is current."""
+    from radar.pregen import VERSION
+
+    paths = {"rules": 0, "local": 0, "cloud": 0}
+    pregen = {"current": 0, "outdated": 0, "missing": 0}
+    slogans: dict[str, int] = {}
+    for card in s.scalars(select(Card).where(Card.score.is_not(None))):
+        paths[llm_path(card)] += 1
+        pg = card.pregen
+        state = "missing" if not pg else "current" if pg.get("version") == VERSION else "outdated"
+        pregen[state] += 1
+        if pg:
+            slogans[pg.get("slogan_by") or "?"] = slogans.get(pg.get("slogan_by") or "?", 0) + 1
+    total = sum(paths.values())
+    emit("radar_cards_by_llm_path", "Scored cards by the most expensive model that wrote them (rules|local|cloud)",
+         "gauge", [({"path": p}, n) for p, n in paths.items()])
+    emit("radar_cards_without_large_llm_ratio", "Share of scored cards never touched by a large cloud model (target > 0.9)",
+         "gauge", [({}, round((paths["rules"] + paths["local"]) / total, 4) if total else 1)])
+    emit("radar_pregen_cards", "Scored cards by pregenerated content state", "gauge",
+         [({"state": k}, n) for k, n in pregen.items()])
+    emit("radar_pregen_slogans", "Pregenerated slogans by author (reguły | local-llm)", "gauge",
+         [({"by": k}, n) for k, n in slogans.items()])
+    emit("radar_llm_cloud_allowed", "1 when RADAR_LLM_ALLOW_CLOUD is set (cloud models may join the chain)", "gauge",
+         [({}, 1 if get_settings().llm_allow_cloud else 0)])
+
+
 @router.get("/metrics", response_class=PlainTextResponse)
 def metrics() -> str:
     out: list[str] = []
@@ -125,6 +167,7 @@ def metrics() -> str:
         emit("radar_llm_cost_usd_total", "Estimated LLM cost (RADAR_LLM_PRICES, USD per 1M tokens; local model = 0)", "counter",
              [({"provider": p, "model": m}, round((ti * prices.get(p, [0, 0])[0] + to * prices.get(p, [0, 0])[1]) / 1e6, 6))
               for (p, m), (ti, to) in tok.items()])
+        _cost_rule_metrics(s, emit)
         _histogram(s, out, "radar_llm_latency_seconds", "Latency of successful LLM calls", LlmCall.latency_ms,
                    [LlmCall.provider, LlmCall.purpose], LlmCall.ok.is_(True), LLM_BUCKETS_S)
         now = time.time()
