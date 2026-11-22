@@ -65,6 +65,30 @@ def test_client_cache_and_optional_failures(tmp_path):
     assert [p["krs"] for p in got] == ["0000626339"]
     n = len(calls)
     assert c.odpis("0000626339")["name"].startswith("POLITECHNIKA") and len(calls) == n  # from disk
+    assert c.odpis("0000626339")["fetched_at"]
+
+
+def test_cache_keeps_only_the_cleaned_profile(tmp_path):
+    raw = json.loads(json.dumps(PUT))
+    raw["odpis"]["dane"]["dzial2"] = {"reprezentacja": {"sklad": [{"nazwisko": {"nazwiskoICzlon": "KOWALSKI"},
+                                                                   "imiona": {"imie": "JAN"}}]}}
+    c = K.KrsClient(cache=DiskCache("krs", root=tmp_path),
+                    http=httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(200, json=raw))))
+    assert c.odpis("0000626339")
+    stored = "".join(p.read_text("utf-8") for p in (tmp_path / "krs").glob("*.json"))
+    assert stored and "KOWALSKI" not in stored and "dzial2" not in stored and "POLITECHNIKA" in stored
+
+
+def test_main_refuses_to_overwrite_with_a_partial_fetch(tmp_path, monkeypatch):
+    seed = tmp_path / "seed.json"
+    seed.write_text(json.dumps({"companies": [{"krs": "0000626339"}, {"krs": "0000728981"}]}), "utf-8")
+    out = tmp_path / "companies.json"
+    out.write_text("previous", "utf-8")
+    monkeypatch.setattr(K, "fetch_many", lambda client, nums: [])  # KRS down
+    assert K.main(["--seed", str(seed), "--out", str(out)]) == 1 and out.read_text("utf-8") == "previous"
+    monkeypatch.setattr(K, "fetch_many", lambda client, nums: [{"krs": "0000626339"}])
+    assert K.main(["--seed", str(seed), "--out", str(out), "--allow-partial"]) == 0
+    assert json.loads(out.read_text("utf-8"))["companies"] == [{"krs": "0000626339", "seed_source": None}]
 
 
 def test_committed_companies_file_is_real_and_personless():

@@ -68,9 +68,17 @@ APPLICANTS = {  # Basal institution type -> folded regexes over the applicants c
 
 
 # ------------------------------------------------------------------------------------------- reading tables
+MAX_FILE_BYTES = 20 * 1024 * 1024  # a schedule is a few hundred kB; anything this big is not one
+MAX_XML_BYTES = 50 * 1024 * 1024   # uncompressed document.xml (zip bomb guard)
+# what a broken or hostile file can raise while parsing; such a file or URL is skipped, the rest still loads
+PARSE_ERRORS = (zipfile.BadZipFile, ET.ParseError, KeyError, ValueError, csv.Error)
+
+
 def parse_docx(data: bytes) -> list[list[list[str]]]:
     """All tables of a DOCX as rows of cell texts."""
     with zipfile.ZipFile(io.BytesIO(data)) as z:
+        if z.getinfo("word/document.xml").file_size > MAX_XML_BYTES:
+            raise ValueError("document.xml too large")
         root = ET.fromstring(z.read("word/document.xml"))
     tables = []
     for tbl in root.iter(f"{W}tbl"):
@@ -211,16 +219,16 @@ def calls_from_rows(rows: list[dict], source: str, fetched_at: str | None = None
 
 def calls_from_bytes(data: bytes, name: str, source: str, fetched_at: str | None = None) -> list[dict]:
     """A schedule file (DOCX or CSV) -> calls. The programme can come from the file name when no column has it."""
+    if len(data) > MAX_FILE_BYTES:
+        raise ValueError(f"{name}: file too large")
     programme = Path(name).stem.replace("_", " ").replace("-", " ") if voivodeships_of(name) or "fe" in fold(name) else None
     if name.lower().endswith(".docx"):
         rows = [d for t in parse_docx(data) for d in rows_to_dicts(t)]
     else:
-        for enc in ("utf-8-sig", "cp1250"):
-            try:
-                text = data.decode(enc)
-                break
-            except UnicodeDecodeError:
-                continue
+        try:
+            text = data.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = data.decode("cp1250", errors="replace")  # cp1250 leaves 5 bytes undefined
         rows = rows_to_dicts(parse_csv(text))
     return calls_from_rows(rows, source, fetched_at, programme)
 
@@ -238,6 +246,25 @@ class CallsSource:
         d = Path(os.environ.get("RADAR_CALLS_DIR") or Path(__file__).resolve().parents[3] / "data" / "import" / "nabory")
         return cls(urls, d, **kw)
 
+    def _download(self, url: str) -> bytes:
+        """Body of `url`, streamed and cut off at MAX_FILE_BYTES so a huge response cannot fill memory."""
+        import httpx
+
+        own = self.http is None
+        c = self.http or httpx.Client(timeout=60, follow_redirects=True, headers={"User-Agent": "innovation-radar/1.0 (+calls)"})
+        try:
+            with c.stream("GET", url) as r:
+                r.raise_for_status()
+                buf = bytearray()
+                for chunk in r.iter_bytes():
+                    buf += chunk
+                    if len(buf) > MAX_FILE_BYTES:
+                        raise ValueError(f"{url}: response too large")
+                return bytes(buf)
+        finally:
+            if own:
+                c.close()
+
     def load(self) -> list[dict]:
         """All calls from the configured schedules; a failing URL or file is skipped (optional source)."""
         import httpx
@@ -245,13 +272,10 @@ class CallsSource:
         calls: list[dict] = []
         for url in self.urls:
             def get(url=url):
-                c = self.http or httpx.Client(timeout=60, follow_redirects=True, headers={"User-Agent": "innovation-radar/1.0 (+calls)"})
-                r = c.get(url)
-                r.raise_for_status()
-                return calls_from_bytes(r.content, url.split("?")[0], url)
+                return calls_from_bytes(self._download(url), url.split("?")[0], url)
             try:
                 entry = self.cache.fetch(f"url:{url}", get)
-            except (httpx.HTTPError, zipfile.BadZipFile, ET.ParseError, KeyError):
+            except (httpx.HTTPError, *PARSE_ERRORS):
                 continue
             calls += [{**c, "fetched_at": c.get("fetched_at") or entry["fetched_at"]} for c in entry["value"]]
         if self.local_dir and self.local_dir.is_dir():
@@ -259,9 +283,11 @@ class CallsSource:
                 if p.suffix.lower() not in (".docx", ".csv"):
                     continue
                 try:
+                    if p.stat().st_size > MAX_FILE_BYTES:
+                        continue
                     at = datetime.fromtimestamp(p.stat().st_mtime, timezone.utc).isoformat(timespec="seconds")
                     calls += calls_from_bytes(p.read_bytes(), p.name, f"plik {p.name}", at)
-                except (OSError, zipfile.BadZipFile, ET.ParseError, KeyError):
+                except (OSError, *PARSE_ERRORS):
                     continue
         seen, out = set(), []
         for c in calls:

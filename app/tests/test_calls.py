@@ -1,6 +1,7 @@
 """Issue #30 task 6: calls for proposals from schedule tables (DOCX built in the test, CSV fixture), matching."""
 
 import io
+import os
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -96,3 +97,31 @@ def test_source_is_optional_and_failures_are_skipped(tmp_path):
                         cache=DiskCache("calls", root=tmp_path / "cache"), http=httpx.Client(transport=httpx.MockTransport(handler)))
     got = src.load()
     assert len(got) == 5 and len({c["id"] for c in got}) == 5
+
+
+def test_undefined_cp1250_bytes_do_not_crash():
+    text = "Nazwa naboru;Planowany termin rozpoczęcia naboru\nNabór X;01.12.2026\n"
+    got = C.calls_from_bytes(text.encode("cp1250") + b"\x81\x98;x\n", "h.csv", "s")
+    assert got[0]["title"] == "Nabór X"
+
+
+def test_broken_or_oversized_files_are_skipped_not_fatal(tmp_path, monkeypatch):
+    d = tmp_path / "nabory"
+    d.mkdir()
+    (d / CSV_NAME).write_bytes((FIX / CSV_NAME).read_bytes())
+    (d / "huge_field.csv").write_bytes(b'a;b\n"' + b"x" * 200_000 + b'";1\n')  # csv.Error: field limit
+    bomb = io.BytesIO()
+    with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("word/document.xml", b"<a>" + b" " * (2 * 1024 * 1024) + b"</a>")
+    (d / "bomb.docx").write_bytes(bomb.getvalue())
+    monkeypatch.setattr(C, "MAX_XML_BYTES", 1024 * 1024)
+    padded = io.BytesIO(NATIONAL)
+    with zipfile.ZipFile(padded, "a", zipfile.ZIP_STORED) as z:
+        z.writestr("pad.bin", os.urandom(300_000))  # a valid DOCX of about 300 kB
+    big = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(200, content=padded.getvalue())))
+    src = C.CallsSource(["https://x.invalid/feng.docx"], d, cache=DiskCache("calls", root=tmp_path / "cache"), http=big)
+    assert len(src.load()) == 5  # the three bad local files are skipped; the good CSV (3) and the DOCX (2) load
+    monkeypatch.setattr(C, "MAX_FILE_BYTES", 100_000)
+    src = C.CallsSource(["https://x.invalid/feng.docx"], d, cache=DiskCache("calls", root=tmp_path / "cache2"), http=big)
+    got = src.load()  # the 300 kB response is cut off mid-stream; the 200 kB local file is skipped by size
+    assert len(got) == 3 and all(c["voivodeships"] == ["podkarpackie"] for c in got)

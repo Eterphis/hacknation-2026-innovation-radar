@@ -116,16 +116,17 @@ class KrsClient:
             return None
 
         def load():
+            # only the cleaned profile is cached: the raw extract lists board members (personal data)
             for reg in ("P", "S"):
                 r = self.http.get(API.format(krs=num), params={"rejestr": reg, "format": "json"})
                 if r.status_code == 404:
                     continue
                 r.raise_for_status()
-                return r.json()
+                return company_profile(r.json())
             return None
 
-        entry = self.cache.fetch(f"odpis:{num}", load)
-        return company_profile(entry["value"], entry["fetched_at"]) if entry["value"] else None
+        entry = self.cache.fetch(f"profile:{num}", load)
+        return {**entry["value"], "fetched_at": entry["fetched_at"]} if entry["value"] else None
 
 
 def fetch_many(client: KrsClient, numbers: Iterable[str]) -> list[dict]:
@@ -185,10 +186,17 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="KRS seed -> app/radar/data/companies.json")
     ap.add_argument("--seed", type=Path, default=SEED_FILE)
     ap.add_argument("--out", type=Path, default=COMPANIES_FILE)
+    ap.add_argument("--allow-partial", action="store_true",
+                    help="write even when some seed entries could not be fetched (default: keep the old file)")
     args = ap.parse_args(argv)
     seed = json.loads(args.seed.read_text("utf-8"))
     entries = seed.get("companies") or []
     profiles = fetch_many(KrsClient(), [e["krs"] for e in entries])
+    if len(profiles) < len(entries) and not args.allow_partial:
+        # fetch_many skips network errors, so a KRS outage would otherwise replace the file with an empty list
+        print(f"pobrano {len(profiles)}/{len(entries)} spółek; {args.out} bez zmian (--allow-partial, by zapisać)",
+              file=sys.stderr)
+        return 1
     by_krs = {e["krs"]: e for e in entries}
     for p in profiles:
         p["seed_source"] = (by_krs.get(p["krs"]) or {}).get("source")
