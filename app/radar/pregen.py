@@ -196,7 +196,8 @@ def pregenerate(rec, card, complete: Callable[[str, str], dict] | None = None) -
     }
 
 
-def pregenerate_many(pairs: Iterable[tuple], stored: dict | None = None) -> tuple[dict, dict]:
+def pregenerate_many(pairs: Iterable[tuple], stored: dict | None = None,
+                     complete: Callable[[str, str], dict] | None = None) -> tuple[dict, dict]:
     """Pregenerate many ``(record, card)`` pairs, skipping cards whose stored content is still current.
 
     ``stored`` maps card id -> previously stored pregen dict. Returns ``(results by card id, stats)``; stats count
@@ -212,7 +213,7 @@ def pregenerate_many(pairs: Iterable[tuple], stored: dict | None = None) -> tupl
         if not needs_refresh(stored.get(card.id), rec, card):
             stats["skipped"] += 1
             continue
-        results[card.id] = pregenerate(rec, card)
+        results[card.id] = pregenerate(rec, card, complete)
         stats["computed"] += 1
     stats["no_large_llm_pct"] = round(100 * stats["no_large_llm"] / stats["cards"], 1) if stats["cards"] else 0.0
     return results, stats
@@ -223,7 +224,7 @@ def store(rec, card, force: bool = False) -> bool:
     """Write ``card.pregen`` when missing or stale. Returns True when it was (re)computed."""
     if not force and not needs_refresh(card.pregen, rec, card):
         return False
-    card.pregen = pregenerate(rec, card)
+    card.pregen = pregenerate(rec, card, local_slogan())
     return True
 
 
@@ -244,7 +245,7 @@ def run(force: bool = False, batch: int = 500) -> dict:
             cards = s.scalars(select(Card).where(Card.id.in_(ids[i:i + batch]))).all()
             pairs = [(c.record, c) for c in cards]
             stored = {} if force else {c.id: c.pregen for c in cards}
-            results, st = pregenerate_many(pairs, stored)
+            results, st = pregenerate_many(pairs, stored, local_slogan())
             for c in cards:
                 if c.id in results:
                     c.pregen = results[c.id]
@@ -259,3 +260,44 @@ def business(rec, card) -> dict:
     the same rules computed on the spot: still no LLM, and counted in ``radar_pregen_cards{state="missing"}``."""
     stored = card.pregen or {}
     return stored.get("business") or business_case(rec, card)
+
+
+CARD_VIEW = ("id", "solution_name", "problem_solved", "summary_pl", "maturity", "score", "decision", "assessment",
+             "target_users", "provenance", "pregen")
+
+
+def card_view(card, **override):
+    """A detached copy of the card fields pregen reads, with overrides (the score stage's fresh assessment)."""
+    from types import SimpleNamespace
+
+    return SimpleNamespace(**{f: getattr(card, f, None) for f in CARD_VIEW} | override)
+
+
+def local_slogan() -> Callable[[str, str], dict] | None:
+    """The small local model as a slogan writer, or None when it is not configured (then the rule slogan is used).
+    Never a cloud model: this calls the llama.cpp server directly with the slogan grammar, and logs the call to
+    ``llm_calls`` (purpose "slogan") so the cost panel counts it."""
+    from radar.config import get_settings
+
+    s = get_settings()
+    if not (s.local_llm_url and s.pregen_local_slogan):
+        return None
+    import time
+
+    from radar.llm.providers import LocalProvider
+    from radar.llm.router import _record
+
+    p = LocalProvider()
+    p.grammar, p.json_mode, p.max_tokens, p.timeout = SLOGAN_GBNF, False, 80, min(p.timeout, 30.0)
+
+    def complete(system: str, user: str) -> dict:
+        t0 = time.perf_counter()
+        try:
+            out = p.complete_json(system, user)
+        except Exception as e:
+            _record(None, p.name, p.model, "slogan", False, (time.perf_counter() - t0) * 1000, str(e))
+            raise
+        _record(None, p.name, p.model, "slogan", True, (time.perf_counter() - t0) * 1000, usage=getattr(p, "last_usage", None))
+        return out
+
+    return complete

@@ -8,7 +8,9 @@ x-radar: &radar
     RADAR_DATABASE_URL: postgresql+psycopg://radar:radar@postgres:5432/radar
     RADAR_BROKER_URL: amqp://radar:radar@rabbitmq:5672//
     RADAR_DEMO_MODE: ${RADAR_DEMO_MODE:-0}   # 1 = only synthetic snapshots (jury fallback without network)
-    RADAR_LLM_PROVIDERS: ${RADAR_LLM_PROVIDERS:-local,anthropic,openai,mock}
+    # local model -> rules; cloud models only with RADAR_LLM_ALLOW_CLOUD=1 (and anthropic/openai in the chain)
+    RADAR_LLM_PROVIDERS: ${RADAR_LLM_PROVIDERS:-local,mock}
+    RADAR_LLM_ALLOW_CLOUD: ${RADAR_LLM_ALLOW_CLOUD:-0}
     # set to http://llm:8080/v1 when running with `--profile local-llm`
     RADAR_LOCAL_LLM_URL: ${RADAR_LOCAL_LLM_URL:-}
     RADAR_LOCAL_LLM_TIMEOUT_S: ${RADAR_LOCAL_LLM_TIMEOUT_S:-300}

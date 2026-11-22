@@ -1,8 +1,9 @@
 """Provider chain with fallback and a simple circuit breaker.
 
-RADAR_LLM_PROVIDERS="local,anthropic,openai,mock": try in order (small CPU model on the VPS first, then the
-cloud, then the offline heuristic); a provider that failed is skipped for `cooldown_s`, so a dead API does not
-add its timeout to every record. The agent (`assess`) excludes `mock` and falls back to its rules instead.
+RADAR_LLM_PROVIDERS="local,mock" (default in compose/helm): small CPU model on the VPS first, then the rules
+(offline heuristic). Cloud providers listed there (anthropic, openai on a non-local URL) are skipped unless
+RADAR_LLM_ALLOW_CLOUD=1 is set explicitly; then they are tried in the listed order. A provider that failed
+is skipped for `cooldown_s`, so a dead API does not add its timeout to every record. The agent (`assess`) excludes `mock` and falls back to its rules instead.
 
 Every attempt (success or failure) is logged to the `llm_calls` table with its latency, so `/metrics` on the API
 shows latency, errors and fallbacks per provider for all worker processes.
@@ -16,7 +17,7 @@ import time
 import httpx
 
 from radar.config import get_settings
-from radar.llm.providers import PROVIDERS, BadOutput, Provider, ProviderError
+from radar.llm.providers import PROVIDERS, BadOutput, Provider, ProviderError, is_cloud
 
 log = logging.getLogger(__name__)
 MIN_CALL_S = 5.0  # less budget than this left: do not start another LLM call
@@ -56,7 +57,13 @@ class LLMRouter:
         unknown = [n for n in names if n not in PROVIDERS]
         if unknown:
             raise ValueError(f"unknown LLM providers: {unknown}")
-        self.providers: list[Provider] = [PROVIDERS[n]() for n in names]
+        providers: list[Provider] = [PROVIDERS[n]() for n in names]
+        # Cost rule: local model -> rules (mock heuristic) by default; a cloud model joins the chain only when
+        # RADAR_LLM_ALLOW_CLOUD=1 is set explicitly, in the position RADAR_LLM_PROVIDERS gives it.
+        self.blocked = [] if get_settings().llm_allow_cloud else [p.name for p in providers if is_cloud(p)]
+        if self.blocked:
+            log.info("cloud LLM providers %s skipped: set RADAR_LLM_ALLOW_CLOUD=1 to enable them", self.blocked)
+        self.providers = [p for p in providers if p.name not in self.blocked]
         self.cooldown_s = cooldown_s
         self._open_until: dict[str, float] = {}
 

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
 
     # Comma-separated provider chain, first healthy one wins. See radar/llm/router.py.
     llm_providers: str = "mock"
+    # Cloud models (anthropic; openai on a non-local base URL) are dropped from the chain unless this is set
+    # explicitly: new records go to rules and the small local model, never to a cloud model by default.
+    llm_allow_cloud: bool = False
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-5-5"
     openai_api_key: str | None = None
@@ -28,6 +31,10 @@ class Settings(BaseSettings):
     local_llm_url: str = ""
     local_llm_model: str = "bielik-1.5b-v3.0-instruct"
     local_llm_json_mode: bool = False
+    # send a JSON GBNF grammar to llama.cpp (a 1.5B model ignores "JSON only" in the prompt)
+    local_llm_grammar: bool = True
+    # pregeneration asks the local model for the slogan (GBNF-constrained, validated, rule fallback)
+    pregen_local_slogan: bool = True
     # a 1.5B model on a few vCPU needs ~1 min per agent step; a separate, longer timeout than the cloud APIs
     local_llm_timeout_s: float = 300.0
     llm_timeout_s: float = 60.0
