@@ -108,8 +108,7 @@ def graph(q: str | None = None, sector: str | None = None, tech_area: str | None
         return build_graph(s, recs, tuple(h for h in hubs.split(",") if h in AXES))
 
 
-@router.get("/regions")
-def regions(sector: str | None = None, tech_area: str | None = None):
+def _regions(sector: str | None = None, tech_area: str | None = None):
     """Per voivodeship: ideas (all / in the selected sector), share vs national, and the voivodeship x sector matrix.
     gap > 0 = the region has fewer ideas in the sector than the national average per region (transfer opportunity,
     or an under-developed sector locally)."""
@@ -137,8 +136,7 @@ def regions(sector: str | None = None, tech_area: str | None = None):
             "matrix": {v: dict(matrix[v]) for v in all_v}}
 
 
-@router.get("/feed")
-def feed(offset: int = 0, limit: int = 10, sector: str | None = None, voivodeship: str | None = None):
+def _feed(offset: int = 0, limit: int = 10, sector: str | None = None, voivodeship: str | None = None):
     """Reels: one-page briefs, approved first, then pending (rejected never). Ranking: score + likes."""
     with session() as s:
         q = (select(Record).join(Card, Card.record_id == Record.id)
@@ -225,8 +223,7 @@ def personas():
     return [{"key": k, **{f: v[f] for f in ("name", "icon", "promise", "cta", "metric")}} for k, v in PERSONAS.items()]
 
 
-@router.get("/personas/{key}")
-def persona(key: str, voivodeship: str | None = None, limit: int = 24):
+def _persona(key: str, voivodeship: str | None = None, limit: int = 24):
     """Ideas matched to one audience, ranked by its money metric x quality, with deterministic business cases."""
     from radar.business import PERSONAS, dedup_key, is_infrastructure, metric_value
     from radar.pregen import business as stored_business
@@ -339,3 +336,20 @@ def match(role: str = "innowatorzy", voivodeship: str | None = None, sectors: st
     out.sort(key=lambda d: (-d["match"], -math.log10(1 + d["business"]["metric"])))
     return {"profile": {"role": role, "voivodeship": voivodeship, "sectors": sorted(want_sectors), "budget": budget,
                         "stage": stage, "goal": goal}, "metric": metric, "total": len(out), "items": out[:min(limit, 60)]}
+
+
+# ---- read endpoints behind the versioned cache (radar.api.cache): same answer, computed once per data version
+
+@router.get("/regions")
+def regions(sector: str | None = None, tech_area: str | None = None):
+    return cached("regions", (sector, tech_area,), lambda: _regions(sector, tech_area))
+
+
+@router.get("/feed")
+def feed(offset: int = 0, limit: int = 10, sector: str | None = None, voivodeship: str | None = None):
+    return cached("feed", (offset, limit, sector, voivodeship,), lambda: _feed(offset, limit, sector, voivodeship))
+
+
+@router.get("/personas/{key}")
+def persona(key: str, voivodeship: str | None = None, limit: int = 24):
+    return cached("persona", (key, voivodeship, limit,), lambda: _persona(key, voivodeship, limit))

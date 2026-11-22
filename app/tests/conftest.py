@@ -31,9 +31,10 @@ def env(tmp_path, monkeypatch):
     from radar.basal import graph
 
     graph.reset_threshold()  # nor the corpus-adaptive graph threshold
-    from radar.api.cache import reset_api_cache
+    from radar.api import cache
 
-    reset_api_cache()  # nor cached API answers (radar.api.cache: /api/match, /api/ideas, /api/clusters)
+    cache.reset_api_cache()  # nor cached API answers (radar.api.cache: /api/match, /api/ideas, /api/clusters)
+    cache.VERSION_TTL = 0.0  # tests change data and read it back at once
     create_all()
     yield
     reset_engine()

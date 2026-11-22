@@ -13,6 +13,7 @@ from sqlalchemy import select
 
 from radar.basal import taxonomy as T
 from radar.basal.classifier import city, label_pl
+from radar.api.cache import cached
 from radar.db import session
 from radar.models import Card, Edge, Record
 from radar.sources.registry import hidden_source_ids
@@ -47,8 +48,7 @@ def _top(rows, key, n=6, cond=lambda x: True):
     return sorted([x for x in rows if cond(x)], key=key)[:n]
 
 
-@router.get("/insights")
-def insights(voivodeship: str | None = None):
+def _insights(voivodeship: str | None = None):
     """voivodeship: the regional work mode (one region's office sees only its own ideas)."""
     with session() as s:
         q = (select(Record).join(Card, Card.record_id == Record.id)
@@ -163,3 +163,10 @@ def insights(voivodeship: str | None = None):
         "gaps": gaps[:6],
         "portfolio": portfolio,
     }
+
+
+# ---- read endpoints behind the versioned cache (radar.api.cache): same answer, computed once per data version
+
+@router.get("/insights")
+def insights(voivodeship: str | None = None):
+    return cached("insights", (voivodeship,), lambda: _insights(voivodeship))

@@ -82,3 +82,24 @@ def test_like_is_visible_immediately_in_the_card_and_in_lists():
         c.post(f"/api/cards/{cid}/like", headers={"X-Voter": "test-voter-cache-1"})  # toggles back
         assert c.get(f"/api/cards/{cid}").json()["likes"] == likes
         assert next(i for i in c.get(IDEAS).json()["items"] if i["card_id"] == cid)["likes"] == likes
+
+
+def test_single_flight_computes_once_under_a_burst():
+    """20 requests miss the same entry at once: one computes, the others wait and reuse (no CPU/memory stampede)."""
+    import threading
+    import time as _t
+
+    from radar.api import cache
+
+    calls = []
+
+    def slow():
+        calls.append(1)
+        _t.sleep(0.2)
+        return {"ok": True}
+
+    out = []
+    threads = [threading.Thread(target=lambda: out.append(cache.cached("burst", (), slow))) for _ in range(20)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert len(calls) == 1 and len(out) == 20 and all(o == {"ok": True} for o in out)
