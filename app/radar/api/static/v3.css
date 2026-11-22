@@ -259,3 +259,39 @@ ul.why .ic { width:14px; height:14px; color:var(--red); flex:none; margin-top:.2
 .track.live li.warn { color:var(--ink); } .track.live li.warn i { background:color-mix(in srgb, var(--red) 40%, var(--white)); }
 .btn.busy { opacity:.6; pointer-events:none; }
 @media (max-width: 720px) { .sub-form .two { grid-template-columns:1fr; } }
+
+/* ---- issue #31: dostępność (a11y) */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+h2.reel-title { margin:0; }
+/* każda grafika AI oznaczona: także na telefonie (wcześniej .reel-ai znikało poniżej 720 px) */
+@media (max-width: 720px) { .reel-art .reel-ai { display:inline-flex; } }
+.wiz-side { position:relative; }
+.ai-note { display:inline-flex; gap:.3rem; align-items:center; margin:-.5rem 0 .5rem; font-size:.6875rem; color:var(--ink-3); }
+.ai-note .ic { width:12px; height:12px; }
+.gai { position:absolute; left:-4px; top:-4px; padding:1px 5px; border-radius:99px; font:700 .625rem/1.4 var(--sans); color:var(--ink-2); background:var(--bg); box-shadow:var(--sh-sm); }
+.gdock .gai { left:-4px; top:auto; bottom:52px; } @media (max-width: 720px) { .gdock .gai { bottom:40px; } }
+/* zwinięty klaster nie zostawia niewidocznych elementów w kolejności Tab */
+.cluster:not(.open) .cl-items { visibility:hidden; }
+
+/* ---- issue #31: tryb ciemny v3 (tokeny --img-tint, --scrim-end z :root i [data-theme=dark]) */
+.hero::before { background-image:linear-gradient(var(--img-tint), var(--img-tint)), var(--hero); }
+.page-header.has-banner::before { background-image:linear-gradient(var(--img-tint), var(--img-tint)), var(--banner); }
+.idea-hero::before, .who-chip::before { background-image:linear-gradient(var(--img-tint), var(--img-tint)), var(--img); }
+.itile-img, .cl-img, .mcard-img { background:linear-gradient(var(--img-tint), var(--img-tint)), var(--img) center/cover, var(--band); }
+.reel-art { background:linear-gradient(var(--img-tint), var(--img-tint)), var(--img) center 30%/cover no-repeat; }
+/* scrim pod tekstem: kontrast nie zależy od obrazu (w jasnym końcówka przezroczysta jak dotąd) */
+.hero::after { background:linear-gradient(90deg, var(--scrim-solid) 0%, color-mix(in srgb, var(--bg) 85%, transparent) 42%, var(--scrim-end) 80%); }
+.page-header.has-banner::after { background:linear-gradient(90deg, var(--scrim-solid) 0%, color-mix(in srgb, var(--bg) 88%, transparent) 45%, var(--scrim-end) 100%); }
+.idea-hero::after { background:linear-gradient(90deg, var(--scrim-solid) 0%, color-mix(in srgb, var(--bg) 90%, transparent) 50%, var(--scrim-end) 100%); }
+/* przełączniki na banerze (np. Klastry: Tematy / Rynki) stoją na pełnym tle, nie na obrazie */
+.page-header.has-banner .tabs, .page-header.has-banner .chips { position:relative; }
+.page-header.has-banner .tabs { background:var(--bg); }
+@media (max-width: 720px) {
+  .hero::after { background:linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, transparent), var(--bg) 70%); }
+  .page-header.has-banner::after { background:color-mix(in srgb, var(--bg) 86%, transparent); }
+  .idea-hero::after { background:linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent), var(--bg) 75%); }
+}
+/* minimapa rysuje się dopiero w widoku: miejsce zarezerwowane, bez przesunięcia układu (CLS) */
+#minimap:empty { min-height:360px; }
+/* stabilny układ od pierwszego malowania: szkielet jest w index.html, widok zajmuje ekran, stopka nie skacze (CLS) */
+#view { min-height:calc(100svh - 4rem); display:flow-root; }  /* flow-root: margines pierwszego elementu nie przesuwa całego <main> */

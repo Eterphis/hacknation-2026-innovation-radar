@@ -1,0 +1,26 @@
+{
+  "ci": {
+    "collect": {
+      "url": ["http://127.0.0.1:8011/", "http://127.0.0.1:8011/#/pomysl/1"],
+      "numberOfRuns": 3,
+      "settings": {
+        "formFactor": "mobile",
+        "screenEmulation": { "mobile": true, "width": 412, "height": 823, "deviceScaleFactor": 1.75, "disabled": false },
+        "throttlingMethod": "simulate",
+        "onlyCategories": ["performance", "accessibility", "best-practices"],
+        "chromeFlags": "--headless=new --no-sandbox"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.9, "aggregationMethod": "median-run" }],
+        "categories:accessibility": ["error", { "minScore": 0.9, "aggregationMethod": "median-run" }]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "../docs/reports/lighthouse",
+      "reportFilenamePattern": "%%PATHNAME%%-%%HASH%%-%%DATETIME%%.report.%%EXTENSION%%"
+    }
+  }
+}

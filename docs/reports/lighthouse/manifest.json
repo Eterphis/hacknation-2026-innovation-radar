@@ -1,0 +1,24 @@
+[
+ {
+  "url": "http://127.0.0.1:8011/",
+  "isRepresentativeRun": true,
+  "htmlPath": "przeglad-mobile.report.html",
+  "jsonPath": "przeglad-mobile.report.json",
+  "summary": {
+   "performance": 0.99,
+   "accessibility": 1,
+   "best-practices": 1
+  }
+ },
+ {
+  "url": "http://127.0.0.1:8011/#/pomysl/1",
+  "isRepresentativeRun": true,
+  "htmlPath": "pomysl-mobile.report.html",
+  "jsonPath": "pomysl-mobile.report.json",
+  "summary": {
+   "performance": 0.99,
+   "accessibility": 1,
+   "best-practices": 1
+  }
+ }
+]

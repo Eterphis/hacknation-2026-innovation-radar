@@ -11,10 +11,12 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from radar.api.auth import operator
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.orm import contains_eager
 
 from radar.basal import taxonomy as T
 from radar.basal.classifier import city, classify, label_pl, train_head
 from radar.basal.graph import build_graph
+from radar.api.cache import cached
 from radar.db import session
 from radar.models import Card, Like, Record
 
@@ -73,10 +75,16 @@ def ideas(q: str | None = None, sector: str | None = None, tech_area: str | None
           sort: str = "score", limit: int = 100, offset: int = 0):
     f = dict(q=q, sector=sector, tech_area=tech_area, innovation_type=innovation_type, institution_type=institution_type,
              voivodeship=voivodeship, maturity=maturity, cost_level=cost_level, min_score=min_score, decision=decision)
+    return cached("ideas", tuple(sorted(f.items())) + (("sort", sort), ("limit", limit), ("offset", offset)),
+                  lambda: _ideas(f, sort, limit, offset))
+
+
+def _ideas(f: dict, sort: str, limit: int, offset: int) -> dict:
     with session() as s:
         base = select(Record).join(Card, Card.record_id == Record.id).where(_filters(**f))
         total = s.scalar(select(func.count()).select_from(base.subquery()))
-        rows = s.scalars(base.order_by(SORTS.get(sort, SORTS["score"]).nulls_last()).limit(min(limit, 500)).offset(offset)).all()
+        rows = s.scalars(base.options(contains_eager(Record.card)).order_by(SORTS.get(sort, SORTS["score"]).nulls_last())
+                         .limit(min(limit, 500)).offset(offset)).all()
         items = [idea_dict(r) for r in rows]
         facets = {}
         for axis in AXES + ("maturity",):
@@ -262,6 +270,22 @@ COSTS = ["niski", "sredni", "wysoki", "bardzo_wysoki"]
 STAGES = ["exploring", "tech_ready", "business_ready", "market_ready"]
 
 
+def _match_corpus() -> list[dict]:
+    """What /api/match needs per record that does not depend on the profile: business case, labels, the idea card.
+    Computed once per data version (radar.api.cache); scoring one profile is then plain arithmetic."""
+    from radar.business import dedup_key, is_infrastructure
+    from radar.pregen import business as stored_business
+
+    with session() as s:
+        recs = s.scalars(select(Record).join(Card, Card.record_id == Record.id).options(contains_eager(Record.card))
+                         .where(_filters(), Card.decision != "rejected").order_by(Card.score.desc().nulls_last()).limit(600)).all()
+        return [{"source_id": r.source_id, "infra": is_infrastructure(r), "dedup": dedup_key(r), "bc": stored_business(r, r.card),
+                 "lvl": STAGES.index(r.card.maturity) if r.card.maturity in STAGES else 0,
+                 "cost_i": COSTS.index(r.cost_level) if r.cost_level in COSTS else 1,
+                 "sector": r.sector, "voivodeship": r.voivodeship, "maturity": r.card.maturity, "score": r.card.score,
+                 "idea": idea_dict(r)} for r in recs]
+
+
 @router.get("/match")
 def match(role: str = "innowatorzy", voivodeship: str | None = None, sectors: str | None = None,
           budget: str = "wysoki", stage: str = "exploring", goal: str = "wdrozenie", limit: int = 20):
@@ -269,9 +293,7 @@ def match(role: str = "innowatorzy", voivodeship: str | None = None, sectors: st
     goal: zysk (return on investment) | wdrozenie (deploy at my institution) | partner (find a partner) | finansowanie."""
     import math
 
-    from radar.business import PERSONAS, dedup_key, is_infrastructure, metric_value
-
-    from radar.pregen import business as stored_business
+    from radar.business import PERSONAS, metric_value
 
     p = PERSONAS.get(role, PERSONAS["innowatorzy"])
     want_sectors = set(filter(None, (sectors or "").split(",")))
@@ -279,46 +301,41 @@ def match(role: str = "innowatorzy", voivodeship: str | None = None, sectors: st
     smin = STAGES.index(stage) if stage in STAGES else 0
     metric = {"zysk": "licence_or_spinoff_pln", "wdrozenie": "savings_per_adopter_pln", "partner": "som_3y_pln",
               "finansowanie": "deploy_cost_pln"}.get(goal, p["metric"])
-    with session() as s:
-        recs = s.scalars(select(Record).join(Card, Card.record_id == Record.id)
-                         .where(_filters(), Card.decision != "rejected").order_by(Card.score.desc().nulls_last()).limit(600)).all()
-        out, seen = [], set()
-        for r in recs:
-            if is_infrastructure(r) or r.source_id in p.get("skip_sources", ()):
-                continue
-            k = dedup_key(r)
-            if k in seen:
-                continue
-            seen.add(k)
-            bc = stored_business(r, r.card)
-            lvl = STAGES.index(r.card.maturity) if r.card.maturity in STAGES else 0
-            cost_i = COSTS.index(r.cost_level) if r.cost_level in COSTS else 1
-            why, pts = [], 0.0
-            if want_sectors:
-                if r.sector in want_sectors:
-                    pts += 30; why.append(f"sektor: {label_pl('sector', r.sector)}")
-            else:
-                pts += 15
-            if voivodeship:
-                if r.voivodeship == voivodeship:
-                    pts += 20; why.append(f"Twój region: {voivodeship}")
-                elif goal == "wdrozenie" and r.voivodeship:
-                    pts += 8; why.append(f"sprawdzone w: {r.voivodeship}")
-            else:
-                pts += 10
-            if cost_i <= bmax:
-                pts += 20; why.append(f"mieści się w budżecie ({bc['deploy_cost_pln']:,} zł)".replace(",", " "))
-            if lvl >= smin:
-                pts += 15; why.append("dojrzałość: " + {"exploring": "badania", "tech_ready": "technologia gotowa", "business_ready": "gotowe do wdrożenia", "market_ready": "na rynku"}.get(r.card.maturity, "—"))
-            pts += 15 * (r.card.score or 0) / 100
-            if goal == "finansowanie" and bc["funding"]:
-                why.append("finansowanie: " + bc["funding"][0]["programme"])
-            d = idea_dict(r)
-            d["match"] = round(min(100, pts))
-            d["why"] = why[:4]
-            d["business"] = {"metric": metric_value(bc, metric), "deploy_cost_pln": bc["deploy_cost_pln"],
-                             "adopters": bc["adopters"], "payback": bc["payback"], "funding": [x["programme"] for x in bc["funding"][:2]]}
-            out.append(d)
+    out, seen = [], set()
+    for r in cached("match-corpus", (), _match_corpus):
+        if r["infra"] or r["source_id"] in p.get("skip_sources", ()):
+            continue
+        k = r["dedup"]
+        if k in seen:
+            continue
+        seen.add(k)
+        bc, lvl, cost_i = r["bc"], r["lvl"], r["cost_i"]
+        why, pts = [], 0.0
+        if want_sectors:
+            if r["sector"] in want_sectors:
+                pts += 30; why.append(f"sektor: {label_pl('sector', r['sector'])}")
+        else:
+            pts += 15
+        if voivodeship:
+            if r["voivodeship"] == voivodeship:
+                pts += 20; why.append(f"Twój region: {voivodeship}")
+            elif goal == "wdrozenie" and r["voivodeship"]:
+                pts += 8; why.append(f"sprawdzone w: {r['voivodeship']}")
+        else:
+            pts += 10
+        if cost_i <= bmax:
+            pts += 20; why.append(f"mieści się w budżecie ({bc['deploy_cost_pln']:,} zł)".replace(",", " "))
+        if lvl >= smin:
+            pts += 15; why.append("dojrzałość: " + {"exploring": "badania", "tech_ready": "technologia gotowa", "business_ready": "gotowe do wdrożenia", "market_ready": "na rynku"}.get(r["maturity"], "—"))
+        pts += 15 * (r["score"] or 0) / 100
+        if goal == "finansowanie" and bc["funding"]:
+            why.append("finansowanie: " + bc["funding"][0]["programme"])
+        d = dict(r["idea"])  # shallow copy: the cached corpus is shared between requests
+        d["match"] = round(min(100, pts))
+        d["why"] = why[:4]
+        d["business"] = {"metric": metric_value(bc, metric), "deploy_cost_pln": bc["deploy_cost_pln"],
+                         "adopters": bc["adopters"], "payback": bc["payback"], "funding": [x["programme"] for x in bc["funding"][:2]]}
+        out.append(d)
     out.sort(key=lambda d: (-d["match"], -math.log10(1 + d["business"]["metric"])))
     return {"profile": {"role": role, "voivodeship": voivodeship, "sectors": sorted(want_sectors), "budget": budget,
                         "stage": stage, "goal": goal}, "metric": metric, "total": len(out), "items": out[:min(limit, 60)]}

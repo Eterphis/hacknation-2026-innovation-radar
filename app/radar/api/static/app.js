@@ -75,8 +75,10 @@ async function route() {
   $$("#nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#/" + path));
   document.body.classList.toggle("reels-on", path === "rolki");
   const v = $("#view");
+  v.setAttribute("aria-busy", "true");  // screen readers wait for the view; tests wait for this instead of sleeping
   v.innerHTML = '<div class="skel" style="width:40%;height:2.4rem;margin-top:2rem"></div><div class="skel"></div><div class="skel" style="width:70%"></div>';
   try { await (ROUTES[path] || pageHome)(v); } catch (e) { v.innerHTML = empty("Nie udało się wczytać widoku: " + e); }
+  v.removeAttribute("aria-busy");
   stagger(v); window.scrollTo(0, 0);
 }
 const go = (path, f) => { const q = qs(f || {}); location.hash = "#/" + path + (q ? "?" + q : ""); };
@@ -123,7 +125,7 @@ async function drawPoland(el, reg, opts = {}) {
   const val = r => mode === "gap" ? Math.max(0, r.gap) : r.selected;
   const max = Math.max(0.0001, ...reg.regions.map(val));
   const fill = r => { const t = val(r) / max; return t <= 0 ? "var(--white)" : `color-mix(in srgb, var(--red) ${Math.round(12 + 88 * t)}%, var(--white))`; };
-  el.innerHTML = `<svg class="pl-map" viewBox="${POLAND.viewBox}" role="img" aria-label="Mapa Polski: ${mode === "gap" ? "luki" : "liczba pomysłów"} w województwach">
+  el.innerHTML = `<svg class="pl-map" viewBox="${POLAND.viewBox}" role="group" aria-label="Mapa Polski: ${mode === "gap" ? "luki" : "liczba pomysłów"} w województwach">
     ${POLAND.regions.map(p => { const r = by[p.name] || {selected: 0, gap: 0, ideas: 0};
       const lab = `${p.name}: ${r.selected} pomysłów${mode === "gap" && r.gap > 0 ? ", luka " + r.gap : ""}`;
       return `<path d="${p.d}" fill="${fill(r)}" data-v="${esc(p.name)}" class="${opts.selected === p.name ? "sel" : ""}" tabindex="0" role="button" aria-label="${esc(lab)}"/>`; }).join("")}
@@ -486,13 +488,15 @@ async function pageDeploy(v) {
 // ------------------------------------------------------------------ CARD drawer
 // ------------------------------------------------------------------ command bar (+ voice where supported)
 const cmd = $("#cmd"), cq = $("#cmdq");
-function openCmd() { cmd.classList.add("on"); cq.value = ""; cq.focus();
+let cmdOpener = null;  // Escape returns focus to whatever opened the search
+function openCmd() { if (!cmd.classList.contains("on")) cmdOpener = document.activeElement; cmd.classList.add("on"); cq.value = ""; cq.focus();
   $("#hints").innerHTML = [["seniorzy", "users"], ["smog", "wifi"], ["kompozyty", "layers"], ["wodór", "zap"], ["e-usługi", "monitor"], ["edukacja", "book-open"]].map(([h, ic]) => `<button class="chip" data-h="${h}">${icon(ic)}${h}</button>`).join("");
   $$("[data-h]", cmd).forEach(b => b.onclick = () => search(b.dataset.h)); }
-function search(q) { cmd.classList.remove("on"); go("odkrywaj", {q}); }
-$("#cmdbtn").onclick = openCmd; cmd.onclick = e => { if (e.target === cmd) cmd.classList.remove("on"); };
-cq.onkeydown = e => { if (e.key === "Enter" && cq.value.trim()) search(cq.value.trim()); if (e.key === "Escape") cmd.classList.remove("on"); };
-document.addEventListener("keydown", e => { if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); openCmd(); } if (e.key === "Escape") { closeCard(); cmd.classList.remove("on"); } });
+function closeCmd() { if (!cmd.classList.contains("on")) return; cmd.classList.remove("on"); const o = cmdOpener; cmdOpener = null; if (o && o.focus && document.body.contains(o)) o.focus(); }
+function search(q) { cmd.classList.remove("on"); cmdOpener = null; go("odkrywaj", {q}); }
+$("#cmdbtn").onclick = openCmd; cmd.onclick = e => { if (e.target === cmd) closeCmd(); };
+cq.onkeydown = e => { if (e.key === "Enter" && cq.value.trim()) search(cq.value.trim()); if (e.key === "Escape") closeCmd(); };
+document.addEventListener("keydown", e => { if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); openCmd(); } if (e.key === "Escape") { closeCard(); closeCmd(); } });
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SR) { const mic = $("#mic"); mic.hidden = false; mic.innerHTML = icon("mic"); mic.onclick = () => { const r = new SR(); r.lang = "pl-PL"; mic.classList.add("on");
   r.onresult = e => { const t = e.results[0][0].transcript; cq.value = t; search(t); }; r.onend = () => mic.classList.remove("on"); r.start(); }; }

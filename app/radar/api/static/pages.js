@@ -13,7 +13,7 @@ function header(pre, preIcon, title, lead, actions = "", banner = "") {
   return `<div class="page-header reveal ${banner ? "has-banner" : ""}" ${banner ? `style="--banner:url('${bannerImg(banner)}')"` : ""}><div><p class="pretitle">${icon(preIcon)}${pre}</p><h1>${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ""}</div>${actions}</div>`;
 }
 function emptyArt(kind, msg, action = "") {
-  return `<div class="empty art reveal"><img src="/static/empty/${kind}.webp" alt="" loading="lazy" onerror="this.remove()"><p>${esc(msg)}</p>${action}</div>`;
+  return `<div class="empty art reveal"><img src="/static/empty/${kind}.webp" alt="" width="160" height="160" decoding="async" loading="lazy" data-ai onerror="this.remove()"><small class="ai-note">${icon("sparkles")}ilustracja AI</small><p>${esc(msg)}</p>${action}</div>`;
 }
 
 // saved ideas (this browser) + community likes (server, anonymous voter id)
@@ -30,8 +30,21 @@ async function like(id) {
   r.liked ? liked.add(id) : liked.delete(id); saveLiked(); return r;
 }
 const IDX = {};  // card_id -> idea (for save buttons inside lists)
-const likeBtn = (id, n) => `<button class="mini-act like-b ${liked.has(id) ? "on" : ""}" data-like="${id}" aria-pressed="${liked.has(id)}" aria-label="Polub (ocena społeczności)" title="Ocena społeczności">${icon("heart")}<span>${n || 0}</span></button>`;
+// visible count first in the accessible name (WCAG 2.5.3 label in name), the action after it for screen readers
+const likeBtn = (id, n) => `<button class="mini-act like-b ${liked.has(id) ? "on" : ""}" data-like="${id}" aria-pressed="${liked.has(id)}" title="Ocena społeczności">${icon("heart")}<span>${n || 0}</span><span class="sr-only"> polubień, polub (ocena społeczności)</span></button>`;
 const saveBtn = id => `<button class="mini-act save-b ${SAVED[id] ? "on" : ""}" data-save="${id}" aria-pressed="${!!SAVED[id]}" aria-label="Zapisz" title="${SAVED[id] ? "Zapisane" : "Zapisz na później"}">${icon("bookmark")}</button>`;
+
+// WAI-ARIA tabs: arrows / Home / End move between tabs (roving tabindex), the panel is labelled by the active tab
+function ariaTabs(list, panel, pick) {
+  const tabs = $$('[role="tab"]', list);
+  const set = t => { tabs.forEach(b => { const on = b === t; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; b.classList.toggle("on", on); });
+    panel.setAttribute("aria-labelledby", t.id); };
+  tabs.forEach(b => { b.setAttribute("aria-controls", panel.id); b.onclick = () => { set(b); pick(b); }; });
+  list.addEventListener("keydown", e => { const i = tabs.indexOf(document.activeElement); if (i < 0) return;
+    const j = {ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1}[e.key]; if (j === undefined) return;
+    e.preventDefault(); const t = tabs[(j + tabs.length) % tabs.length]; t.focus(); set(t); pick(t); });
+  return set;
+}
 
 function ideaItem(i, extra = "") {
   IDX[i.card_id] = i;
@@ -69,7 +82,7 @@ function openCard(id) { if (id) location.hash = "#/pomysl/" + id; }
 function closeCard() { $("#scrim")?.classList.remove("on"); $("#drawer")?.classList.remove("on"); }
 
 // ------------------------------------------------------------------ boot loader + route progress (Poland's border draws itself)
-const LOADER = {n: 0, total: 4, done() { this.n++; this.set(this.n / this.total); },
+const LOADER = {n: 0, total: 3, done() { this.n++; this.set(this.n / this.total); },
   set(p) { const path = $("#ld-path"), shape = $("#pl-shape"); if (!path || !shape) return; const L = shape.getTotalLength(); path.style.strokeDasharray = L; path.style.strokeDashoffset = L * (1 - Math.min(1, p));
     const pct = $("#ld-pct"); if (pct) pct.textContent = Math.round(Math.min(1, p) * 100) + "%"; },
   t0: performance.now(),
@@ -86,7 +99,8 @@ route = async function () {
   if (FIRST) { FIRST = false; LOADER.hide(); }
 };
 window.removeEventListener("hashchange", _route); window.addEventListener("hashchange", () => route());
-api("/static/poland.json").then(p => { POLAND = POLAND || p; LOADER.done(); }).catch(() => LOADER.done());
+// the loader draws Poland from the outline inlined in index.html (#pl-shape); the full 92 KB poland.json is fetched
+// only by drawPoland(): on #/mapa, #/wdrozenia, or when the home page's mini map scrolls into view (cached in POLAND)
 api("/api/labels").then(() => LOADER.done()).catch(() => LOADER.done());
 api("/api/personas").then(p => { PERSONAS = PERSONAS || p; LOADER.done(); }).catch(() => LOADER.done());
 
@@ -111,8 +125,8 @@ async function pageHome(v) {
       .map(([ic, n, t]) => `<div class="kpi reveal">${icon(ic)}<b data-count="${n}">${n}</b><span>${t}</span></div>`).join("")}</div>
     <section class="sec-block reveal"><div class="sec-h"><h2>Kim jesteś?</h2><span class="faint">pokażemy to, co ma dla Ciebie sens biznesowy</span></div>
       <div class="who-row">${PERSONAS.map(p => `<a class="who-chip" href="#/dopasuj?edit=1&role=${p.key}" style="--img:url('${heroImg(p.key)}')"><span>${icon(p.icon)}</span><b>${esc(p.name.split(" i ")[0])}</b></a>`).join("")}</div></section>
-    <section class="sec-block reveal"><div class="sec-h"><h2>Na dziś</h2><div class="tabs" role="tablist">${TABS.map(([key, lab, ic], n) => `<button role="tab" class="tab ${n ? "" : "on"}" data-tab="${key}" aria-selected="${!n}">${icon(ic)}${lab}</button>`).join("")}</div></div>
-      <p class="faint rule" id="hrule"></p><div class="tiles" id="hpicks"></div><a class="more" id="hmore" href="#/odkrywaj">Zobacz wszystkie ${icon("arrow-right")}</a></section>
+    <section class="sec-block reveal"><div class="sec-h"><h2>Na dziś</h2><div class="tabs" role="tablist" aria-label="Na dziś">${TABS.map(([key, lab, ic], n) => `<button role="tab" id="htab-${key}" class="tab ${n ? "" : "on"}" data-tab="${key}" aria-selected="${!n}" tabindex="${n ? -1 : 0}">${icon(ic)}${lab}</button>`).join("")}</div></div>
+      <p class="faint rule" id="hrule"></p><div class="tiles" id="hpicks" role="tabpanel" aria-labelledby="htab-standouts"></div><a class="more" id="hmore" href="#/odkrywaj">Zobacz wszystkie ${icon("arrow-right")}</a></section>
     <section class="sec-block reveal"><div class="sec-h"><h2>Rynek w pigułce</h2><a class="more" href="#/klastry">Tematy i rynki ${icon("arrow-right")}</a></div>
       <div class="grid g-5-7 start"><div class="card">${cardH("map", "Gdzie powstają", "kliknij województwo")}<div class="card-b" id="minimap"></div></div>
       <div class="card">${cardH("trending-up", "Gorące obszary", "rozpęd: nowe pomysły, oceny i polubienia", "", true)}<div class="card-b"><div class="bars">${d.trends.slice(0, 7).map(t => `<div class="bar" data-tech="${esc(t.key)}">${icon(TECH_ICON[t.key] || "layers")}<span>${esc(t.pl)}</span><div class="track"><i style="width:${Math.round(t.heat / Math.max(...d.trends.map(x => x.heat), 1) * 100)}%"></i></div><span class="v">${t.heat}</span></div>`).join("")}</div></div></div></div></section>`;
@@ -120,10 +134,13 @@ async function pageHome(v) {
     const box = $("#hpicks"); box.classList.add("fade"); setTimeout(() => { box.innerHTML = (d[key] || []).slice(0, 6).map(ideaTile).join("") || `<p class="faint">Brak pozycji.</p>`;
       box.classList.remove("fade"); stagger(box); bindCards(box); }, 140);
     $("#hrule").textContent = d.rules[key] || ""; $("#hmore").href = "#/odkrywaj?" + qs(MORE[key] || {}); };
-  $$(".tab", v).forEach(b => b.onclick = () => show(b.dataset.tab)); show("standouts");
+  ariaTabs($(".sec-h [role=tablist]", v), $("#hpicks"), b => show(b.dataset.tab)); show("standouts");
   countUp(v);
   $$(".bar[data-tech]", v).forEach(b => b.onclick = () => go("odkrywaj", {tech_area: b.dataset.tech}));
-  drawPoland($("#minimap"), await api("/api/regions"), {compact: true});
+  const mm = $("#minimap"), drawMini = () => api("/api/regions").then(reg => drawPoland(mm, reg, {compact: true}))
+    .catch(e => { mm.innerHTML = empty("Nie udało się wczytać mapy: " + e); });
+  if (window.IntersectionObserver) { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); drawMini(); } }, {rootMargin: "300px"}); io.observe(mm); }
+  else await drawMini();
 }
 function countUp(root) { $$("[data-count]", root).forEach(el => { const n = +el.dataset.count; if (!n || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const t0 = performance.now(), dur = 900; const step = t => { const p = Math.min(1, (t - t0) / dur); el.textContent = Math.round(n * (1 - Math.pow(1 - p, 3))).toLocaleString("pl-PL"); if (p < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); }); }
@@ -159,12 +176,12 @@ async function pageIdea(v) {
     ${kpis.length ? `<div class="kpis4">${kpis.map(([ic, val, t]) => `<div class="kpi reveal">${icon(ic)}<b>${val}</b><span>${t}</span></div>`).join("")}</div>` : ""}
     <section class="card reveal idea-sum"><div class="card-b"><p class="pretitle">${icon("sparkles")}W skrócie</p><p class="clamp" id="sum">${esc(tidy(a.summary || c.summary_pl || ""))}</p><button class="link" id="sum-more">Czytaj całość</button>
       <div class="idea-acts">${saveBtnBig(c.id)}${dealActions(c)}</div></div></section>
-    <div class="tabs big reveal" role="tablist">${tabs.map(([k, l, ic], n) => `<button role="tab" class="tab ${n ? "" : "on"}" data-t="${k}" aria-selected="${!n}">${icon(ic)}${l}</button>`).join("")}</div>
-    <section class="card reveal"><div class="card-b" id="tabbody"></div></section>`;
+    <div class="tabs big reveal" role="tablist" aria-label="Szczegóły pomysłu">${tabs.map(([k, l, ic], n) => `<button role="tab" id="tab-${k}" class="tab ${n ? "" : "on"}" data-t="${k}" aria-selected="${!n}" tabindex="${n ? -1 : 0}">${icon(ic)}${l}</button>`).join("")}</div>
+    <section class="card reveal"><div class="card-b" id="tabbody" role="tabpanel" tabindex="0" aria-labelledby="tab-${tabs[0][0]}"></div></section>`;
   const showTab = k => { const t = tabs.find(x => x[0] === k); $$(".tab[data-t]", v).forEach(b => { const on = b.dataset.t === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
     const box = $("#tabbody"); box.classList.add("fade"); setTimeout(() => { box.innerHTML = t[3](); box.classList.remove("fade"); bindCards(box);
       $$("[data-d]", box).forEach(bt => bt.onclick = async () => { await api(`/api/cards/${id}/decision`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({decision: bt.dataset.d})}); toast("Zapisano decyzję"); }); }, 120); };
-  $$(".tab[data-t]", v).forEach(b => b.onclick = () => showTab(b.dataset.t)); showTab(tabs[0][0]);
+  ariaTabs($(".tabs[role=tablist]", v), $("#tabbody"), b => showTab(b.dataset.t)); showTab(tabs[0][0]);
   $("#sum-more").onclick = () => { $("#sum").classList.toggle("open"); $("#sum-more").textContent = $("#sum").classList.contains("open") ? "Zwiń" : "Czytaj całość"; };
   bindDealActions(c);
   const sb = $("#savebig"); sb.onclick = () => { const on = toggleSave(idea); sb.classList.toggle("on", on); sb.innerHTML = icon("bookmark") + (on ? "Zapisane" : "Zapisz"); toast(on ? "Zapisano · Portfel → Zapisane" : "Usunięto z zapisanych"); };
@@ -282,14 +299,17 @@ function wizard(v, prof) {
   const steps = flowFor(prof), st = steps[prof.step], opts = st.opts(prof), total = steps.length;
   const sel = val => st.multi ? (prof[st.k] || []).includes(val) : prof[st.k] === val;
   v.innerHTML = `<section class="wiz">
-    <div class="wiz-side reveal"><img src="/static/wizard/${st.img}.webp" alt="" onerror="this.style.visibility='hidden'"></div>
+    <div class="wiz-side reveal"><img src="/static/wizard/${st.img}.webp" alt="" width="480" height="480" decoding="async" data-ai onerror="this.style.visibility='hidden'"><span class="reel-ai">${icon("sparkles")}ilustracja AI</span></div>
     <div class="wiz-main"><div class="wiz-top"><p class="pretitle">${icon("target")}Dopasuj radar · ${prof.step + 1} z ${total}</p><div class="wiz-bar"><i style="width:${(prof.step + 1) / total * 100}%"></i></div></div>
-      <div class="wiz-q" key="${prof.step}"><h1>${esc(st.q)}</h1>${st.hint ? `<p class="lead">${esc(st.hint)}</p>` : ""}
+      <div class="wiz-q" key="${prof.step}"><h1 tabindex="-1">${esc(st.q)}</h1>${st.hint ? `<p class="lead">${esc(st.hint)}</p>` : ""}
       <div class="wiz-opts ${opts.length > 8 ? "many" : ""}" role="${st.multi ? "group" : "radiogroup"}">${opts.map(([val, lab, ic]) => `<button class="wiz-opt ${sel(val) ? "on" : ""}" data-v="${esc(val)}" role="${st.multi ? "checkbox" : "radio"}" aria-checked="${sel(val)}">${avatar(ic)}<span>${esc(lab)}</span>${st.multi ? `<i class="tick">${icon("check")}</i>` : ""}</button>`).join("")}</div></div>
       <div class="chips wiz-nav">${prof.step ? `<button class="btn-soft" id="wback">${icon("chevron-left")}Wstecz</button>` : ""}
         ${st.multi ? `<button class="btn" id="wnext">${icon("arrow-right")}<span id="wnl">${(prof[st.k] || []).length ? "Dalej" : "Wszystkie obszary"}</span></button>` : ""}
-        ${st.skip ? `<button class="btn-soft" id="wskip">Pomiń</button>` : ""}</div></div></section>`;
-  const next = () => { if (prof.step < total - 1) { prof.step++; anim(v, () => wizard(v, prof)); } else { delete prof.step; saveProfile(prof); go("dopasuj", {}); } };
+        ${st.skip ? `<button class="btn-soft" id="wskip">Pomiń</button>` : ""}
+        ${prof.step >= 3 && prof.step < total - 1 ? `<button class="btn-soft" id="wnow">${icon("check")}Pokaż wyniki</button>` : ""}</div></div></section>`;
+  // results: a hash change re-routes; when the wizard was opened from bare #/dopasuj the hash is already there
+  const finish = () => { delete prof.step; saveProfile(prof); if (location.hash === "#/dopasuj") route(); else go("dopasuj", {}); };
+  const next = () => { if (prof.step < total - 1) { prof.step++; WIZ_FOCUS = true; anim(v, () => wizard(v, prof)); } else finish(); };
   $$(".wiz-opt", v).forEach(b => b.onclick = () => {
     if (st.multi) {  // toggle in place: no re-render, no jump
       const s = new Set(prof[st.k] || []); s.has(b.dataset.v) ? s.delete(b.dataset.v) : s.add(b.dataset.v); prof[st.k] = [...s];
@@ -298,9 +318,13 @@ function wizard(v, prof) {
       $$(".wiz-opt", v).forEach(x => x.classList.toggle("on", x === b)); setTimeout(next, 180); } });
   if ($("#wnext")) $("#wnext").onclick = next;
   if ($("#wskip")) $("#wskip").onclick = () => { prof[st.k] = st.multi ? [] : ""; next(); };
-  if ($("#wback")) $("#wback").onclick = () => { prof.step--; anim(v, () => wizard(v, prof), true); };
+  if ($("#wback")) $("#wback").onclick = () => { prof.step--; WIZ_FOCUS = true; anim(v, () => wizard(v, prof), true); };
+  if ($("#wnow")) $("#wnow").onclick = finish;
+  // keyboard and screen-reader users land on the new question, not at the top of the page
+  if (WIZ_FOCUS) { WIZ_FOCUS = false; $(".wiz-q h1", v)?.focus({preventScroll: true}); }
   stagger(v);
 }
+let WIZ_FOCUS = false;
 function anim(v, fn, back = false) { const q = $(".wiz-main", v); if (!q || matchMedia("(prefers-reduced-motion: reduce)").matches) return fn();
   q.classList.add(back ? "out-back" : "out"); setTimeout(fn, 160); }
 function matchCard(i, metric) {
@@ -317,12 +341,12 @@ function matchCard(i, metric) {
 // ------------------------------------------------------------------ ROLKI (illustration you can see, three facts, one action)
 async function pageReels(v) {
   const items = await api("/api/feed?limit=50");
-  v.innerHTML = `<div class="reels" id="reels">${items.map((i, n) => { const b = i.brief || {}, lvl = LVLK[b.maturity] ?? 0; IDX[i.card_id] = {...i, title: b.solution, maturity: b.maturity, score: b.score};
+  v.innerHTML = `<h1 class="sr-only">Rolki: pomysły w skrócie</h1><div class="reels" id="reels">${items.map((i, n) => { const b = i.brief || {}, lvl = LVLK[b.maturity] ?? 0; IDX[i.card_id] = {...i, title: b.solution, maturity: b.maturity, score: b.score};
     return `<section class="reel" data-n="${n}" aria-label="Pomysł ${n + 1} z ${items.length}" style="--reel-bg:url('${sectorImg(i.sector) || heroImg("innowatorzy")}')">
       <article class="reel-card"><div class="reel-art" style="--img:url('${sectorImg(i.sector) || heroImg("innowatorzy")}')"><div class="reel-progress" aria-hidden="true"><i></i></div>
           <div class="plates">${sectorPlate(i.sector, "sm glass")}${locPlate(i, "sm glass")}</div><span class="reel-ai">${icon("sparkles")}ilustracja AI</span></div>
         <div class="reel-body"><div class="reel-top">${avatar(INST_ICON[i.institution_type] || "building-2")}<div class="who"><b>${esc(i.institution || INST_PL[i.institution_type] || "Instytucja")}</b><small>${esc(INST_PL[i.institution_type] || "")} ${demo(i.synthetic)}</small></div>${ring(b.score, "sm")}</div>
-          <div class="reel-title">${esc(b.solution)}</div>
+          <h2 class="reel-title">${esc(b.solution)}</h2>
           <div class="reel-hook">${esc(tidy(b.hook))}</div>
           <div class="reel-facts"><div>${icon("banknote")}<small>Budżet</small><b>${esc(i.amount ? pln(i.amount) : (COST_RANGE[i.cost_level] || "—"))}</b></div>
             <div>${icon("gauge")}<small>Etap</small><b>${esc(LVL[lvl])}</b></div><div>${icon("target")}<small>Pierwszy krok</small><b>${esc(short(b.next_step || "—", 60))}</b></div></div>
@@ -359,8 +383,8 @@ async function pageClusters(v) {
         <div class="cl-b"><h3>${esc(c.name)}</h3>${c.keywords?.length ? `<div class="kw">${c.keywords.slice(0, 4).map(w => `<span>${esc(w)}</span>`).join("")}</div>` : ""}
           <div class="mat" title="badania · technologia · gotowe · na rynku">${c.maturity.map((m, k) => `<i style="flex:${m / tot};" class="m${k}"></i>`).join("")}</div>
           <div class="plates">${plate("circle-check", c.ready + " gotowych", "", "sm")}${plate("map-pin", c.regions + " woj.", "", "sm red")}${c.adopters ? plate("users", c.adopters.toLocaleString("pl-PL") + " odbiorców", "", "sm") : ""}${plate("heart", c.likes + " polubień", "", "sm")}</div>
-          <button class="link cl-open" aria-expanded="false">${icon("chevron-down")}Pokaż najlepsze</button></div>
-        <div class="cl-items"><div class="items">${c.items.map(i => ideaItem(i)).join("")}</div>
+          <button class="link cl-open" aria-expanded="false" aria-controls="cl-${n}">${icon("chevron-down")}Pokaż najlepsze</button></div>
+        <div class="cl-items" id="cl-${n}"><div class="items">${c.items.map(i => ideaItem(i)).join("")}</div>
           ${c.sector ? `<a class="more" href="#/odkrywaj?${qs({sector: c.sector, tech_area: c.tech_area || ""})}">Wszystkie ${c.size} ${icon("arrow-right")}</a>` : ""}</div></article>`; }).join("") || emptyArt("brak", "Za mało danych do grupowania.")}</div>`;
   $$("[data-mode]", v).forEach(b => b.onclick = () => go("klastry", {mode: b.dataset.mode}));
   $$(".cl-open", v).forEach(b => b.onclick = () => { const el = b.closest(".cluster"), on = !el.classList.contains("open"); el.classList.toggle("open", on); b.setAttribute("aria-expanded", on); b.innerHTML = icon("chevron-down") + (on ? "Zwiń" : "Pokaż najlepsze"); });

@@ -95,3 +95,23 @@ Format wpisu: nagłówek drugiego poziomu `Q-<kolejny numer, 3 cyfry> [open] <ty
 - **Termin:** 2026-11-21 14:15
 - **Domyślnie:** A
 - **Odpowiedź:** A z zawężeniami po przepytaniu (człowiek, 13:55), zob. D-008
+
+## Q-008 [open] Dane demo nie mają klastra „AI w zdrowiu” ani pomysłu z Pomorza gotowego do wdrożenia (issue #31)
+- **Kontekst:** Scenariusz demo z issue #31 kończy się na klastrze „AI w zdrowiu” i zaczyna od samorządu z Pomorza. W `app/samples/` jest 23 pomysłów: 1 z obszarem `ai_dane` (sektor ICT), 0 z `ai_dane` w `Q_zdrowie`; jedyny pomysł z Pomorza („Magazyn ciepła z piasku…”) jest na etapie `tech_ready`, a ścieżka samorządu premiuje `business_ready`, więc nie jest pierwszym wynikiem. Nie dopisano niczego do UI; `docs/scenariusz-demo.md` i `e2e/tests/demo.spec.ts` używają klastra „… · Opieka zdrowotna i pomoc społeczna” i wyniku oznaczonego „Twój region: pomorskie” (`.house/reports/issue-31.md`).
+- **Opcje:** A) dopisać 2–3 syntetyczne, oznaczone zgłoszenia do `app/samples/zgloszenia.jsonl` (AI w diagnostyce lub rejestracji pacjentów; rozwiązanie z Pomorza gotowe do wdrożenia) i przejść cały `pytest` w `app/` B) zostawić dane, mówić na demo o klastrze zdrowia C) inne
+- **Rekomendacja:** A, bo scenariusz z issue zadziała dosłownie, a próbki i tak są oznaczone jako syntetyczne.
+- **Blokuje:** dosłowne odtworzenie scenariusza z issue #31 (nie blokuje demo)
+- **Poziom:** średni
+- **Termin:** przed nagraniem demo
+- **Domyślnie:** B
+- **Odpowiedź:** —
+
+## Q-009 [open] „3 kliknięcia do wyniku” w kreatorze (issue #31)
+- **Kontekst:** Żadna ścieżka kreatora nie kończyła się po roli i 2 odpowiedziach (samorząd ma 4 pytania po roli). Dodano przycisk „Pokaż wyniki” od 4. kroku (po roli i 2 odpowiedziach; reszta pytań przyjmuje wartości domyślne). Test mierzy: rola → 2 odpowiedzi → „Pokaż wyniki” → pierwsza karta wyniku (lokalnie ~3 s, próg 20 s).
+- **Opcje:** A) zostaje przycisk „Pokaż wyniki” B) kreator sam pokazuje wyniki po 2 odpowiedziach, a dalsze pytania jako filtry na stronie wyników C) inne
+- **Rekomendacja:** A, bo nie zmienia istniejących ścieżek, a dodatkowe pytania nadal poprawiają dopasowanie.
+- **Blokuje:** nic
+- **Poziom:** niski
+- **Termin:** —
+- **Domyślnie:** A
+- **Odpowiedź:** —

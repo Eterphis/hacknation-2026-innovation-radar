@@ -5,6 +5,8 @@
    recipes, dark palette. Layout follows the Tabler dashboard template: navbar, page header, cards, stat tiles. */
 :root, :root[data-theme="light"] {
   --bg:#EAE4D9; --band:#F3EEE6; --surface:#F6F2EB; --white:#FFFFFF;
+  /* images: tint laid over illustrations, and how far the scrim under banner text reaches (issue #31) */
+  --img-tint:transparent; --scrim-end:transparent; --scrim-solid:var(--bg);
   --ink:#141312; --ink-2:#4A4741; --ink-3:#66625B; --line:#DCD3C4;
   --red:#BE1A34; --red-2:#B0122D; --red-ink:#FFFFFF; --red-soft:#F6D9DD; --btn:#D21F3C;
   --good:#1F7A3D; --warn:#7F5600;
@@ -20,6 +22,8 @@
 }
 :root[data-theme="dark"] {
   --bg:#1B1917; --band:#211F1C; --surface:#25221F; --white:#2C2925;
+  /* the Higgsfield illustrations are bright beige: dim them, and keep a scrim under text across the whole banner */
+  --img-tint:rgba(18,16,14,.38); --scrim-end:color-mix(in srgb, var(--bg) 50%, transparent); --scrim-solid:var(--bg);
   --ink:#F3EFE8; --ink-2:#CBC5BA; --ink-3:#9C968B; --line:#36322C;
   --red:#F0627A; --red-2:#C9304A; --red-ink:#FFFFFF; --red-soft:#3A2227; --btn:#C9304A;
   --good:#4CC27A; --warn:#E0B44C;
@@ -319,7 +323,7 @@ body.reels-on .foot { display:none; }
 .cmp-head { align-items:stretch; } .cmp-h { display:grid; gap:.35rem; padding:1rem; border-radius:var(--r-lg); box-shadow:var(--sh); cursor:pointer; }
 .cmp-h b { line-height:1.3; } .cmp-l { color:var(--ink-3); font:600 .8125rem var(--sans); }
 .cmp-v { padding:.6rem .8rem; border-radius:12px; box-shadow:var(--sh-in); font:600 .9375rem var(--sans); } .cmp-v small { display:none; }
-.cmp-v.best { background:var(--red); color:#fff; box-shadow:none; }
+.cmp-v.best { background:var(--btn); color:var(--red-ink); box-shadow:none; }  /* --btn: white text >= 4.5:1 in both themes */
 .biz-cta a { color:inherit; display:inline-flex; gap:.35rem; align-items:center; }
 select.chip { appearance:none; padding-right:1rem; }
 @media (max-width: 720px) {

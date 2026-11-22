@@ -11,8 +11,8 @@ if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {};
 function guideDock() {
   if ($("#gdock")) return;
   const d = document.createElement("div"); d.id = "gdock"; d.className = "gdock";
-  d.innerHTML = `<button class="gface" id="gface" aria-label="Przewodnik: posłuchaj albo poproś o pomoc"><img alt=""><span class="gwave"><i></i><i></i><i></i></span></button>
-    <section class="gpanel" id="gpanel" aria-live="polite" hidden><div class="ghead"><img alt=""><div><b id="gname"></b><small id="grole"></small></div>
+  d.innerHTML = `<button class="gface" id="gface" aria-label="Przewodnik: posłuchaj albo poproś o pomoc" aria-expanded="false" aria-controls="gpanel"><img alt="" width="68" height="68" decoding="async" data-ai><span class="gwave"><i></i><i></i><i></i></span></button><span class="gai" aria-hidden="true">AI</span>
+    <section class="gpanel" id="gpanel" aria-live="polite" hidden><div class="ghead"><img alt="" width="84" height="84" decoding="async" data-ai><div><b id="gname"></b><small id="grole"></small></div>
       <button class="btn-icon" id="gclose" aria-label="Zamknij">${icon("x")}</button></div>
       <p class="gsub" id="gsub"></p><div class="gmeta" id="gmeta"></div>
       <div class="chips gacts"><button class="btn-soft" id="gstop">${icon("x")}Zatrzymaj</button><a class="btn-soft" href="#/dopasuj?edit=1">${icon("target")}Pomóż mi wybrać</a></div>
@@ -26,12 +26,14 @@ function guideDock() {
 function paintGuide() {
   if (!GUIDE) return;
   $$("#gdock img").forEach(i => { i.src = GUIDE.img; });
-  $("#gname").textContent = GUIDE.name; $("#grole").textContent = GUIDE.role;
-  $("#gpick").innerHTML = (GUIDES || []).map(g => `<button class="gp ${g.key === GUIDE.key ? "on" : ""}" data-g="${g.key}" title="${esc(g.name)}"><img src="${g.img}" alt="${esc(g.name)}"></button>`).join("");
+  $("#gname").textContent = GUIDE.name; $("#grole").textContent = GUIDE.role + " · portret: ilustracja AI";
+  $("#gpick").innerHTML = (GUIDES || []).map(g => `<button class="gp ${g.key === GUIDE.key ? "on" : ""}" data-g="${g.key}" title="${esc(g.name)}"><img src="${g.img}" alt="${esc(g.name)}" width="40" height="40" decoding="async" loading="lazy" data-ai></button>`).join("");
   $$("#gpick [data-g]").forEach(b => b.onclick = () => { try { localStorage.setItem("radar-guide", b.dataset.g); } catch (e) {}
     GUIDE = GUIDES.find(g => g.key === b.dataset.g); paintGuide(); say(`Cześć, tu ${GUIDE.name}, ${GUIDE.role}. Wejdź w pomysł i kliknij „Posłuchaj”, a opowiem Ci o nim.`); });
 }
-function togglePanel(open) { const p = $("#gpanel"); const on = open ?? p.hidden; p.hidden = !on; $("#gdock").classList.toggle("open", on); }
+function togglePanel(open) { const p = $("#gpanel"); const on = open ?? p.hidden; p.hidden = !on; $("#gdock").classList.toggle("open", on); $("#gface").setAttribute("aria-expanded", on); }
+// Escape closes the guide's panel and puts focus back on the portrait that opened it
+document.addEventListener("keydown", e => { const p = $("#gpanel"); if (e.key !== "Escape" || !p || p.hidden) return; stopSpeech(); togglePanel(false); $("#gface").focus(); });
 function stopSpeech() { try { speechSynthesis.cancel(); } catch (e) {} SPEAKING = false; $("#gdock")?.classList.remove("talking"); }
 
 function say(text, meta = "") {
@@ -69,7 +71,7 @@ pageIdea = async function (v) {
   await _pageIdea(v);
   const acts = $(".idea-acts", v); if (!acts) return;
   await loadGuides();
-  acts.insertAdjacentHTML("afterbegin", `<button class="btn guide-btn" id="glisten"><img src="${GUIDE.img}" alt="">Posłuchaj: ${esc(GUIDE.name)} opowie</button>`);
+  acts.insertAdjacentHTML("afterbegin", `<button class="btn guide-btn" id="glisten"><img src="${GUIDE.img}" alt="" width="26" height="26" decoding="async" data-ai>Posłuchaj: ${esc(GUIDE.name)} opowie</button>`);
   $("#glisten").onclick = () => tellAbout(+F._sub);
 };
 ROUTES.pomysl = pageIdea;
@@ -77,7 +79,7 @@ const _pageReels = pageReels;
 pageReels = async function (v) {
   await _pageReels(v); await loadGuides();
   $$(".reel-foot", v).forEach(f => { const id = +($("[data-rlike]", f)?.dataset.rlike); if (!id) return;
-    f.insertAdjacentHTML("beforeend", `<button class="btn-icon guide-mini" data-tell="${id}" aria-label="${esc(GUIDE.name)} opowie o projekcie" title="${esc(GUIDE.name)} opowie"><img src="${GUIDE.img}" alt=""></button>`); });
+    f.insertAdjacentHTML("beforeend", `<button class="btn-icon guide-mini" data-tell="${id}" aria-label="${esc(GUIDE.name)} opowie o projekcie" title="${esc(GUIDE.name)} opowie"><img src="${GUIDE.img}" alt="" width="44" height="44" decoding="async" loading="lazy" data-ai></button>`); });
   $$("[data-tell]", v).forEach(b => b.onclick = () => tellAbout(+b.dataset.tell));
 };
 ROUTES.rolki = pageReels;
@@ -87,7 +89,7 @@ wizard = function (v, prof) {
   if (!GUIDES) return;
   const g = GUIDES.find(x => x.key === (GUIDE_BY_ROLE[prof.role] || "radek")) || GUIDES[0];
   const hint = $(".wiz-q .lead", v);
-  if (hint) { hint.outerHTML = `<div class="wiz-guide"><img src="${g.img}" alt=""><p class="lead">${hint.innerHTML}</p><button class="btn-icon" id="wsay" aria-label="Przeczytaj na głos">${icon("mic")}</button></div>`;
+  if (hint) { hint.outerHTML = `<div class="wiz-guide"><img src="${g.img}" alt="" width="56" height="56" decoding="async" data-ai><p class="lead">${hint.innerHTML}</p><button class="btn-icon" id="wsay" aria-label="Przeczytaj na głos">${icon("mic")}</button></div>`;
     $("#wsay").onclick = () => { GUIDE = g; say($(".wiz-q h1", v).textContent + " " + $(".wiz-guide .lead", v).textContent); }; }
   const side = $(".wiz-side img", v); if (side && prof.role) { side.src = g.img; side.classList.add("guide-portrait"); }
 };
