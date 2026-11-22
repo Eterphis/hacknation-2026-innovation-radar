@@ -88,7 +88,7 @@ pageHome = async function (v) {
   $$("[data-goreg]", v).forEach(b => b.onclick = () => go("mapa", {voivodeship: b.dataset.goreg}));
   $("#pickscope", v).onclick = e => { e.stopPropagation(); $("#scopebtn").click(); };
   // the old map further down repeats this one
-  const old = $("#minimap", v)?.closest(".card"); if (old) { old.parentElement.style.gridTemplateColumns = "minmax(0, 1fr)"; old.remove(); }
+  $("#minimap", v)?.closest(".sec-block")?.remove();  // trends live in Klastry: the home page keeps ~7 things
 };
 ROUTES[""] = pageHome;
 const _pageMap4 = pageMap;

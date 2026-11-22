@@ -23,7 +23,6 @@ export const ROUTE_DEFS: RouteDef[] = [
   { key: "portfel", name: "portfel: lejek", visits: one("#/portfel?tab=lejek", "portfel-lejek") },
   { key: "portfel", name: "portfel: zapisane", visits: one("#/portfel?tab=zapisane", "portfel-zapisane") },
   { key: "zapisane", name: "zapisane", visits: one("#/zapisane", "zapisane") },
-  { key: "zglos", name: "zgłoś", visits: one("#/zglos", "zglos") },
 ];
 
 export const ROUTE_KEYS = [...new Set(ROUTE_DEFS.map(r => r.key))].sort();
