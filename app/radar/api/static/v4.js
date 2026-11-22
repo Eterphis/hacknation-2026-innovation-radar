@@ -38,7 +38,7 @@ function paintScope() {
 // ------------------------------------------------------------------ header tools
 function popover(btn, pop) {
   const close = () => { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); };
-  btn.onclick = e => { e.stopPropagation(); const open = pop.hidden; $$(".pop").forEach(p => { p.hidden = true; }); pop.hidden = !open; btn.setAttribute("aria-expanded", open);
+  btn.onclick = e => { e.stopPropagation(); const open = pop.hidden; $$(".tool-pop").forEach(p => { p.hidden = true; }); pop.hidden = !open; btn.setAttribute("aria-expanded", open);
     if (open) $("button", pop)?.focus(); };
   pop.addEventListener("click", e => e.stopPropagation());
   document.addEventListener("click", close);
@@ -48,9 +48,9 @@ async function headerTools() {
   const tools = $(".nav-tools"); if (!tools || $("#scopebtn")) return;
   tools.insertAdjacentHTML("afterbegin", `
     <div class="tool-wrap"><button class="scope-btn" id="scopebtn" aria-haspopup="true" aria-expanded="false" aria-controls="scopepop"></button>
-      <div class="pop" id="scopepop" hidden role="dialog" aria-label="Tryb pracy: województwo"><h2>Tryb pracy</h2><p>Wybierz województwo, a cała aplikacja pokaże tylko jego pomysły: przegląd, listy, rolki, dopasowanie i wdrożenia.</p><div class="rlist" id="rlist"></div></div></div>
+      <div class="tool-pop" id="scopepop" hidden role="dialog" aria-label="Tryb pracy: województwo"><h2>Tryb pracy</h2><p>Wybierz województwo, a cała aplikacja pokaże tylko jego pomysły: przegląd, listy, rolki, dopasowanie i wdrożenia.</p><div class="rlist" id="rlist"></div></div></div>
     <div class="tool-wrap"><button class="btn-icon" id="a11ybtn" aria-label="Dostępność: rozmiar tekstu, kontrast, animacje" title="Dostępność" aria-haspopup="true" aria-expanded="false" aria-controls="a11ypop">${icon("accessibility")}</button>
-      <div class="pop" id="a11ypop" hidden role="dialog" aria-label="Dostępność"><h2>Dostępność</h2><p>Ustawienia zostają w tej przeglądarce.</p>
+      <div class="tool-pop" id="a11ypop" hidden role="dialog" aria-label="Dostępność"><h2>Dostępność</h2><p>Ustawienia zostają w tej przeglądarce.</p>
         <div class="a11y-row"><span>${icon("type")} Rozmiar tekstu</span><div class="seg2" role="group" aria-label="Rozmiar tekstu">${["A", "A+", "A++", "A+++"].map((l, i) => `<button data-fs="${i}" aria-pressed="${A11Y.fs === i}" aria-label="Rozmiar ${[100, 112, 125, 144][i]}%">${l}</button>`).join("")}</div></div>
         ${A11Y_SWITCHES.map(([k, l, d]) => `<div class="a11y-row"><span><b>${l}</b><br><small class="faint">${d}</small></span><button class="switch" role="switch" data-sw="${k}" aria-checked="${!!A11Y[k]}" aria-label="${l}">${A11Y[k] ? "wł." : "wył."}</button></div>`).join("")}
         <button class="btn-soft reset" id="a11yreset">${icon("x")}Przywróć domyślne</button></div></div>`);
