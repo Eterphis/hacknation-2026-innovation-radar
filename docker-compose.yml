@@ -12,6 +12,8 @@ x-radar: &radar
     # set to http://llm:8080/v1 when running with `--profile local-llm`
     RADAR_LOCAL_LLM_URL: ${RADAR_LOCAL_LLM_URL:-}
     RADAR_LOCAL_LLM_TIMEOUT_S: ${RADAR_LOCAL_LLM_TIMEOUT_S:-300}
+    # small model only for the guides' narrations (pipeline stays on rules): e.g. http://llm:8080/v1
+    RADAR_GUIDE_LLM_URL: ${RADAR_GUIDE_LLM_URL:-}
     # hashing (default) | fastembed = multilingual-e5-small baked into the image (ONNX, CPU)
     RADAR_EMBEDDER: ${RADAR_EMBEDDER:-hashing}
     # USD per 1M tokens for radar_llm_cost_usd_total, e.g. {"anthropic":[3,15]}
@@ -44,14 +46,17 @@ services:
   worker-ingest:
     <<: *radar
     command: celery -A radar.pipeline.celery_app worker -Q harvest,normalize,resolve_org,dedup,gate,link -c 4 -n ingest@%h -E --loglevel=INFO
+    healthcheck: { test: ["CMD-SHELL", "celery -A radar.pipeline.celery_app inspect ping -d ingest@$$HOSTNAME -t 10"], interval: 60s, timeout: 30s, retries: 3, start_period: 30s }
 
   worker-llm:
     <<: *radar
     command: celery -A radar.pipeline.celery_app worker -Q extract,maturity,score -c 2 -n llm@%h -E --loglevel=INFO
+    healthcheck: { test: ["CMD-SHELL", "celery -A radar.pipeline.celery_app inspect ping -d llm@$$HOSTNAME -t 10"], interval: 60s, timeout: 30s, retries: 3, start_period: 30s }
 
   beat:
     <<: *radar
     command: celery -A radar.pipeline.celery_app beat --loglevel=INFO -s /tmp/celerybeat-schedule
+    healthcheck: { disable: true }  # beat has no endpoint; a stopped beat restarts (restart: unless-stopped)
 
   # Small Polish LLM on CPU (no GPU): `RADAR_LOCAL_LLM_URL=http://llm:8080/v1 docker compose --profile local-llm up`
   # First start downloads the GGUF (~1.7 GB for Q8_0) into the llm-cache volume.

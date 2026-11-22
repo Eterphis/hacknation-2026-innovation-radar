@@ -1,0 +1,32 @@
+/* guides: floating dock, talking portrait, subtitles */
+.gdock { position:fixed; left:22px; bottom:22px; z-index:150; display:flex; align-items:flex-end; gap:.75rem; }
+.gface { position:relative; width:68px; height:68px; padding:0; border:0; border-radius:50%; background:var(--bg); box-shadow:var(--sh); cursor:pointer; overflow:visible; transition:transform .2s ease-out; }
+.gface:hover { transform:translateY(-2px); }
+.gface img { width:100%; height:100%; object-fit:cover; border-radius:50%; border:3px solid var(--white); box-shadow:0 0 0 2px var(--red); }
+.gwave { position:absolute; right:-4px; bottom:-2px; display:flex; gap:2px; align-items:flex-end; height:16px; padding:3px 5px; border-radius:99px; background:var(--btn); opacity:0; transition:opacity .2s; }
+.gwave i { width:3px; height:4px; border-radius:2px; background:#fff; }
+.gdock.talking .gwave { opacity:1; } .gdock.talking .gwave i { animation:wave .6s ease-in-out infinite; }
+.gdock.talking .gwave i:nth-child(2) { animation-delay:.15s; } .gdock.talking .gwave i:nth-child(3) { animation-delay:.3s; }
+@keyframes wave { 50% { height:12px; } }
+.gdock.talking .gface img, .gdock.talking .ghead img { animation:talk .42s ease-in-out infinite alternate; transform-origin:50% 85%; }
+.gdock.beat .ghead img { box-shadow:0 0 0 4px color-mix(in srgb, var(--red) 45%, transparent); }
+@keyframes talk { from { transform:translateY(0) scale(1) rotate(0); } to { transform:translateY(-2px) scale(1.025) rotate(-.6deg); } }
+.gface img { animation:idle 4.5s ease-in-out infinite; } @keyframes idle { 50% { transform:translateY(-2px); } }
+.gpanel { width:min(380px, calc(100vw - 120px)); padding:1rem 1.1rem 1.1rem; border-radius:24px; background:var(--bg); box-shadow:var(--sh); animation:rise .3s cubic-bezier(.2,.7,.2,1) both; }
+.ghead { display:flex; gap:.75rem; align-items:center; } .ghead img { width:84px; height:84px; border-radius:22px; object-fit:cover; box-shadow:var(--sh-sm); transition:box-shadow .15s; }
+.ghead b { display:block; font-size:1.05rem; } .ghead small { color:var(--ink-3); font-size:.8125rem; line-height:1.3; display:block; } .ghead .btn-icon { margin-left:auto; align-self:flex-start; width:34px; height:34px; }
+.gsub { margin:.85rem 0 .5rem; font-size:.9375rem; line-height:1.55; color:var(--ink-3); max-height:42vh; overflow:auto; }
+.gsub span { transition:color .15s; } .gsub span.on { color:var(--ink); }
+.gmeta { margin-bottom:.6rem; } .gacts { gap:.5rem; }
+.gpick { display:flex; gap:.4rem; margin-top:.8rem; padding-top:.7rem; border-top:1px solid var(--line); }
+.gp { width:40px; height:40px; padding:0; border:0; border-radius:50%; background:none; cursor:pointer; opacity:.6; transition:opacity .15s, transform .15s; }
+.gp img { width:100%; height:100%; border-radius:50%; object-fit:cover; } .gp.on, .gp:hover { opacity:1; transform:scale(1.08); } .gp.on img { box-shadow:0 0 0 2px var(--red); }
+.guide-btn img { width:26px; height:26px; border-radius:50%; object-fit:cover; margin:-4px 2px -4px -6px; border:2px solid rgba(255,255,255,.8); }
+.guide-mini { padding:0; overflow:hidden; } .guide-mini img { width:100%; height:100%; object-fit:cover; }
+.wiz-guide { display:grid; grid-template-columns:auto 1fr auto; gap:.75rem; align-items:center; margin:0 0 1.25rem; }
+.wiz-guide img { width:56px; height:56px; border-radius:18px; object-fit:cover; box-shadow:var(--sh-sm); }
+.wiz-guide .lead { margin:0; padding:.6rem .9rem; border-radius:16px 16px 16px 4px; box-shadow:var(--sh-in); }
+.guide-portrait { animation:idle 5s ease-in-out infinite; }
+body.reels-on .gdock { display:none; }
+@media (max-width: 720px) { .gdock { left:12px; bottom:96px; } .gface { width:54px; height:54px; } .gpanel { width:calc(100vw - 90px); max-height:62vh; overflow:auto; } .gsub { max-height:30vh; } .ghead img { width:64px; height:64px; } }
+@media (prefers-reduced-motion: reduce) { .gface img, .gdock.talking .gface img, .gdock.talking .ghead img, .guide-portrait { animation:none; } }

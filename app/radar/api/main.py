@@ -57,6 +57,9 @@ app.include_router(partner_router)
 from radar.api.clusters import router as clusters_router  # noqa: E402
 
 app.include_router(clusters_router)
+from radar.api.guides import router as guides_router  # noqa: E402
+
+app.include_router(guides_router)
 from radar.observability import router as metrics_router, setup_logging  # noqa: E402
 
 app.include_router(metrics_router)

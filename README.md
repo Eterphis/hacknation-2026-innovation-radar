@@ -128,7 +128,10 @@ docker compose --profile observability up -d   # Grafana :3000 (dashboard „Rad
 
 - [Scenariusz walidacji a–e na 2 przypadkach](docs/scenariusz-walidacji.md)
 - [Samoocena wg kryteriów, modele i zasoby, wyłapywanie zgłoszeń, konta, obrazki i grupowanie](docs/ocena-i-zasoby.md)
+- [Kubernetes: skalowanie (KEDA/HPA) i obserwowalność](docs/kubernetes-i-obserwowalnosc.md) · [Bielik 1.5B: przykłady narracji](docs/bielik-przyklady.md) · test dymny: `python scripts/smoke.py http://localhost:8088`
 - [Stos technologiczny i modele](docs/stack.md) · [Ścieżki użytkowników i wartość biznesowa](docs/sciezki-uzytkownikow.md)
+
+**Przewodnicy:** pięć postaci (Higgsfield) czyta karty na głos głosem przeglądarki (pl-PL) z napisami; tekst z reguł albo z Bielika 1.5B (`/api/cards/{id}/pitch?guide=`), walidowany (żadnych nowych liczb), generowany raz na kartę.
 
 **Zgłoszenie innowacji:** `#/zglos` w aplikacji (bez konta) albo `POST /api/ingest/zgloszenia/manual`; status na żywo pod `/api/submissions/{raw_id}`. Zgłoszenia mają najwyższy priorytet w kolejce i nie są odrzucane po cichu. **Dowolna platforma z RSS/Atom:** `RADAR_RSS_FEEDS=https://…,https://…` (odpytywanie co 2 min warunkowym GET).
 
