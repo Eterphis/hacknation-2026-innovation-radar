@@ -25,14 +25,15 @@
   color:var(--ink-2); box-shadow:var(--sh-sm); font:600 .8125rem var(--sans); cursor:pointer; max-width:190px; }
 .scope-btn span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .scope-btn.on { color:var(--red); box-shadow:var(--sh-in); }
-.pop { position:absolute; z-index:60; top:calc(100% + .5rem); right:0; width:min(340px, calc(100vw - 32px)); background:var(--bg); border-radius:22px;
+/* header popovers: "tool-pop", not "pop" (that is the like button's click animation class) */
+.tool-pop { position:absolute; z-index:60; top:calc(100% + .5rem); right:0; width:min(340px, calc(100vw - 32px)); background:var(--bg); border-radius:22px;
   box-shadow:var(--sh), 0 18px 40px rgba(0,0,0,.12); padding:1rem; }
-.pop[hidden] { display:none; }
-.pop h2 { font-size:1rem; margin:0 0 .25rem; } .pop p { margin:.1rem 0 .7rem; color:var(--ink-3); font-size:.8125rem; }
-.pop .rlist { display:grid; grid-template-columns:1fr 1fr; gap:.35rem; max-height:52vh; overflow:auto; }
-.pop .rlist button { text-align:left; border:0; background:var(--bg); border-radius:12px; padding:.45rem .6rem; font:500 .8125rem var(--sans); color:var(--ink-2); box-shadow:var(--sh-sm); cursor:pointer; }
-.pop .rlist button.on { color:var(--red); box-shadow:var(--sh-in); font-weight:700; }
-.pop .rlist button.all { grid-column:1 / -1; }
+.tool-pop[hidden] { display:none; }
+.tool-pop h2 { font-size:1rem; margin:0 0 .25rem; } .tool-pop p { margin:.1rem 0 .7rem; color:var(--ink-3); font-size:.8125rem; }
+.tool-pop .rlist { display:grid; grid-template-columns:1fr 1fr; gap:.35rem; max-height:52vh; overflow:auto; }
+.tool-pop .rlist button { text-align:left; border:0; background:var(--bg); border-radius:12px; padding:.45rem .6rem; font:500 .8125rem var(--sans); color:var(--ink-2); box-shadow:var(--sh-sm); cursor:pointer; }
+.tool-pop .rlist button.on { color:var(--red); box-shadow:var(--sh-in); font-weight:700; }
+.tool-pop .rlist button.all { grid-column:1 / -1; }
 .tool-wrap { position:relative; }
 .scope-bar { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin:.6rem 0 0; padding:.55rem .9rem; border-radius:16px; box-shadow:var(--sh-in);
   font:600 .8125rem var(--sans); color:var(--ink-2); }
@@ -44,7 +45,7 @@
   font:700 .8125rem var(--sans); color:var(--ink-2); cursor:pointer; }
 .a11y-row .seg2 button[aria-pressed="true"], .switch[aria-checked="true"] { color:var(--red); box-shadow:var(--sh-in); }
 .switch { min-width:64px; }
-.pop .reset { margin-top:.6rem; width:100%; }
+.tool-pop .reset { margin-top:.6rem; width:100%; }
 
 /* text size: rem-based UI scales with the root */
 :root.fs-1 { font-size:112.5%; } :root.fs-2 { font-size:125%; } :root.fs-3 { font-size:143.75%; }
@@ -106,3 +107,25 @@
   .gdock { left:14px; bottom:14px; }
   .reel-ai { display:none; }
 }
+
+/* ---- reels: the action bar (like, save, open) always stays inside the card; text gives way when space runs out */
+.reel-card { overflow:hidden; }
+.reel-art { flex:0 1 36%; min-height:110px; }
+.reel-body { overflow:hidden; }
+.reel-body > * { flex-shrink:0; }
+.reel-title { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; font-size:clamp(1.05rem, 2.6vh, 1.5rem); }
+.reel-hook { -webkit-line-clamp:2; flex-shrink:1; min-height:0; }
+.reel-facts { flex-shrink:1; min-height:0; overflow:hidden; }
+.reel-foot { flex-shrink:0; margin-top:auto; padding-top:.4rem; }
+.reel-foot .like { width:48px; height:48px; flex:none; }
+.reel-foot .btn { flex:none; }
+@media (max-height: 760px) {
+  .reel-hook { display:none; }
+  .reel-facts > div:nth-child(3) { display:none; }   /* "Pierwszy krok" is on the idea page */
+  .reel-art { flex-basis:30%; }
+}
+@media (max-height: 600px) { .reel-facts { display:none; } }
+
+/* ---- empty states: the "AI illustration" note sits centred under its picture */
+.empty.art img { display:block; margin:0 auto 1rem; }
+.empty.art .ai-note { display:flex; justify-content:center; margin:-.5rem auto .8rem; }
