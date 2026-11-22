@@ -1,11 +1,57 @@
 [
- {"id": "01-start", "text": "Radar Innowacji. Polskie pomysły, które warto wdrożyć. Radar sam przeszukuje czternaście publicznych źródeł: NCBR, Kohesio, OpenAIRE, uczelnie i zgłoszenia. Dziś to tysiąc dwieście dwadzieścia osiem pomysłów z dwustu osiemdziesięciu jeden instytucji, ze wszystkich szesnastu województw."},
- {"id": "02-mapa", "text": "Problem jest prosty: dobre rozwiązania giną w raportach, a gmina buduje od zera to, co sąsiednia gmina już ma. Mapa pokazuje, gdzie powstają pomysły, a gdzie ich brakuje."},
- {"id": "03-kreator", "text": "Każdy zaczyna od jednej decyzji. Samorząd odpowiada na trzy pytania: kim jest, jaką ma instytucję i gdzie działa. Po chwili widzi dopasowane rozwiązania, z procentem dopasowania i powodami: region, budżet, dojrzałość."},
- {"id": "04-pomysl", "text": "Strona pomysłu zaczyna od pieniędzy: koszt wdrożenia u siebie, zwrot i liczba potencjalnych odbiorców. Wycena to jawne reguły, bez dużego modelu językowego. Program szkolny wyceniamy oszczędnością odbiorców, a technologię wartością licencji."},
- {"id": "05-specyfikacja", "text": "Jednym kliknięciem samorząd dostaje specyfikację wdrożenia do zapytania ofertowego: przedmiot, kryteria i to, kto może je wykonać."},
- {"id": "06-inwestor", "text": "Ten sam radar inwestor widzi inaczej: gotowość inwestycyjna od zera do stu, ochrona własności intelektualnej, trakcja i porównywalne projekty. Pomysł trafia do portfela, w lejek od pierwszego kontaktu do term sheetu."},
- {"id": "07-przewodnik", "text": "O projektach opowiadają przewodnicy. Tekst przygotował wcześniej lokalny model Bielik, a głos nagraliśmy raz, więc nic nie jest generowane na żywo.", "then": "app/radar/api/static/audio/1019-ada.mp3", "then_seconds": 11},
- {"id": "08-zgloszenie", "text": "Jury może zgłosić własny pomysł. Zgłoszenie trafia do kolejki z najwyższym priorytetem i po kilku sekundach ma ocenioną kartę. Urząd marszałkowski może pracować tylko w swoim województwie, a panel dostępności powiększa tekst i zwiększa kontrast."},
- {"id": "09-koniec", "text": "Całość działa na jednym serwerze z dwoma rdzeniami: sto dziesięć zapytań na sekundę bez błędów, czyli kilkaset osób jednocześnie. Kod, testy i raporty są w repozytorium. Radar Innowacji: od pomysłu do wdrożenia."}
+ {
+  "id": "00-intro",
+  "caption": "",
+  "text": "Wiemy, jak innowacyjna potrafi być Polska. W uczelniach, szkołach, instytutach i samorządach powstają świetne rozwiązania. Wiele z nich pozostaje jednak nieodkrytych."
+ },
+ {
+  "id": "01-start",
+  "caption": "Radar Innowacji",
+  "text": "Radar Innowacji to pomysły, dane, analizy i raporty w jednym miejscu. Zobacz, co możemy uzyskać dzięki naszemu narzędziu, i sprawmy razem, aby każdy dobry pomysł miał szansę na wdrożenie."
+ },
+ {
+  "id": "02-mapa",
+  "caption": "Gdzie powstają pomysły",
+  "text": "Wszyscy wiemy, jak świetne projekty potrafią tworzyć Polacy, i możemy być z tego dumni. Niestety wiele z nich kończy się na raporcie. Chcemy to zmienić. Mapa pokazuje, gdzie powstają pomysły i gdzie ich brakuje."
+ },
+ {
+  "id": "03-zrodla",
+  "caption": "Radar sam szuka",
+  "text": "Radar sam przeszukuje publiczne źródła: bazy projektów, uczelnie, programy unijne i platformy zgłoszeń. Gdy pojawi się nowy pomysł, radar go wykrywa, ocenia i po chwili pokazuje gotową kartę. Nowe źródło danych dodaje się jednym wpisem w konfiguracji, bez zmian w kodzie."
+ },
+ {
+  "id": "04-kreator",
+  "caption": "Dopasowanie w 30 sekund",
+  "text": "Każdy użytkownik zaczyna od kilku prostych pytań. Samorząd wybiera rodzaj instytucji i województwo, a radar od razu pokazuje rozwiązania dopasowane do jego potrzeb i budżetu."
+ },
+ {
+  "id": "05-pomysl",
+  "caption": "Najważniejsze liczby",
+  "text": "Na stronie pomysłu najważniejsze liczby widać od razu: koszt wdrożenia, czas zwrotu i liczbę potencjalnych odbiorców. Pokazujemy tylko to, co pomaga podjąć decyzję, a wycena opiera się na jawnych regułach."
+ },
+ {
+  "id": "06-inwestor",
+  "caption": "Widok inwestora",
+  "text": "Inwestor widzi te same dane z innej perspektywy: gotowość inwestycyjną, ochronę własności intelektualnej i porównywalne projekty. Wybrane pomysły zapisuje w portfelu i prowadzi je od pierwszego kontaktu do decyzji."
+ },
+ {
+  "id": "07-rolki",
+  "caption": "Rolki",
+  "text": "Rolki pozwalają szybko przejrzeć pomysły jeden po drugim. Każda karta mieści się na jednym ekranie i zawiera tylko to, co najważniejsze."
+ },
+ {
+  "id": "08-dostepnosc",
+  "caption": "Dostępność",
+  "text": "Z serwisu wygodnie skorzystają także osoby z niepełnosprawnościami. Można powiększyć tekst, włączyć wysoki kontrast, wyłączyć animacje i obsługiwać całą stronę z klawiatury. Urząd marszałkowski może pracować tylko na danych ze swojego województwa."
+ },
+ {
+  "id": "09-wdrozenie",
+  "caption": "Gotowe do wdrożenia",
+  "text": "Radar jest gotowy do wdrożenia. Działa w kontenerach, a w Kubernetesie sam dokłada kolejne instancje, gdy rośnie ruch, i rozkłada obciążenie między nimi. Metryki, kolejki zadań i alerty pokazują na bieżąco, co dzieje się w systemie."
+ },
+ {
+  "id": "10-koniec",
+  "caption": "",
+  "text": "Radar działa na zwykłym serwerze, bez kosztownych modeli językowych, i obsługuje setki osób jednocześnie. Radar Innowacji: od pomysłu do wdrożenia."
+ }
 ]

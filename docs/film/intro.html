@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar Innowacji: wstęp do filmu</title>
+<!-- Intro and closing card of the demo film. e2e/scripts/film.mjs opens it with ?part=intro|outro and records it.
+     The Poland outline is injected from the app's index.html (#pl-shape) by the recorder, so it is the same shape. -->
+<style>
+  :root { --bg:#F1ECE4; --ink:#141312; --ink2:#4A4741; --red:#BE1A34; --line:#D8CFC1; }
+  html, body { margin:0; height:100%; background:var(--bg); font-family:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif; color:var(--ink); overflow:hidden; }
+  .stage { position:absolute; inset:0; display:grid; grid-template-columns:1.05fr 1fr; align-items:center; padding:0 7vw; gap:4vw; }
+  svg { width:100%; max-height:84vh; overflow:visible; }
+  .pl { fill:none; stroke:var(--ink); stroke-width:2.2; stroke-linejoin:round; stroke-dasharray:var(--len); stroke-dashoffset:var(--len); animation:draw 3.2s cubic-bezier(.6,.1,.3,1) .3s forwards; }
+  .plfill { fill:var(--red); opacity:0; animation:fill 1.6s ease-out 3.2s forwards; }
+  .dot { fill:var(--red); opacity:0; transform-box:fill-box; transform-origin:center; }
+  .dot.on { animation:pop .5s cubic-bezier(.2,.9,.3,1.4) forwards; }
+  .dot.off { animation:pop .5s ease forwards, dim 1.2s ease 1.6s forwards; }
+  .sweep { transform-origin:315px 300px; opacity:0; }
+  .sweep.go { opacity:1; animation:spin 3.2s linear infinite; }
+  .ring { fill:none; stroke:var(--red); stroke-width:1.2; opacity:0; }
+  .ring.go { animation:ring 2.4s ease-out infinite; }
+  .ring.r2 { animation-delay:.8s; } .ring.r3 { animation-delay:1.6s; }
+  .text { display:grid; gap:2.2vh; }
+  .eyebrow { font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--red); font-size:1.35vw; opacity:0; }
+  h1 { font-size:4.4vw; line-height:1.04; letter-spacing:-.035em; margin:0; font-weight:800; }
+  p { font-size:1.9vw; line-height:1.35; color:var(--ink2); margin:0; max-width:30ch; }
+  .line { opacity:0; transform:translateY(18px); }
+  .show { animation:rise .9s cubic-bezier(.2,.7,.2,1) forwards; }
+  .logo { display:flex; align-items:center; gap:1.2vw; }
+  .logo b { font-size:2.4vw; letter-spacing:-.02em; white-space:nowrap; }
+  .logo svg { width:4vw; height:4vw; flex:none; max-height:none; }
+  .logo .flag { flex:none; width:5vw; }
+  #film-cursor, #film-cap { display:none !important; }  /* the title cards carry no cursor or caption */
+  .flag { display:flex; width:7vw; height:.6vw; border-radius:99px; overflow:hidden; } .flag i { flex:1; } .flag i:first-child { background:#fff; box-shadow:inset 0 0 0 1px var(--line); } .flag i:last-child { background:var(--red); }
+  @keyframes draw { to { stroke-dashoffset:0; } }
+  @keyframes fill { to { opacity:.06; } }
+  @keyframes pop { from { opacity:0; transform:scale(0); } to { opacity:1; transform:scale(1); } }
+  @keyframes dim { to { opacity:.16; } }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes ring { from { r:8; opacity:.6; } to { r:300; opacity:0; } }
+  @keyframes rise { to { opacity:1; transform:none; } }
+</style></head>
+<body>
+<div class="stage">
+  <svg viewBox="-10 -10 640 610" aria-hidden="true">
+    <defs><radialGradient id="sw" cx="0" cy="0" r="1"><stop offset="0" stop-color="#BE1A34" stop-opacity=".35"/><stop offset="1" stop-color="#BE1A34" stop-opacity="0"/></radialGradient>
+      <clipPath id="clip"><use href="#shape"/></clipPath></defs>
+    <path id="shape" class="plfill" d=""/>
+    <g clip-path="url(#clip)"><path class="sweep" id="sweep" d="M315 300 L315 -20 A320 320 0 0 1 595 140 Z" fill="url(#sw)"/>
+      <circle class="ring" cx="315" cy="300" r="8"/><circle class="ring r2" cx="315" cy="300" r="8"/><circle class="ring r3" cx="315" cy="300" r="8"/></g>
+    <path id="outline" class="pl" d=""/>
+    <g id="dots"></g>
+  </svg>
+  <div class="text" id="text"></div>
+</div>
+<script>
+const part = new URLSearchParams(location.search).get("part") || "intro";
+const d = window.PL_SHAPE || "";
+for (const id of ["shape", "outline"]) document.getElementById(id).setAttribute("d", d);
+const outline = document.getElementById("outline"); outline.style.setProperty("--len", outline.getTotalLength() || 3000);
+// ideas: points inside the outline; most light up, some fade (undiscovered), then the radar finds them
+const svg = document.querySelector("svg"), g = document.getElementById("dots"), pts = [];
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const probe = svg.createSVGPoint();
+while (pts.length < 70) { probe.x = 20 + rnd() * 590; probe.y = 20 + rnd() * 560; if (outline.isPointInFill(probe)) pts.push([probe.x, probe.y]); }
+pts.forEach(([x, y], i) => { const c = document.createElementNS("http://www.w3.org/2000/svg", "circle"); c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", 5 + rnd() * 4); c.setAttribute("class", "dot"); g.appendChild(c);
+  setTimeout(() => c.classList.add(part === "intro" && i % 3 === 0 ? "off" : "on"), (part === "intro" ? 2600 : 200) + i * 45); });
+const T = document.getElementById("text");
+const lines = part === "intro"
+  ? [["eyebrow", "Polska innowacyjna"], ["h1", "Wiemy, jak innowacyjna potrafi być Polska."], ["p", "Uczelnie, szkoły, instytuty i samorządy tworzą świetne rozwiązania."], ["p", "Wiele z nich pozostaje nieodkrytych."]]
+  : [["logo", ""], ["h1", "Od pomysłu do wdrożenia."], ["p", "Każdy dobry pomysł zasługuje na szansę."]];
+const at = part === "intro" ? [600, 1400, 5200, 9000] : [300, 900, 1700];
+lines.forEach(([k, txt], i) => { let el;
+  if (k === "logo") { el = document.createElement("div"); el.className = "logo line"; el.innerHTML = '<svg viewBox="0 0 48 48" width="64" height="64"><rect x="2" y="1" width="44" height="44" rx="12" fill="#BE1A34"/><circle cx="24" cy="23" r="13" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.6"/><circle cx="24" cy="23" r="7.5" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.6"/><circle cx="24" cy="23" r="2.6" fill="#fff"/><circle cx="31" cy="15.5" r="1.8" fill="#fff"/></svg><b>Radar Innowacji</b><span class="flag"><i></i><i></i></span>'; }
+  else { el = document.createElement(k === "eyebrow" ? "div" : k); el.className = (k === "eyebrow" ? "eyebrow " : "") + "line"; el.textContent = txt; }
+  T.appendChild(el); setTimeout(() => el.classList.add("show"), at[i]); });
+// the radar sweeps when the undiscovered ideas have faded (intro) or at once (outro)
+setTimeout(() => { document.getElementById("sweep").classList.add("go"); document.querySelectorAll(".ring").forEach(r => r.classList.add("go"));
+  if (part === "intro") document.querySelectorAll(".dot.off").forEach((c, i) => setTimeout(() => { c.classList.remove("off"); c.style.opacity = 1; c.classList.add("on"); }, 600 + i * 120)); },
+  part === "intro" ? 9400 : 600);
+</script>
+</body></html>
