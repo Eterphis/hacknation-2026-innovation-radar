@@ -260,4 +260,10 @@ SOFTWARE.
 <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
 <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></symbol>
 <symbol id="i-component" viewBox="0 0 24 24"><path d="M15.5 11.3a1 1 0 0 0 0 1.4l2.4 2.4a1 1 0 0 0 1.4 0l2.4-2.4a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0z" /><path d="M2.3 11.3a1 1 0 0 0 0 1.4l2.4 2.4a1 1 0 0 0 1.4 0l2.4-2.4a1 1 0 0 0 0-1.4L6.1 8.9a1 1 0 0 0-1.4 0z" /><path d="M8.9 17.9a1 1 0 0 0 0 1.4l2.4 2.4a1 1 0 0 0 1.4 0l2.4-2.4a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0z" /><path d="M8.9 4.7a1 1 0 0 0 0 1.4l2.4 2.4a1 1 0 0 0 1.4 0l2.4-2.4a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0z" /></symbol>
+<symbol id="i-type" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7" /><line x1="9" x2="15" y1="20" y2="20" /><line x1="12" x2="12" y1="4" y2="20" /></symbol>
+<symbol id="i-accessibility" viewBox="0 0 24 24"><circle cx="16" cy="4" r="1" /><path d="m18 19 1-7-6 1" /><path d="m5 8 3-3 5.5 3-2.36 3.5" /><path d="M4.24 14.5a5 5 0 0 0 6.88 6" /><path d="M13.76 17.5a5 5 0 0 0-6.88-6" /></symbol>
+<symbol id="i-volume-2" viewBox="0 0 24 24"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" /><path d="M16 9a5 5 0 0 1 0 6" /><path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></symbol>
+<symbol id="i-share-2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" x2="15.42" y1="13.51" y2="17.49" /><line x1="15.41" x2="8.59" y1="6.51" y2="10.49" /></symbol>
+<symbol id="i-locate" viewBox="0 0 24 24"><line x1="2" x2="5" y1="12" y2="12" /><line x1="19" x2="22" y1="12" y2="12" /><line x1="12" x2="12" y1="2" y2="5" /><line x1="12" x2="12" y1="19" y2="22" /><circle cx="12" cy="12" r="7" /></symbol>
 </svg>

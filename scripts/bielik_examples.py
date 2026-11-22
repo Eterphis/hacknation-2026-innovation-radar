@@ -31,7 +31,7 @@ for persona, guide in GUIDE_FOR.items():
             continue
         picked.add(it["card_id"])
         t0 = time.time()
-        p = get(f"/api/cards/{it['card_id']}/pitch?guide={guide}&fresh=1")
+        p = get(f"/api/cards/{it['card_id']}/pitch?guide={guide}&fresh=1&llm=1")
         rows.append({"title": it["title"], "card_id": it["card_id"], "guide": guide, "by": p["by"], "seconds": p.get("seconds") or round(time.time() - t0, 1),
                      "rules": p.get("rules") or p["text"], "text": p["text"]})
         print(f"{p['by']:12} {rows[-1]['seconds']:6} s  {guide:9} {it['title'][:70]}")

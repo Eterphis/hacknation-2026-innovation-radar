@@ -152,8 +152,8 @@ def test_small_model_bad_json_falls_back_to_rules(monkeypatch):
     assert prov["fallback_after"] == "local" and prov["model_errors"]
 
 
-def test_pitch_protects_the_shared_model(monkeypatch):
-    """Public /pitch: `fresh` needs the operator token, a failed model try is cached, a busy slot answers by rules."""
+def test_pitch_never_generates_for_a_user(monkeypatch):
+    """Public /pitch: never runs a model (stored narration or rule text); llm/fresh need the operator token."""
     from radar.api import guides
     from radar.api.main import app
     from radar.pipeline.tasks import harvest
@@ -161,20 +161,15 @@ def test_pitch_protects_the_shared_model(monkeypatch):
     harvest.apply(("demo-zgloszenia",)).get()
     monkeypatch.setenv("RADAR_GUIDE_LLM_URL", "http://llm:8080/v1")
     calls = []
-    monkeypatch.setattr(guides, "bielik", lambda text, g: (calls.append(g), (None, 0.1))[1])  # model output rejected
+    monkeypatch.setattr(guides, "bielik", lambda text, g: (calls.append(g), ("Cześć, tu Ada. Krótka historia projektu bez nowych liczb, opowiedziana spokojnie i do końca, żeby walidacja ją przyjęła.", 0.1))[1])
     with TestClient(app) as c:
         cid = c.get("/api/ideas?limit=1").json()["items"][0]["card_id"]
         url = f"/api/cards/{cid}/pitch"
-        assert c.get(url, params={"guide": "ada"}).json()["by"] == "reguły" and len(calls) == 1
-        assert c.get(url, params={"guide": "ada"}).json()["cached"] is True and len(calls) == 1  # no retry per request
+        assert c.get(url, params={"guide": "ada"}).json()["by"] == "reguły" and not calls  # no model for a user
         monkeypatch.setenv("RADAR_OPERATOR_TOKEN", "s3cret")
+        assert c.get(url, params={"guide": "ada", "llm": True}).status_code == 401
         assert c.get(url, params={"guide": "ada", "fresh": True}).status_code == 401
-        assert c.get(url, params={"guide": "ada", "fresh": True}, headers={"X-Operator-Token": "s3cret"}).status_code == 200
-        assert len(calls) == 2
-        assert guides.MODEL_SLOTS.acquire(blocking=False)  # slot taken (another narration in progress)
-        try:
-            p = c.get(url, params={"guide": "tomek"}).json()
-            assert p["by"] == "reguły" and p["cached"] is False and len(calls) == 2  # rules at once, not queued
-        finally:
-            guides.MODEL_SLOTS.release()
-        assert c.get(url, params={"guide": "tomek"}).json()["cached"] is False and len(calls) == 3  # tried later
+        r = c.get(url, params={"guide": "ada", "fresh": True, "llm": True}, headers={"X-Operator-Token": "s3cret"})
+        assert r.status_code == 200 and len(calls) == 1  # prepared in advance by the operator
+        p = c.get(url, params={"guide": "ada"}).json()
+        assert p["cached"] is True and len(calls) == 1  # users get the stored text

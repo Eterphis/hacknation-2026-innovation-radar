@@ -1,0 +1,104 @@
+{
+ "1019-ada": {
+  "file": "1019-ada.mp3",
+  "guide": "ada",
+  "sha": "9f92d61d2ee6",
+  "voice": "ElevenLabs: Kasia"
+ },
+ "1025-tomek": {
+  "file": "1025-tomek.mp3",
+  "guide": "tomek",
+  "sha": "079fbe7df705",
+  "voice": "ElevenLabs: Maciej"
+ },
+ "1033-ola": {
+  "file": "1033-ola.mp3",
+  "guide": "ola",
+  "sha": "d397f1c67ac4",
+  "voice": "ElevenLabs: Emilia"
+ },
+ "1040-profesor": {
+  "file": "1040-profesor.mp3",
+  "guide": "profesor",
+  "sha": "88b99a723ebf",
+  "voice": "ElevenLabs: Gabriel"
+ },
+ "1044-ada": {
+  "file": "1044-ada.mp3",
+  "guide": "ada",
+  "sha": "beab8410e635",
+  "voice": "ElevenLabs: Kasia"
+ },
+ "1082-ola": {
+  "file": "1082-ola.mp3",
+  "guide": "ola",
+  "sha": "db0e9e74e4e9",
+  "voice": "ElevenLabs: Emilia"
+ },
+ "1105-tomek": {
+  "file": "1105-tomek.mp3",
+  "guide": "tomek",
+  "sha": "4ee864bac6c1",
+  "voice": "ElevenLabs: Maciej"
+ },
+ "1111-ada": {
+  "file": "1111-ada.mp3",
+  "guide": "ada",
+  "sha": "35283095407a",
+  "voice": "ElevenLabs: Kasia"
+ },
+ "1116-tomek": {
+  "file": "1116-tomek.mp3",
+  "guide": "tomek",
+  "sha": "74c4bedb916f",
+  "voice": "ElevenLabs: Maciej"
+ },
+ "1243-tomek": {
+  "file": "1243-tomek.mp3",
+  "guide": "tomek",
+  "sha": "df60eb13b710",
+  "voice": "ElevenLabs: Maciej"
+ },
+ "75-ola": {
+  "file": "75-ola.mp3",
+  "guide": "ola",
+  "sha": "f5ce32fc22a3",
+  "voice": "ElevenLabs: Emilia"
+ },
+ "99-tomek": {
+  "file": "99-tomek.mp3",
+  "guide": "tomek",
+  "sha": "55e512ad36cf",
+  "voice": "ElevenLabs: Maciej"
+ },
+ "intro-ada": {
+  "file": "intro-ada.mp3",
+  "guide": "ada",
+  "text": "Cześć, tu Ada. Pokazuję pomysły oczami inwestora: gotowość inwestycyjną, ochronę własności intelektualnej i wartość licencji. Wejdź w pomysł i kliknij „Posłuchaj”.",
+  "voice": "ElevenLabs: Kasia"
+ },
+ "intro-ola": {
+  "file": "intro-ola.mp3",
+  "guide": "ola",
+  "text": "Cześć, tu Ola. Szukam dla szkół sprawdzonych programów, które łatwo powtórzyć u siebie. Wejdź w pomysł, a opowiem Ci o nim.",
+  "voice": "ElevenLabs: Emilia"
+ },
+ "intro-profesor": {
+  "file": "intro-profesor.mp3",
+  "guide": "profesor",
+  "text": "Dzień dobry, tu Profesor Marek. Pomagam uczelniom znaleźć partnerów, z którymi wyniki badań trafią na rynek.",
+  "voice": "ElevenLabs: Gabriel"
+ },
+ "intro-radek": {
+  "file": "intro-radek.mp3",
+  "guide": "radek",
+  "text": "Cześć, tu Radek. Pomagam znaleźć polskie innowacje, które warto wdrożyć. Wejdź w dowolny pomysł i kliknij „Posłuchaj”, a opowiem Ci o nim.",
+  "voice": "ElevenLabs: Karol"
+ },
+ "intro-tomek": {
+  "file": "intro-tomek.mp3",
+  "guide": "tomek",
+  "text": "Cześć, tu Tomek. Pomagam samorządom i wykonawcom policzyć, ile kosztuje wdrożenie u siebie, kiedy się zwróci i skąd wziąć na nie pieniądze.",
+  "voice": "ElevenLabs: Maciej"
+ }
+}
