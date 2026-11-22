@@ -6,7 +6,9 @@ from __future__ import annotations
 import hashlib
 from collections import Counter, defaultdict
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
+
+from radar.api.auth import operator
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_, select
 
@@ -195,7 +197,7 @@ def basal_classify(x: ClassifyIn):
     return b
 
 
-@router.post("/basal/train")
+@router.post("/basal/train", dependencies=[Depends(operator)])
 def basal_train():
     """Train Basal's decision head on operator decisions (approved = 1, rejected = 0)."""
     with session() as s:

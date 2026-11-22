@@ -88,6 +88,23 @@ sources:
       url: url
       institution_type: institution_type
 
+  # Kanały RSS/Atom dowolnych platform (strony uczelni, JST, gov.pl, blogi, profile przez mostki RSS).
+  # Lista w RADAR_RSS_FEEDS (po przecinku) albo w `feeds`. Odpytywane co 2 min warunkowym GET (304 = brak kosztu).
+  - id: rss-platformy
+    type: rss
+    kind: solution
+    schedule_s: 120
+    description: "Kanały RSS/Atom platform, na których pojawiają się pomysły (RADAR_RSS_FEEDS)"
+    options: { feeds: [], feeds_env: "${RADAR_RSS_FEEDS:-}", min_interval_s: 2, min_abstract_chars: 60 }
+    id_path: id
+    mapping:
+      title: title
+      abstract: description
+      url: url
+      keywords: keywords
+      affiliations: "[author_org]"
+      year: year
+
   # ------------------------------------------------------------------ LIVE: pull
   # Biblioteka Nauki i RAD-on: jedna droga = harvester (harvester-bibliotekanauki, harvester-radon niżej). Jego konektory
   # mają więcej pól (oai_openaire: słowa kluczowe, afiliacje, DOI; RAD-on: filtr NCN/NCBR, organizacje z REGON/typem/

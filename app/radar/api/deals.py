@@ -75,6 +75,14 @@ def memo(card_id: int, kind: str = "inwestor", auto: bool = False):
         return HTMLResponse(render_memo(f, kind, auto_print=auto))
 
 
+TIDY = __import__("re").compile(r"^\s*Tytuł:.*?(?=Zajawka:|Jaki problem|Opis:|$)|\b(Zajawka|Jaki problem rozwiązuje projekt|Opis projektu|Opis|Efekty|Rezultaty):\s*", __import__("re").I | __import__("re").S)
+
+
+def tidy(s: str | None) -> str:
+    """NCBR stories carry form labels ("Tytuł: … Zajawka: …"); keep the prose."""
+    return " ".join(TIDY.sub("", s or "").split())
+
+
 def _li(items) -> str:
     return "".join(f"<li>{html.escape(str(x))}</li>" for x in items if x)
 
@@ -139,7 +147,7 @@ table{{width:100%;border-collapse:collapse;font-size:13px}} td{{border-top:1px s
 <div class="meta">{e(org)} · {e(where)} · {e(label_pl('sector', r.sector) if r.sector else '—')} · dojrzałość: {e(LVL_PL.get(c.maturity, '—'))}</div></div>
 <div class="meta" style="text-align:right;white-space:nowrap">{datetime.now(timezone.utc):%d.%m.%Y}<br>karta #{c.id}</div></header>
 <div class="kpis">{kpi_html}</div>
-<div class="two"><div><h2>Problem</h2><p>{e((c.problem_solved or '')[:420])}</p></div><div><h2>Co jest nowe</h2><p>{e((c.what_is_new or c.summary_pl or '')[:420])}</p></div></div>
+<div class="two"><div><h2>Problem</h2><p>{e(tidy(c.problem_solved)[:420])}</p></div><div><h2>Co jest nowe</h2><p>{e(tidy(c.what_is_new or c.summary_pl)[:420])}</p></div></div>
 <div class="two"><div><h2>{'Dowody dla inwestora' if inv else 'Dlaczego to zadziała'}</h2><ul>{_li(evidence if inv else [f'Działa u twórcy: {org}', f'Dojrzałość: {LVL_PL.get(c.maturity, "—")}', *evidence[1:3]])}</ul></div>
 <div><h2>Rynek</h2><ul>{_li([f"TAM {zl(bc['market']['tam_pln'])}, SAM {zl(bc['market']['sam_pln'])}, SOM 3 lata {zl(bc['market']['som_3y_pln'])}", f"Odbiorcy: {bc['adopters']['count']:,} {bc['adopters']['who']}".replace(',', ' '), f"Model: {bc['model']}"])}</ul></div></div>
 <h2>{'Następny krok i ścieżka' if inv else 'Plan wdrożenia'}</h2><p><b>{e(path.get('path') or '—')}</b>{(' — ' + e(path.get('why'))) if path.get('why') else ''}</p><ul>{_li(steps)}</ul>

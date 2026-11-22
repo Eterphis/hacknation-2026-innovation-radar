@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from celery import signals
 
@@ -82,8 +82,19 @@ def _next(stage: str, raw_id: int, h: str, priority: int | None = None) -> None:
     globals()[stage].apply_async((raw_id, h), queue=stage, routing_key=stage, **kw)
 
 
+def _aware(dt):
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _submitted(rec: Record) -> bool:
+    """A person submitted it (form, webhook): it must reach a card fast and never vanish silently."""
+    return bool(rec.raw and rec.raw.received_via in ("upload", "webhook"))
+
+
 def _priority(rec: Record) -> int:
-    """Basal priority 0..1 -> RabbitMQ priority 0..9 (LLM queues have x-max-priority)."""
+    """Basal priority 0..1 -> RabbitMQ priority 0..9 (LLM queues have x-max-priority). Submissions jump the queue."""
+    if _submitted(rec):
+        return 9
     return int(round(9 * float((rec.basal or {}).get("priority") or 0)))
 
 
@@ -102,6 +113,11 @@ def harvest(self, source_id: str) -> dict:
     with session() as s:
         st = s.get(SourceState, source_id) or SourceState(source_id=source_id, counters={})
         s.add(st)
+        # no overlapping runs of one source (beat may fire again while a long pull is still going)
+        if st.last_status == "running" and st.last_run_at and \
+                datetime.now(timezone.utc) - _aware(st.last_run_at) < timedelta(minutes=30):
+            return {"skipped": "already running"}
+        st.last_status, st.last_run_at = "running", datetime.now(timezone.utc)
         cursor = st.cursor
     totals = {"accepted": 0, "new": 0, "updated": 0, "unchanged": 0, "deleted": 0, "pages": 0}
     try:
@@ -308,6 +324,10 @@ def gate(self, raw_id: int, h: str) -> str:
         if b["pii"]:
             rec.abstract, _ = mask_pii(rec.abstract)
             rec.title, _ = mask_pii(rec.title)
+        if _submitted(rec) and b["decision"] in ("reject", "hold"):
+            # a submission always gets evaluated; Basal's doubts travel with it to the operator
+            rec.review_reasons = ["Basal: " + r for r in (b["reject_reasons"] or b["hold_reasons"])]
+            b = {**b, "decision": "accept"}
         if b["decision"] == "reject":
             rec.status, rec.review_reasons = "rejected", b["reject_reasons"]
             _mark(s, raw_id, "gate", h, "skipped", "; ".join(b["reject_reasons"])[:2000])

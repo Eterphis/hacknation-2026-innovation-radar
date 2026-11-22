@@ -1,6 +1,8 @@
 """Shared HTTP client with retry and backoff (Release It!: timeouts on every call, bounded retries)."""
 
+import threading
 import time
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -17,11 +19,27 @@ def client(headers: dict | None = None, timeout: float | None = None) -> httpx.C
     return httpx.Client(timeout=timeout or s.http_timeout_s, headers=h, follow_redirects=True)
 
 
+_LAST: dict[str, float] = {}
+_LOCK = threading.Lock()
+
+
+def throttle(url: str, min_interval_s: float) -> None:
+    """At most one request per `min_interval_s` to the same host from this worker process (polite polling)."""
+    host = urlsplit(url).netloc
+    with _LOCK:
+        wait = _LAST.get(host, 0) + min_interval_s - time.monotonic()
+        _LAST[host] = time.monotonic() + max(0.0, wait)
+    if wait > 0:
+        time.sleep(min(wait, 30))
+
+
 def request(c: httpx.Client, method: str, url: str, *, attempts: int = 4, **kw) -> httpx.Response:
     delay = 1.0
     for i in range(attempts):
         try:
             r = c.request(method, url, **kw)
+            if r.status_code == 304:  # conditional GET: nothing new
+                return r
             if r.status_code not in RETRY_STATUS:
                 r.raise_for_status()
                 return r

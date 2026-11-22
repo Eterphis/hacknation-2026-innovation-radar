@@ -124,6 +124,14 @@ docker compose --profile observability up -d   # Grafana :3000 (dashboard „Rad
 - Schemat bazy: migracje Alembic (`radar migrate`; w Helm Job post-install/pre-upgrade, API też migruje pod blokadą doradczą Postgresa). Baza utworzona wcześniej przez `create_all` jest najpierw oznaczana jako rewizja `0001`, więc dane zostają.
 - `radar reassess` przelicza graf i oceny (też codziennie z beat).
 
+## Dokumenty dla jury i zespołu
+
+- [Scenariusz walidacji a–e na 2 przypadkach](docs/scenariusz-walidacji.md)
+- [Samoocena wg kryteriów, modele i zasoby, wyłapywanie zgłoszeń, konta, obrazki i grupowanie](docs/ocena-i-zasoby.md)
+- [Stos technologiczny i modele](docs/stack.md) · [Ścieżki użytkowników i wartość biznesowa](docs/sciezki-uzytkownikow.md)
+
+**Zgłoszenie innowacji:** `#/zglos` w aplikacji (bez konta) albo `POST /api/ingest/zgloszenia/manual`; status na żywo pod `/api/submissions/{raw_id}`. Zgłoszenia mają najwyższy priorytet w kolejce i nie są odrzucane po cichu. **Dowolna platforma z RSS/Atom:** `RADAR_RSS_FEEDS=https://…,https://…` (odpytywanie co 2 min warunkowym GET).
+
 ## Dla inwestorów i wykonawców (runda 2)
 
 To od nich zależy, czy pomysł powstanie, więc dostają narzędzia pracy, nie katalog. Wszystko liczone regułami z danych w bazie, bez LLM w czasie zapytania.

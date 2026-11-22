@@ -11,10 +11,12 @@ from radar.sources.base import PullConnector, SourceSpec
 from radar.sources.graphql import GraphQLConnector
 from radar.sources.oaipmh import OaiPmhConnector
 from radar.sources.rest import RestConnector
+from radar.sources.rss import RssConnector
 from radar.sources.snapshot import SnapshotConnector
 from radar.sources.sparql import SparqlConnector
 
 PULL_TYPES: dict[str, type[PullConnector]] = {
+    "rss": RssConnector,
     "rest": RestConnector,
     "graphql": GraphQLConnector,
     "oaipmh": OaiPmhConnector,

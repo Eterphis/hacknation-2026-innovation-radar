@@ -14,13 +14,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import func, select, text
 
 from radar import __version__
+from radar.api.auth import operator
 from radar.config import get_settings
 from radar.db import migrate, session, wait_for_db
 from radar.ingest import ingest_many
@@ -106,7 +107,7 @@ def sources():
     return out
 
 
-@app.post("/api/sources/{source_id}/run", status_code=202)
+@app.post("/api/sources/{source_id}/run", status_code=202, dependencies=[Depends(operator)])
 def run_source(source_id: str):
     from radar.pipeline.tasks import harvest
 
@@ -159,7 +160,30 @@ def manual(source_id: str, sub: ManualSubmission):
     payload["submitted_at"] = datetime.now(timezone.utc).isoformat()
     env = Envelope(source_id=source_id, external_id="manual:" + content_hash(sub.model_dump())[:24],
                    payload=payload, received_via="upload")
-    return ingest_many([env])
+    counts = ingest_many([env])
+    with session() as s:
+        raw = s.scalar(select(RawRecord).where(RawRecord.source_id == source_id, RawRecord.external_id == env.external_id))
+        return {**counts, "raw_id": raw.id, "track": f"/api/submissions/{raw.id}"}
+
+
+@app.get("/api/submissions/{raw_id}")
+def submission_status(raw_id: int):
+    """Where a submission is in the pipeline (stages done, Basal labels, card when ready)."""
+    order = ["normalize", "resolve_org", "dedup", "gate", "link", "extract", "maturity", "score"]
+    with session() as s:
+        raw = s.get(RawRecord, raw_id)
+        if raw is None:
+            raise HTTPException(404)
+        runs = {r.stage: r for r in s.scalars(select(StageRun).where(StageRun.raw_id == raw_id))}
+        rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        card = rec.card if rec else None
+        return {"raw_id": raw_id, "source_id": raw.source_id, "received_at": raw.fetched_at,
+                "stages": [{"stage": st, "status": runs[st].outcome if st in runs else "pending",
+                            "detail": (runs[st].detail if st in runs else None)} for st in order],
+                "record_status": rec.status if rec else None,
+                "labels": {a: getattr(rec, a) for a in ("sector", "innovation_type", "institution_type", "voivodeship")} if rec else None,
+                "review_reasons": rec.review_reasons if rec else [],
+                "card_id": card.id if card and card.score is not None else None}
 
 
 # ---------------------------------------------------------------- operator
@@ -217,7 +241,7 @@ class Decision(BaseModel):
     note: str | None = None
 
 
-@app.post("/api/cards/{card_id}/decision")
+@app.post("/api/cards/{card_id}/decision", dependencies=[Depends(operator)])
 def decide(card_id: int, d: Decision):
     with session() as s:
         c = s.get(Card, card_id)
