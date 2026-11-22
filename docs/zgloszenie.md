@@ -6,7 +6,7 @@ Szkoły, uczelnie, samorządy i instytuty codziennie tworzą dobre rozwiązania:
 Skutek: gminy (w Polsce jest ich 2477) i instytucje wymyślają te same rozwiązania od nowa, środki publiczne idą na dublowanie prac, a twórcy nie trafiają do partnerów, odbiorców ani inwestorów. Polska od lat jest w grupie „emerging innovators” w European Innovation Scoreboard, a jednym z powodów jest słaby transfer wiedzy z nauki i sektora publicznego do praktyki.
 
 ## Solution
-Radar Innowacji to radar, który sam wyszukuje „ukryte” innowacje w publicznych źródłach, ocenia je, wycenia i pokazuje, kto może je wdrożyć. Dziś to ponad 1200 ocenionych pomysłów z 281 instytucji ze wszystkich 16 województw, z 13 automatycznie odświeżanych źródeł.
+Radar Innowacji to radar, który sam wyszukuje „ukryte” innowacje w publicznych źródłach, ocenia je, wycenia i pokazuje, kto może je wdrożyć. Dziś to ponad 1200 ocenionych pomysłów z 281 instytucji ze wszystkich 16 województw, z 14 automatycznie odświeżanych źródeł.
 
 Co robi system:
 - Wykrywanie: konektory do NCBR, Kohesio, Interreg, CORDIS, RAD-on, OpenAIRE, Biblioteki Nauki, EPO i kanałów RSS platform zgłoszeń. Nowy pomysł w źródle radar wykrywa sam, ocenia i po chwili pokazuje gotową kartę. Nowe źródło to jeden wpis w konfiguracji, bez zmian w kodzie.
@@ -24,7 +24,7 @@ Korzyści: instytucje widzą, co już działa gdzie indziej, i nie dublują prac
 Przed wydarzeniem: koncepcja i szkielet potoku danych (raw → normalized → enriched) oraz pierwsze konektory.
 
 Zrobione podczas hackathonu:
-- 13 działających źródeł danych z automatycznym odświeżaniem, limitami zapytań i wykrywaniem nowych rekordów; ponad 1200 ocenionych kart innowacji z prawdziwych danych,
+- 14 działających źródeł danych z automatycznym odświeżaniem, limitami zapytań i wykrywaniem nowych rekordów; ponad 1200 ocenionych kart innowacji z prawdziwych danych,
 - klasyfikator Basal (reguły, ok. 1 ms na rekord), ocena według jawnych kryteriów, wycena biznesowa, sygnały inwestorskie, dopasowanie do 6 grup odbiorców,
 - aplikacja webowa i mobilna: przegląd, kreator dopasowania, strona pomysłu, mapa, klastry, rolki, wdrożenia, portfel inwestora, tryb regionalny, panel dostępności,
 - wdrożenie: Docker Compose (jedno polecenie), chart Helm z autoskalowaniem (KEDA według kolejek, HPA), Prometheus, Grafana (22 panele) i 8 alertów, publiczny dostęp przez tunel,
