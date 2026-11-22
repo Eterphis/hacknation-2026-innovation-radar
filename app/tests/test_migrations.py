@@ -17,11 +17,11 @@ def _fresh(tmp_path, monkeypatch, name):
 
 def test_head_matches_models(tmp_path, monkeypatch):
     _fresh(tmp_path, monkeypatch, "m.db")
-    assert migrate() == "0004"
+    assert migrate() == "0005"
     with engine().connect() as c:
         diff = compare_metadata(MigrationContext.configure(c, opts={"compare_type": True}), Base.metadata)
     assert diff == [], diff
-    assert migrate() == "0004"  # idempotent
+    assert migrate() == "0005"  # idempotent
 
 
 def test_legacy_create_all_database_is_stamped_and_upgraded(tmp_path, monkeypatch):
@@ -30,7 +30,7 @@ def test_legacy_create_all_database_is_stamped_and_upgraded(tmp_path, monkeypatc
     with engine().begin() as c:  # what the old `create_all` left behind: tables, no alembic_version
         c.execute(text("DROP TABLE alembic_version"))
         c.execute(text("INSERT INTO settings (key, value, updated_at) VALUES ('keep', '{}', '2026-01-01')"))
-    assert migrate() == "0004"
+    assert migrate() == "0005"
     with engine().connect() as c:
         assert "llm_calls" in inspect(c).get_table_names()
         assert "duration_ms" in {col["name"] for col in inspect(c).get_columns("stage_runs")}
@@ -44,7 +44,7 @@ def test_create_all_database_of_current_models_goes_to_head(tmp_path, monkeypatc
 
     _fresh(tmp_path, monkeypatch, "current.db")
     create_all()
-    assert migrate() == "0004"
+    assert migrate() == "0005"
 
 
 def test_half_migrated_database_is_finished_not_broken(tmp_path, monkeypatch):
@@ -55,7 +55,7 @@ def test_half_migrated_database_is_finished_not_broken(tmp_path, monkeypatch):
         c.execute(text("CREATE TABLE llm_calls (id INTEGER PRIMARY KEY, provider VARCHAR(30) NOT NULL, model VARCHAR(120), "
                        "purpose VARCHAR(30) NOT NULL, ok BOOLEAN NOT NULL, latency_ms FLOAT NOT NULL, error VARCHAR(300), "
                        "tokens_in INTEGER, tokens_out INTEGER, created_at DATETIME NOT NULL)"))
-    assert migrate() == "0004"
+    assert migrate() == "0005"
     with engine().connect() as c:
         assert "duration_ms" in {col["name"] for col in inspect(c).get_columns("stage_runs")}
 

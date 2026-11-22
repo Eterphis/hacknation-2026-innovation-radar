@@ -216,3 +216,46 @@ def pregenerate_many(pairs: Iterable[tuple], stored: dict | None = None) -> tupl
         stats["computed"] += 1
     stats["no_large_llm_pct"] = round(100 * stats["no_large_llm"] / stats["cards"], 1) if stats["cards"] else 0.0
     return results, stats
+
+
+# ------------------------------------------------------------------------------------------------ storage
+def store(rec, card, force: bool = False) -> bool:
+    """Write ``card.pregen`` when missing or stale. Returns True when it was (re)computed."""
+    if not force and not needs_refresh(card.pregen, rec, card):
+        return False
+    card.pregen = pregenerate(rec, card)
+    return True
+
+
+def run(force: bool = False, batch: int = 500) -> dict:
+    """Pregenerate every scored card in the database (``radar pregenerate``, nightly beat, after reassess)."""
+    from sqlalchemy import select
+
+    from radar.db import session
+    from radar.models import Card, Record
+
+    with session() as s:
+        ids = s.scalars(select(Card.id).join(Record, Card.record_id == Record.id)
+                        .where(Record.status.in_(("extracted", "ready")), Card.score.is_not(None))
+                        .order_by(Card.id)).all()
+    stats = {"cards": 0, "computed": 0, "skipped": 0, "no_large_llm": 0}
+    for i in range(0, len(ids), batch):
+        with session() as s:
+            cards = s.scalars(select(Card).where(Card.id.in_(ids[i:i + batch]))).all()
+            pairs = [(c.record, c) for c in cards]
+            stored = {} if force else {c.id: c.pregen for c in cards}
+            results, st = pregenerate_many(pairs, stored)
+            for c in cards:
+                if c.id in results:
+                    c.pregen = results[c.id]
+            for k in stats:
+                stats[k] += st[k]
+    stats["no_large_llm_pct"] = round(100 * stats["no_large_llm"] / stats["cards"], 1) if stats["cards"] else 0.0
+    return stats
+
+
+def business(rec, card) -> dict:
+    """The stored business case. A card scored before pregeneration existed (until the next nightly run) gets
+    the same rules computed on the spot: still no LLM, and counted in ``radar_pregen_cards{state="missing"}``."""
+    stored = card.pregen or {}
+    return stored.get("business") or business_case(rec, card)

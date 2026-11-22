@@ -139,6 +139,7 @@ def feed(offset: int = 0, limit: int = 10, sector: str | None = None, voivodeshi
         for r in s.scalars(q):
             d = idea_dict(r)
             d["brief"] = r.card.brief
+            d["slogan"] = (r.card.pregen or {}).get("slogan")
             out.append(d)
         return out
 
@@ -217,7 +218,8 @@ def personas():
 @router.get("/personas/{key}")
 def persona(key: str, voivodeship: str | None = None, limit: int = 24):
     """Ideas matched to one audience, ranked by its money metric x quality, with deterministic business cases."""
-    from radar.business import PERSONAS, business_case, dedup_key, is_infrastructure, metric_value
+    from radar.business import PERSONAS, dedup_key, is_infrastructure, metric_value
+    from radar.pregen import business as stored_business
 
     p = PERSONAS.get(key)
     if p is None:
@@ -235,7 +237,7 @@ def persona(key: str, voivodeship: str | None = None, limit: int = 24):
             if k in seen:
                 continue
             seen.add(k)
-            bc = business_case(r, r.card)
+            bc = stored_business(r, r.card)
             d = idea_dict(r)
             d["business"] = {"metric": metric_value(bc, p["metric"]), "deploy_cost_pln": bc["deploy_cost_pln"],
                              "adopters": bc["adopters"], "som_3y_pln": bc["market"]["som_3y_pln"],
@@ -265,7 +267,9 @@ def match(role: str = "innowatorzy", voivodeship: str | None = None, sectors: st
     goal: zysk (return on investment) | wdrozenie (deploy at my institution) | partner (find a partner) | finansowanie."""
     import math
 
-    from radar.business import PERSONAS, business_case, dedup_key, is_infrastructure, metric_value
+    from radar.business import PERSONAS, dedup_key, is_infrastructure, metric_value
+
+    from radar.pregen import business as stored_business
 
     p = PERSONAS.get(role, PERSONAS["innowatorzy"])
     want_sectors = set(filter(None, (sectors or "").split(",")))
@@ -284,7 +288,7 @@ def match(role: str = "innowatorzy", voivodeship: str | None = None, sectors: st
             if k in seen:
                 continue
             seen.add(k)
-            bc = business_case(r, r.card)
+            bc = stored_business(r, r.card)
             lvl = STAGES.index(r.card.maturity) if r.card.maturity in STAGES else 0
             cost_i = COSTS.index(r.cost_level) if r.cost_level in COSTS else 1
             why, pts = [], 0.0

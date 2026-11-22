@@ -23,6 +23,7 @@ from sqlalchemy import select
 
 from radar.db import session
 from radar.models import Card, RawRecord, Record, SourceState, StageRun
+from radar.pregen import store as store_pregen
 from radar.pipeline import extract as ex
 from radar.pipeline.celery_app import app
 from radar.pipeline.normalize import apply_mapping, norm_title, programme_key, quality_gate, same_programme
@@ -475,8 +476,10 @@ def score(self, raw_id: int, h: str) -> str:
     with session() as s:
         if _done(s, raw_id, "score", h):
             return "duplicate-delivery"
-        card = s.scalar(select(Record).where(Record.raw_id == raw_id)).card
+        rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
+        card = rec.card
         card.assessment, card.score, card.brief = a, a["total"], b
+        store_pregen(rec, card)  # rules only, microseconds: an imported batch is pregenerated as it is scored
         card.reasoning = (card.reasoning or [])[:3] + [
             {"step": "Ocena wg kryteriów", "items": [f"{k}: {v['score']}/5 — {v['why']}" for k, v in a["scores"].items()]
              + [f"Wynik łączny: {a['total']}/100"]},
@@ -516,7 +519,17 @@ def reassess(self) -> int:
                 continue
             a = assess(s, rec, rec.card)
             rec.card.assessment, rec.card.score, rec.card.brief = a, a["total"], brief(rec, rec.card, a)
+            store_pregen(rec, rec.card)
     return len(ids)
+
+
+@app.task
+def pregenerate(force: bool = False) -> dict:
+    """Nightly from beat and on demand (`radar pregenerate`): brief, slogan, business case, audience fit for every
+    scored card whose inputs changed. Rules only (radar.pregen); the API reads the stored result."""
+    from radar.pregen import run
+
+    return run(force=force)
 
 
 # ---------------------------------------------------------------- reconcile

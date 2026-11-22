@@ -177,10 +177,11 @@ def card_dict(c: Card, full: bool = False) -> dict:
     if full:
         d.update(problem_solved=c.problem_solved, what_is_new=c.what_is_new, evidence=c.evidence,
                  reasoning=c.reasoning, provenance=c.provenance, decision_note=c.decision_note,
-                 decided_at=c.decided_at, assessment=c.assessment, brief=c.brief, basal=r.basal)
-        from radar.business import business_case
+                 decided_at=c.decided_at, assessment=c.assessment, brief=c.brief, basal=r.basal,
+                 slogan=(c.pregen or {}).get("slogan"), top_audiences=(c.pregen or {}).get("top_audiences"))
+        from radar.pregen import business as stored_business
 
-        d["business"] = business_case(r, c) if c.maturity else None
+        d["business"] = stored_business(r, c) if c.maturity else None
         if d["business"]:
             from sqlalchemy.orm import object_session
 
