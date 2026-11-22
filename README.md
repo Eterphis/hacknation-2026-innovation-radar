@@ -157,6 +157,24 @@ docker compose --profile public up -d
 
 Caddy (`deploy/public/Caddyfile`) sam pobiera certyfikat HTTPS i ukrywa `/metrics`; kontener `backup` co noc zapisuje zrzut bazy do `./backups`.
 
+**Bez domeny i bez otwartych portów (adres dla jury):** Cloudflare Tunnel przed tym samym API.
+
+```powershell
+# .env: RADAR_DEMO_MODE=1, RADAR_LLM_PROVIDERS=mock, RADAR_LOCAL_LLM_URL=http://llm:8080/v1 (bez kluczy chmurowych)
+docker compose --profile local-llm --profile tunnel up -d --build
+docker compose exec api radar demo        # dane przykładowe + pregeneracja (hasła pisze Bielik na CPU)
+docker compose logs cloudflared            # adres https://….trycloudflare.com
+```
+
+Szybki tunel nie wymaga konta, ale adres zmienia się po restarcie. Stały adres: tunel nazwany w Cloudflare, `RADAR_TUNNEL_CMD="tunnel --no-autoupdate run"` i `TUNNEL_TOKEN` w `.env` (nigdy w repo). `edge` (`deploy/public/Caddyfile.tunnel`) ukrywa `/metrics` i `/api/basal/train`. Szczegóły i lista kontrolna: [`docs/public-url.md`](docs/public-url.md).
+
+### Koszt LLM: reguły i mały model domyślnie
+
+- Łańcuch dostawców to domyślnie `local,mock`: mały model na CPU, potem reguły. Modele w chmurze (`anthropic`, `openai` na zewnętrznym adresie) są pomijane, dopóki nie ustawisz jawnie `RADAR_LLM_ALLOW_CLOUD=1` (Helm: `config.allowCloud: true`); `/api/config` pokazuje rzeczywisty łańcuch.
+- `radar pregenerate` liczy raz i zapisuje w `cards.pregen`: brief do rolek, hasło, wycenę i dopasowanie do odbiorców. Działa po ocenie każdej karty (także przy imporcie partii), po `reassess` i co noc z beat (03:30); przelicza tylko karty, których dane się zmieniły. Endpointy tylko to czytają.
+- Hasło pisze Bielik 1.5B (gramatyka GBNF, walidacja, w razie błędu hasło z reguł). Pomiar na 30 rekordach NCBR, 4 vCPU: 2,4 s na nowy rekord; pełnej ekstrakcji z cytatami mały model na CPU nie robi sensownie (27–54 s). Skrypt: `scripts/bench_local_llm.py`.
+- Grafana: dashboard „Radar Innowacji — koszty LLM” (`deploy/observability/grafana/dashboards/costs.json`): wywołania wg dostawcy, szacowany koszt, % kart bez dużego LLM (`radar_cards_without_large_llm_ratio`, cel > 90%), stan pregeneracji.
+
 | Pozycja | Miesięcznie |
 |---|---|
 | VPS 2 vCPU / 4 GB (np. Hetzner CX22, OVH VPS) | ok. 20–35 zł |

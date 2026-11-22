@@ -122,6 +122,23 @@ services:
     volumes: ["./deploy/public/Caddyfile:/etc/caddy/Caddyfile:ro", "caddy-data:/data"]
     restart: unless-stopped
 
+  # Public URL without a domain or open ports (jury, phone on LTE): `docker compose --profile tunnel up -d`
+  # Quick tunnel by default (random https://*.trycloudflare.com, printed by `docker compose logs cloudflared`).
+  # Fixed address: a named tunnel, RADAR_TUNNEL_CMD="tunnel --no-autoupdate run" and TUNNEL_TOKEN in .env (never in git).
+  edge:
+    image: caddy:2.8-alpine
+    profiles: ["tunnel"]
+    depends_on: [api]
+    volumes: ["./deploy/public/Caddyfile.tunnel:/etc/caddy/Caddyfile:ro"]
+    restart: unless-stopped
+  cloudflared:
+    image: cloudflare/cloudflared:2025.11.1
+    profiles: ["tunnel"]
+    depends_on: [edge]
+    command: ${RADAR_TUNNEL_CMD:-tunnel --no-autoupdate --url http://edge:80}
+    env_file: [{ path: .env, required: false }]   # TUNNEL_TOKEN for a named tunnel
+    restart: unless-stopped
+
   # Nightly Postgres dump into ./backups (profile public); rotate old files with the host's own tooling
   backup:
     image: postgres:16-alpine
