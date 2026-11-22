@@ -105,3 +105,189 @@ def test_pregenerate_matches_api_on_demo_data():
         for key in PERSONAS:
             items = c.get(f"/api/personas/{key}", params={"limit": 60}).json()["items"]
             assert {i["card_id"] for i in items} <= fit[key], key
+
+
+# ------------------------------------------------------------------------------------------------ wiring (after #11)
+def _demo():
+    from radar.pipeline.tasks import harvest
+
+    for src in ("demo-zgloszenia", "demo-kohesio", "demo-publikacje"):
+        harvest.apply((src,)).get()
+
+
+def test_import_pregenerates_and_api_only_reads(monkeypatch):
+    """Scoring an imported batch stores pregen; persona, match, card and feed endpoints never compute it again."""
+    from fastapi.testclient import TestClient
+    from sqlalchemy import select
+
+    from radar.db import session
+    from radar.models import Card
+
+    _demo()
+    with session() as s:
+        cards = s.scalars(select(Card).where(Card.score.is_not(None))).all()
+        assert cards and all(c.pregen and c.pregen["version"] == pregen.VERSION for c in cards)
+
+    import radar.business
+    import radar.pregen as P
+
+    def boom(*a, **k):
+        raise AssertionError("API must read the stored business case, not compute it")
+
+    monkeypatch.setattr(radar.business, "business_case", boom)
+    monkeypatch.setattr(P, "business_case", boom)
+    from radar.api.main import app
+
+    with TestClient(app) as c:
+        for key in PERSONAS:
+            assert c.get(f"/api/personas/{key}").status_code == 200
+        items = c.get("/api/match", params={"role": "samorzady"}).json()["items"]
+        assert items
+        card = c.get(f"/api/cards/{items[0]['card_id']}").json()
+        assert card["business"]["version"].startswith("business/") and card["slogan"]
+        assert all(i["slogan"] for i in c.get("/api/feed").json())
+
+
+def test_cli_pregenerate_is_incremental(capsys):
+    import json
+
+    from radar.cli import main
+
+    _demo()
+    main(["pregenerate"])
+    first = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert first["cards"] > 0 and first["computed"] == 0 and first["skipped"] == first["cards"]  # scored = stored
+    main(["pregenerate", "--force"])
+    forced = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert forced["computed"] == forced["cards"] and forced["no_large_llm_pct"] == 100.0
+
+
+def test_nightly_beat_runs_pregenerate():
+    from radar.pipeline.celery_app import beat_schedule
+
+    e = beat_schedule()["pregenerate-nightly"]
+    assert e["task"] == "radar.pipeline.tasks.pregenerate" and e["options"]["queue"] == "score"
+
+
+def test_slogan_is_reused_when_its_text_is_unchanged():
+    calls = []
+
+    def model(s, u):
+        calls.append(u)
+        return {"haslo": "Robotyka dla małych szkół"}
+
+    r, c = rec(), card()
+    c.pregen = pregen.pregenerate(r, c, model)
+    assert len(calls) == 1 and c.pregen["llm_calls"] == 1
+    c.score = 95.0  # reassess: new score, same text
+    again = pregen.pregenerate(r, c, model)
+    assert len(calls) == 1 and again["slogan"] == "Robotyka dla małych szkół" and again["llm_calls"] == 0
+    c.problem_solved = "Inny problem"  # text changed: ask again
+    pregen.pregenerate(r, c, model)
+    assert len(calls) == 2
+    pregen.pregenerate(r, c, model, reuse=False)  # --force
+    assert len(calls) == 3
+
+
+# ------------------------------------------------------------------ stability: model outside transactions, breaker
+def test_model_slogan_counts_tries_only_for_answers():
+    r, c = rec(), card()
+    pg = pregen.pregenerate(r, c)  # rules
+    assert pg["slogan_by"] == "reguły" and pg["slogan_tries"] == 0 and pregen.wants_model_slogan(pg)
+
+    def down(s, u):
+        raise ConnectionError("llama.cpp down")
+
+    assert pregen.with_model_slogan(pg, r, c, down) is pg  # unavailable: unchanged, no try counted
+    bad = pg
+    for _ in range(pregen.MAX_SLOGAN_TRIES):
+        bad = pregen.with_model_slogan(bad, r, c, lambda s, u: {"haslo": "x" * 200})
+    assert bad["slogan_by"] == "reguły" and not pregen.wants_model_slogan(bad)  # gave up after the tries
+    good = pregen.with_model_slogan(pg, *pregen.slogan_inputs(r, c), lambda s, u: {"haslo": "Robotyka dla małych szkół"})
+    assert good["slogan"] == "Robotyka dla małych szkół" and good["slogan_by"] == "local-llm" and good["llm_calls"] == 1
+
+
+def test_stored_rule_slogan_is_upgraded_when_a_model_is_given():
+    r, c = rec(), card()
+    c.pregen = pregen.pregenerate(r, c)  # e.g. written by reassess (rules only)
+    up = pregen.pregenerate(r, c, lambda s, u: {"haslo": "Robotyka dla małych szkół"})
+    assert up["slogan_by"] == "local-llm"
+    c.pregen = {**c.pregen, "slogan_tries": pregen.MAX_SLOGAN_TRIES}
+    assert pregen.pregenerate(r, c, lambda s, u: {"haslo": "Robotyka dla małych szkół"})["slogan_by"] == "reguły"
+
+
+def test_local_slogan_breaker_skips_a_dead_model(monkeypatch):
+    from radar.config import get_settings
+    from radar.llm.providers import LocalProvider, ProviderError
+
+    monkeypatch.setenv("RADAR_LOCAL_LLM_URL", "http://llm:8080/v1")
+    get_settings.cache_clear()
+    monkeypatch.setattr(pregen, "_slogan_open_until", [0.0])
+    hits = []
+
+    def hang(self, system, user):
+        hits.append(1)
+        raise ProviderError("timeout")
+
+    monkeypatch.setattr(LocalProvider, "complete_json", hang)
+    complete = pregen.local_slogan()
+    assert complete.ready()
+    r, c = rec(), card()
+    for _ in range(5):
+        assert pregen.slogan(r, c, complete)[1] == "reguły"
+    assert len(hits) == 1 and not complete.ready()  # one timeout, then the breaker answers at once
+
+
+def _fake_model(monkeypatch, fn):
+    fn.ready = lambda: True
+    monkeypatch.setattr(pregen, "local_slogan", lambda: fn)
+
+
+def test_reassess_never_calls_the_model(monkeypatch):
+    from radar.pipeline import tasks
+
+    _demo()
+    monkeypatch.setattr(tasks, "local_slogan", lambda: (_ for _ in ()).throw(AssertionError("no model in reassess")))
+    _fake_model(monkeypatch, lambda s, u: (_ for _ in ()).throw(AssertionError("no model in reassess")))
+    assert tasks.reassess.apply().get() > 0
+
+
+def test_run_writes_model_slogans_outside_transactions_within_budget(monkeypatch):
+    from sqlalchemy import select
+
+    from radar.db import session
+    from radar.models import Card
+
+    _demo()
+    open_tx = []
+    import radar.db as db
+
+    real_session = db.session
+
+    from contextlib import contextmanager
+
+    depth = [0]
+
+    @contextmanager
+    def tracked():
+        depth[0] += 1
+        try:
+            with real_session() as s:
+                yield s
+        finally:
+            depth[0] -= 1
+
+    monkeypatch.setattr(db, "session", tracked)
+
+    def model(s, u):
+        open_tx.append(depth[0])
+        return {"haslo": "Robotyka dla małych szkół"}
+
+    _fake_model(monkeypatch, model)
+    assert pregen.run(llm_budget_s=0)["slogans_deferred"] > 0 and not open_tx  # no budget: nothing asked
+    st = pregen.run()
+    assert open_tx and set(open_tx) == {0}  # every model call happened with no session open
+    assert st["slogans_deferred"] == 0
+    with session() as s:
+        by = [c.pregen["slogan_by"] for c in s.scalars(select(Card).where(Card.score.is_not(None)))]
+    assert by and st["slogans_by_model"] > 0 and by.count("local-llm") == st["slogans_by_model"]

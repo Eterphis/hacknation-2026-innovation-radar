@@ -44,11 +44,11 @@ def zl(n) -> str:
 
 def full_card(s, c: Card) -> dict:
     """Business case + investor signals for one card (the same numbers the UI and the memo show)."""
-    from radar.business import business_case
     from radar.investor import signals
+    from radar.pregen import business as stored_business
 
     r = c.record
-    bc = business_case(r, c) if c.maturity else None
+    bc = stored_business(r, c) if c.maturity else None
     sig = signals(s, r, c, bc) if bc else None
     return {"record": r, "card": c, "business": bc, "investor": sig}
 
@@ -255,7 +255,8 @@ def deployments(side: str = "odbiorca", voivodeship: str | None = None, sectors:
     """side=odbiorca: ready solutions for my institution + who can deliver + how to pay.
     side=wykonawca: where to sell (per-region adopters and revenue potential) + solutions worth licensing."""
     from radar.api.explore import _filters, idea_dict
-    from radar.business import adopter_key, adopters_for, business_case, dedup_key, is_infrastructure
+    from radar.business import adopter_key, adopters_for, dedup_key, is_infrastructure
+    from radar.pregen import business as stored_business
     from radar.investor import _org_key, implementers
 
     want = set(filter(None, (sectors or "").split(",")))
@@ -274,7 +275,7 @@ def deployments(side: str = "odbiorca", voivodeship: str | None = None, sectors:
             if k in seen:
                 continue
             seen.add(k)
-            bc = business_case(r, r.card)
+            bc = stored_business(r, r.card)
             d = idea_dict(r)
             d["deploy_cost_pln"] = bc["deploy_cost_pln"]
             d["savings_pln"] = bc["savings_per_adopter_pln"]

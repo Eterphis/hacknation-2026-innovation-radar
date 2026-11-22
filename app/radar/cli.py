@@ -6,6 +6,9 @@
   consume <source_id>       run the consumer of a push source (amqp | gcp_pubsub | kafka)
   reconcile                 re-enqueue records whose pipeline stopped mid-way
   reassess                  re-index the graph and re-score all ready cards (also daily via beat)
+  pregenerate [--force] [--llm-budget-s S]
+                            brief, slogan, business case and audience fit for scored cards whose inputs changed
+                            (rules only; also after every score, after reassess and nightly via beat)
   demo                      eager run of all demo sources into the local DB (no broker, no keys)
   basal-eval [--log CSV]    accuracy of Basal on the hand-labelled real test set (eval/basal_gold.jsonl)
   orgs load                 load the organisation registry (radon_institutions.jsonl from the harvester)
@@ -33,6 +36,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("reconcile")
     sub.add_parser("demo")
     sub.add_parser("reassess")
+    pg = sub.add_parser("pregenerate"); pg.add_argument("--force", action="store_true", help="recompute every card")
+    pg.add_argument("--llm-budget-s", type=float, default=float("inf"),
+                    help="stop model slogans after this many seconds (default: no limit from the CLI)")
     e = sub.add_parser("basal-eval")
     e.add_argument("--data"); e.add_argument("--gold"); e.add_argument("--log"); e.add_argument("--note", default="")
     e.add_argument("--errors", action="store_true", help="print misclassified records")
@@ -98,6 +104,11 @@ def main(argv: list[str] | None = None) -> int:
         from radar.pipeline.tasks import reassess
 
         print("reassessed", reassess.apply().get())
+    elif a.cmd == "pregenerate":
+        migrate()
+        from radar.pregen import run
+
+        print(json.dumps(run(force=a.force, llm_budget_s=a.llm_budget_s), ensure_ascii=False))
     elif a.cmd == "reassess":
         migrate()
         from radar.pipeline.tasks import reassess

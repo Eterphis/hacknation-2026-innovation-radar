@@ -18,6 +18,19 @@ import httpx
 
 from radar.config import get_settings
 
+# Generic JSON for llama.cpp's `grammar` field, in the GBNF subset this llama.cpp build parses (no hex escapes;
+# response_format / json_schema fail there with "Failed to initialize samplers").
+JSON_GBNF = r'''root   ::= object
+value  ::= object | array | string | number | ("true" | "false" | "null") ws
+object ::= "{" ws ( string ":" ws value ("," ws string ":" ws value)* )? "}" ws
+array  ::= "[" ws ( value ("," ws value)* )? "]" ws
+string ::= "\"" ( [^"\\\n] | "\\" ["\\nt/] )* "\"" ws
+number ::= "-"? [0-9]+ ("." [0-9]+)? ws
+ws ::= [ \t\n]*
+'''
+# an OpenAI-compatible base URL on one of these hosts is a self-hosted model, not a cloud API
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "ollama", "//llm:", "host.docker.internal", "-llm")
+
 
 class ProviderError(RuntimeError):
     pass
@@ -103,6 +116,7 @@ class OpenAICompatProvider(Provider):
                 headers=headers,
                 json={"model": self.model, "temperature": 0.2, "max_tokens": self.max_tokens,
                       **({"response_format": {"type": "json_object"}} if self.json_mode else {}),
+                      **({"grammar": self.grammar} if getattr(self, "grammar", None) and not self.json_mode else {}),
                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
                 timeout=self.timeout,
             )
@@ -165,10 +179,20 @@ class LocalProvider(OpenAICompatProvider):
         # llama.cpp builds differ: some fail to build the JSON grammar ("Failed to initialize samplers"); the
         # prompt asks for JSON and _parse_json takes the first object, which is enough for the agent protocol.
         self.json_mode = s.local_llm_json_mode
+        self.grammar = JSON_GBNF if s.local_llm_grammar else None
         self.max_tokens = 900
 
     def available(self) -> bool:
         return bool(self.base)
+
+
+def is_cloud(p: Provider) -> bool:
+    """A provider that sends records to a third-party model: Anthropic, or OpenAI-compatible on a non-local URL."""
+    if p.name == "anthropic":
+        return True
+    if p.name == "openai":
+        return not any(h in (p.base or "") for h in LOCAL_HOSTS)
+    return False
 
 
 PROVIDERS = {"local": LocalProvider, "anthropic": AnthropicProvider, "openai": OpenAICompatProvider, "mock": MockProvider}

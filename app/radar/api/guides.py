@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 import time
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy.orm.attributes import flag_modified
 
+from radar.api.auth import operator
 from radar.basal.classifier import label_pl
 from radar.config import get_settings
 from radar.db import session
@@ -107,6 +109,9 @@ SYSTEM = ("Jesteś przewodnikiem po innowacjach z polskich szkół, uczelni i sa
 AUDIENCE = {"radek": "dla osoby, która pierwszy raz trafiła na radar", "ada": "dla inwestora", "tomek": "dla wójta lub dyrektora instytucji",
             "ola": "dla dyrektora szkoły", "profesor": "dla naukowca z uczelni"}
 GBNF = r'''root ::= "{\"tekst\": \"" [^"\\\n]{100,420} "\"}"'''
+# Public endpoint in front of one llama.cpp server shared with the pipeline: at most this many narrations run at once
+# per API process; a request that finds the slot busy gets the rule text at once instead of queueing on the model.
+MODEL_SLOTS = threading.BoundedSemaphore(int(os.environ.get("RADAR_GUIDE_LLM_CONCURRENCY", "1")))
 
 
 def bielik(text: str, guide: str) -> tuple[str | None, float]:
@@ -151,28 +156,46 @@ def guides():
     return [{"key": k, "img": f"/static/guides/{k}.webp", **v} for k, v in GUIDES.items()]
 
 
+def _guide_llm_url() -> str:
+    return os.environ.get("RADAR_GUIDE_LLM_URL") or get_settings().local_llm_url
+
+
 @router.get("/cards/{card_id}/pitch")
-def pitch(card_id: int, guide: str = "radek", llm: bool = True, fresh: bool = False):
+def pitch(card_id: int, guide: str = "radek", llm: bool = True, fresh: bool = False,
+          x_operator_token: str | None = Header(default=None)):
     if guide not in GUIDES:
         raise HTTPException(404, "nieznany przewodnik")
+    if fresh:  # regenerating spends model time: an operator action (the UI never asks for it)
+        operator(x_operator_token)
+    key = f"pitch_{guide}"
+    # short read, then the model with no session open (it may take up to two minutes), then a short write
     with session() as s:
         c = s.get(Card, card_id)
         if c is None:
             raise HTTPException(404)
-        key = f"pitch_{guide}"
         cached = (c.brief or {}).get(key)
-        if cached and not fresh and (cached.get("by") != "reguły" or not llm or not (os.environ.get("RADAR_GUIDE_LLM_URL") or get_settings().local_llm_url)):
+        # a rule text is final once the model has been tried for it (failed validation): no retry per request
+        if cached and not fresh and (cached.get("by") != "reguły" or cached.get("model_tried") or not llm
+                                     or not _guide_llm_url()):
             return {"card_id": card_id, "guide": guide, **cached, "cached": True}
         fl = facts(c, guide)
-        rules = " ".join(fl)
-        text, secs, by = rules, 0.0, "reguły"
-        if llm:
+        sector = label_pl("sector", c.record.sector) if c.record.sector else None
+    rules = " ".join(fl)
+    text, secs, by, tried = rules, 0.0, "reguły", False
+    if llm and _guide_llm_url() and MODEL_SLOTS.acquire(blocking=False):
+        try:
             model_facts = [re.sub(r"^Opowiem o projekcie „.*?”,? ?(który prowadzi )?", "Projekt prowadzi ", f) if f.startswith("Opowiem") else f for f in fl[1:]]
             out, secs = bielik("\n".join(model_facts), guide)
-            if out:
-                hello = f"Cześć, tu {GUIDES[guide]['name']}."
-                text, by = (out if out.startswith("Cześć") else f"{hello} {out}"), "bielik-1.5b"
-        c.brief = {**(c.brief or {}), key: {"text": text, "by": by, "rules": rules, "seconds": round(secs, 1)}}
-        flag_modified(c, "brief")
-        return {"card_id": card_id, "guide": guide, "text": text, "by": by, "rules": rules, "seconds": round(secs, 1), "cached": False,
-                "sector": label_pl("sector", c.record.sector) if c.record.sector else None}
+            tried = True
+        finally:
+            MODEL_SLOTS.release()
+        if out:
+            hello = f"Cześć, tu {GUIDES[guide]['name']}."
+            text, by = (out if out.startswith("Cześć") else f"{hello} {out}"), "bielik-1.5b"
+    entry = {"text": text, "by": by, "rules": rules, "seconds": round(secs, 1), **({"model_tried": True} if tried else {})}
+    with session() as s:
+        c = s.get(Card, card_id)
+        if c is not None:
+            c.brief = {**(c.brief or {}), key: entry}
+            flag_modified(c, "brief")
+    return {"card_id": card_id, "guide": guide, **entry, "cached": False, "sector": sector}
