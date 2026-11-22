@@ -54,11 +54,30 @@ workers:
     concurrency: 4
     replicas: 1
     resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } }
+    autoscaling: { enabled: false, minReplicas: 1, maxReplicas: 6, targetCPU: 70 }
   - name: llm
     queues: [extract, maturity, score]
     concurrency: 2
     replicas: 1
     resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } }
+    autoscaling: { enabled: false, minReplicas: 1, maxReplicas: 8, targetCPU: 70 }
+
+# Worker autoscaling. With KEDA in the cluster: scale each worker Deployment by its RabbitMQ queue length
+# (idle -> minReplicas, burst -> maxReplicas). Without KEDA: per-worker CPU HPA via workers[].autoscaling.
+keda:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 8
+  messagesPerReplica: 50   # target queue length per replica
+  cooldownSeconds: 300
+
+pdb:
+  enabled: true            # API keeps one pod during node drains
+
+serviceMonitor:
+  enabled: false           # Prometheus Operator: scrape the API /metrics
+  interval: 30s
+  labels: {}
 
 beat:
   enabled: true

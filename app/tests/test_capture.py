@@ -90,3 +90,63 @@ def test_operator_actions_need_token_when_configured(monkeypatch):
         assert c.post("/api/basal/train", headers={"X-Operator-Token": "s3cret"}).status_code != 401
         # reading, matching and submitting stay open
         assert c.get("/api/ideas").status_code == 200
+
+
+def test_guides_tell_the_story_from_facts_without_a_model():
+    from radar.api.main import app
+    from radar.pipeline.tasks import harvest
+
+    harvest.apply(("demo-zgloszenia",)).get()
+    with TestClient(app) as c:
+        g = c.get("/api/guides").json()
+        assert {x["key"] for x in g} == {"radek", "ada", "tomek", "ola", "profesor"}
+        cid = c.get("/api/ideas?limit=1").json()["items"][0]["card_id"]
+        for k in ("radek", "ada", "tomek", "ola", "profesor"):
+            p = c.get(f"/api/cards/{cid}/pitch", params={"guide": k}).json()
+            assert p["by"] == "reguły" and p["text"].startswith("Cześć") and len(p["text"]) > 80
+        assert c.get(f"/api/cards/{cid}/pitch", params={"guide": "ada"}).json()["cached"] is True
+        assert c.get(f"/api/cards/{cid}/pitch", params={"guide": "nikt"}).status_code == 404
+
+
+def test_model_text_with_invented_numbers_is_rejected():
+    from radar.api.guides import validate
+
+    src = "Projekt kosztuje około 137 tysięcy złotych, odbiorców jest 950."
+    ok = "Ten projekt kosztuje około 137 tysięcy złotych i może pomóc 950 szpitalom w całej Polsce, bo działa już w praktyce."
+    assert validate(ok, src) == ok
+    assert validate(ok.replace("950", "1200"), src) is None
+    assert validate("Za krótko.", src) is None
+
+
+def test_spoken_amounts_use_polish_plurals():
+    from radar.api.guides import zl
+
+    assert [zl(50e6), zl(1.6e6), zl(2e6), zl(1e6), zl(137220), zl(22000), zl(1000)] == [
+        "50 milionów złotych", "1,6 miliona złotych", "2 miliony złotych", "1 milion złotych",
+        "137 tysięcy złotych", "22 tysiące złotych", "1 tysiąc złotych"]
+
+
+def test_small_model_bad_json_falls_back_to_rules(monkeypatch):
+    """A 1.5B model answering bare strings (seen live with Bielik) must not stall a record: rules make the card."""
+    from radar.llm.router import router as real_router
+    from radar.pipeline import extract as ex
+
+    real = real_router()
+
+    class P:
+        def __init__(self, name):
+            self.name = name
+
+    class Stub:
+        providers = [P("local"), P("mock")]
+
+        def complete_json(self, system, user, purpose="other", exclude=(), **kw):
+            if "local" not in exclude:
+                return {"is_innovation": "tak", "solution_name": "Drony", "innovation_type": "edukacyjna"}, {"provider": "local", "model": "bielik"}
+            return real.complete_json(system, user, purpose=purpose)
+
+    monkeypatch.setattr(ex, "router", lambda: Stub())
+    text = ex.source_text("Szkolne drony do inspekcji dachów", "Uczniowie technikum budują drony z kamerą termowizyjną, które sprawdzają dachy szkół i urzędów gminy. Gmina oszczędza na podnośnikach.", ["drony"])
+    out, errors, prov = ex.extract(text, max_retries=1)
+    assert out is not None and not errors
+    assert prov["fallback_after"] == "local" and prov["model_errors"]
