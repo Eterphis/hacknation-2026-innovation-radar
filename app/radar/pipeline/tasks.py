@@ -23,7 +23,7 @@ from sqlalchemy import select
 
 from radar.db import session
 from radar.models import Card, RawRecord, Record, SourceState, StageRun
-from radar.pregen import store as store_pregen
+from radar.pregen import card_view, local_slogan, pregenerate as pregenerate_card, store as store_pregen
 from radar.pipeline import extract as ex
 from radar.pipeline.celery_app import app
 from radar.pipeline.normalize import apply_mapping, norm_title, programme_key, quality_gate, same_programme
@@ -491,6 +491,8 @@ def score(self, raw_id: int, h: str) -> str:
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
         a = assess(s, rec, rec.card)
         b = brief(rec, rec.card, a)
+        # pregen here, outside any write transaction: it may call the small local model for the slogan (~2-3 s)
+        pg = pregenerate_card(rec, card_view(rec.card, assessment=a, score=a["total"], brief=b), local_slogan())
         s.rollback()  # read-only by contract: drop anything a tool might have touched
     # Short write transaction; re-check, because a redelivered copy may have finished while the model worked.
     with session() as s:
@@ -499,7 +501,7 @@ def score(self, raw_id: int, h: str) -> str:
         rec = s.scalar(select(Record).where(Record.raw_id == raw_id))
         card = rec.card
         card.assessment, card.score, card.brief = a, a["total"], b
-        store_pregen(rec, card)  # rules only, microseconds: an imported batch is pregenerated as it is scored
+        card.pregen = pg  # an imported batch is pregenerated as it is scored; the API only reads it
         card.reasoning = (card.reasoning or [])[:3] + [
             {"step": "Ocena wg kryteriów", "items": [f"{k}: {v['score']}/5 — {v['why']}" for k, v in a["scores"].items()]
              + [f"Wynik łączny: {a['total']}/100"]},
@@ -546,7 +548,8 @@ def reassess(self) -> int:
 @app.task
 def pregenerate(force: bool = False) -> dict:
     """Nightly from beat and on demand (`radar pregenerate`): brief, slogan, business case, audience fit for every
-    scored card whose inputs changed. Rules only (radar.pregen); the API reads the stored result."""
+    scored card whose inputs changed. Rules, plus the small local model for the slogan when RADAR_LOCAL_LLM_URL is
+    set (never a cloud model); the API reads the stored result."""
     from radar.pregen import run
 
     return run(force=force)

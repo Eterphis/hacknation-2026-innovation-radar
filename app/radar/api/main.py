@@ -77,7 +77,11 @@ def readyz():
 @app.get("/api/config")
 def config():
     st = get_settings()
-    return {"demo_mode": st.demo_mode, "llm_providers": st.llm_providers.split(","), "version": __version__}
+    from radar.llm.router import router
+
+    r = router()
+    return {"demo_mode": st.demo_mode, "llm_providers": [p.name for p in r.providers], "llm_cloud_blocked": r.blocked,
+            "llm_allow_cloud": st.llm_allow_cloud, "version": __version__}
 
 
 # ---------------------------------------------------------------- sources

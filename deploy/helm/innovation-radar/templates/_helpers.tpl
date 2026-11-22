@@ -45,6 +45,8 @@ amqp://{{ .Values.rabbitmq.user }}:{{ .Values.rabbitmq.password }}@{{ include "r
   value: {{ .Values.config.demoMode | ternary "1" "0" | quote }}
 - name: RADAR_LLM_PROVIDERS
   value: {{ .Values.config.llmProviders | quote }}
+- name: RADAR_LLM_ALLOW_CLOUD
+  value: {{ .Values.config.allowCloud | default false | ternary "1" "0" | quote }}
 - name: RADAR_ANTHROPIC_MODEL
   value: {{ .Values.config.anthropicModel | quote }}
 - name: RADAR_OPENAI_BASE_URL

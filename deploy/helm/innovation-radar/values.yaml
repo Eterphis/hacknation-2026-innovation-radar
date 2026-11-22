@@ -7,7 +7,9 @@ imagePullSecrets: []
 # Common env for every role (api, workers, beat, consumers).
 config:
   demoMode: true
-  llmProviders: "local,anthropic,openai,mock"
+  # local model -> rules. Cloud models (anthropic, openai) only when listed here AND allowCloud: true.
+  llmProviders: "local,mock"
+  allowCloud: false
   # hashing (default: better on the 60-record eval, E-003) or fastembed (multilingual-e5-small, ONNX on CPU,
   # baked into the image; E-004). Thresholds per embedder: radar/basal/embed.py CALIBRATION.
   embedder: hashing
