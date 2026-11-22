@@ -170,6 +170,11 @@ def is_infrastructure(title: str | None, abstract: str | None = None) -> bool:
 
 SIGNAL = [r"opracow", r"wdroz", r"prototyp", r"metod", r"system", r"program", r"pilota", r"model", r"rozwiaz", r"aplikac",
           r"narzedz", r"technolog", r"innowac", r"uslug", r"usprawni", r"develop", r"method", r"prototype", r"platform", r"urzadz"]
+# Words that describe building a solution, not running a works contract. Two or more of them keep an infrastructure
+# match out of the reject list (a sensor system for motorway bridges, a digital twin of a gas pipeline). SIGNAL is too
+# loose for this: EU project boilerplate ("Program Operacyjny", "system odwodnienia", "wdrożenie ERTMS") hits 2-3 of it.
+INFRA_INNOVATION = [r"opracow", r"prototyp", r"pilota", r"model", r"aplikac", r"narzedz", r"metod", r"czujnik",
+                    r"algorytm", r"develop", r"method", r"prototype", r"platform"]
 
 VOIVODESHIPS = {
     "dolnoslaskie": "dolnośląskie", "kujawsko-pomorskie": "kujawsko-pomorskie", "lubelskie": "lubelskie",

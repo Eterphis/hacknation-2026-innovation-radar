@@ -17,7 +17,7 @@ import numpy as np
 from radar.basal import taxonomy as T
 from radar.basal.embed import calibration, fold, get_embedder, rescale
 
-VERSION = "basal/v1"
+VERSION = "basal/v2"  # v2: infrastructure investments rejected in the gate (taxonomy.INFRASTRUCTURE)
 KW_WEIGHT, PROTO_WEIGHT = 0.65, 0.35
 PII = {
     "pesel": re.compile(r"\b\d{11}\b"),
@@ -45,7 +45,8 @@ def _compile(table: dict[str, dict]) -> dict[str, list[re.Pattern]]:
 
 _SECT, _TECH, _ITYPE, _INST = (_compile(t) for t in (T.SECTORS, T.TECH_AREAS, T.INNOVATION_TYPES, T.INSTITUTION_TYPES))
 _RX = {name: [re.compile(p) for p in pats] for name, pats in
-       {"negative": T.NEGATIVE, "spam": T.SPAM, "offensive": T.OFFENSIVE, "signal": T.SIGNAL}.items()}
+       {"negative": T.NEGATIVE, "spam": T.SPAM, "offensive": T.OFFENSIVE, "signal": T.SIGNAL,
+        "infra_innovation": T.INFRA_INNOVATION}.items()}
 _MAT = {k: [re.compile(p) for p in v] for k, v in T.MATURITY_KW.items()}
 _NGO = [re.compile(p) for p in T.NGO_KW]
 _COMPANY_CASED = [re.compile(p) for p in T.COMPANY_CASED]  # case-sensitive, on the original names
@@ -267,7 +268,10 @@ def classify(*, title: str | None, abstract: str | None, keywords: list[str] | N
     if n_signal == 0 and kind in ("publication", "other"):
         reasons.append("brak opisu rozwiązania (słowa: opracowano, wdrożenie, prototyp, metoda, usługa…)")
     if (infra := T.infrastructure_match(title, abstract)):
-        reasons.append(f"inwestycja infrastrukturalna ({infra})")
+        if len(_hits(text, _RX["infra_innovation"])) < 2:
+            reasons.append(f"inwestycja infrastrukturalna ({infra})")
+        else:  # an innovation about infrastructure: goes on to the LLM, lower priority, flagged for the operator
+            hold.append(f"dotyczy infrastruktury ({infra}), ale opisuje rozwiązanie: sprawdź, czy to nie sama inwestycja")
     if labels["institution_type"].value == "firma":
         reasons.append("poza zakresem: tylko firma prywatna, brak instytucji publicznej")
     ngo_only = labels["institution_type"].by.startswith("organizacja pozarządowa")
