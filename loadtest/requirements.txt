@@ -1,0 +1,2 @@
+# narzędzie testowe poza app/ (nie trafia do obrazu); wersja przypięta
+locust==2.47.0

@@ -11,21 +11,19 @@ from __future__ import annotations
 
 import math
 import re
-import time
 from collections import Counter, defaultdict
 
 import numpy as np
 from fastapi import APIRouter
 from sqlalchemy import select
 
+from radar.api.cache import cached
 from radar.basal.classifier import label_pl
 from radar.basal.embed import fold
 from radar.db import session
 from radar.models import Card, Record
 
 router = APIRouter(prefix="/api")
-_CACHE: dict = {}
-TTL = 600
 STOP = set("""oraz przez ktore ktora ktory ktorych jako jest bylo byly beda dzieki takze tego tych tej jego jej ich nowych nowej
 nowego nowe innych ramach projekt projektu projektow projekcie rozwoj rozwoju systemu system systemow badania badan
 zastosowanie zastosowania metody metoda opracowanie opracowania wykorzystanie wykorzystaniem analiza analizy poprzez
@@ -115,10 +113,11 @@ def _named(groups: dict, namer) -> list[dict]:
 
 @router.get("/clusters")
 def clusters(mode: str = "tematy", k: int = 10):
-    key = (mode, k)
-    hit = _CACHE.get(key)
-    if hit and time.monotonic() - hit[0] < TTL:
-        return hit[1]
+    # was a 10-minute TTL dict without invalidation: a new card stayed invisible here; now keyed by the data version
+    return cached("clusters", (mode, k), lambda: _clusters(mode, k))
+
+
+def _clusters(mode: str, k: int) -> dict:
     rows = _rows()
     if mode == "rynki":
         from radar.business import ADOPTERS, adopter_key, adopters_for
@@ -155,5 +154,4 @@ def clusters(mode: str = "tematy", k: int = 10):
         top = dict(sorted(groups.items(), key=lambda t: -len(t[1]))[:max(6, min(k + 4, 20))])
         name = lambda g, s: f"{label_pl('tech_area', g[0]).split(' (')[0]} · {label_pl('sector', g[1]).split(',')[0]}"
         res = {"mode": mode, "total": len(rows), "clusters": _named(top, name)}
-    _CACHE[key] = (time.monotonic(), res)
     return res

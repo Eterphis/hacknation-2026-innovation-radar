@@ -1,0 +1,17 @@
+# Profil „public, 2 vCPU / 4 GB” do testu obciążeniowego (issue #31, zadanie 4):
+#   RADAR_DEMO_MODE=1 docker compose --profile public -f docker-compose.yml -f loadtest/compose.limits.yml up -d --build
+# api + postgres + rabbitmq łącznie: 2,0 CPU i 4 GB RAM (jak VPS Hetzner CX22). Workery i beat dostają resztkę,
+# bo po zasileniu danymi demo nie mają pracy; na prawdziwym VPS dzielą te same 2 vCPU.
+services:
+  api:
+    deploy: { resources: { limits: { cpus: "1.2", memory: 2048M } } }
+  postgres:
+    deploy: { resources: { limits: { cpus: "0.5", memory: 1280M } } }
+  rabbitmq:
+    deploy: { resources: { limits: { cpus: "0.3", memory: 768M } } }
+  worker-ingest:
+    deploy: { resources: { limits: { cpus: "0.25", memory: 512M } } }
+  worker-llm:
+    deploy: { resources: { limits: { cpus: "0.25", memory: 512M } } }
+  beat:
+    deploy: { resources: { limits: { cpus: "0.1", memory: 256M } } }
