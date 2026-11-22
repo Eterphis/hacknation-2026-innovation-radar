@@ -269,3 +269,6 @@ h2.reel-title { margin:0; }
 .ai-note { display:inline-flex; gap:.3rem; align-items:center; margin:-.5rem 0 .5rem; font-size:.6875rem; color:var(--ink-3); }
 .ai-note .ic { width:12px; height:12px; }
 .gai { position:absolute; left:-4px; top:-4px; padding:1px 5px; border-radius:99px; font:700 .625rem/1.4 var(--sans); color:var(--ink-2); background:var(--bg); box-shadow:var(--sh-sm); }
+.gdock .gai { left:-4px; top:auto; bottom:52px; } @media (max-width: 720px) { .gdock .gai { bottom:40px; } }
+/* zwinięty klaster nie zostawia niewidocznych elementów w kolejności Tab */
+.cluster:not(.open) .cl-items { visibility:hidden; }

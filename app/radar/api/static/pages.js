@@ -30,8 +30,21 @@ async function like(id) {
   r.liked ? liked.add(id) : liked.delete(id); saveLiked(); return r;
 }
 const IDX = {};  // card_id -> idea (for save buttons inside lists)
-const likeBtn = (id, n) => `<button class="mini-act like-b ${liked.has(id) ? "on" : ""}" data-like="${id}" aria-pressed="${liked.has(id)}" aria-label="Polub (ocena społeczności)" title="Ocena społeczności">${icon("heart")}<span>${n || 0}</span></button>`;
+// visible count first in the accessible name (WCAG 2.5.3 label in name), the action after it for screen readers
+const likeBtn = (id, n) => `<button class="mini-act like-b ${liked.has(id) ? "on" : ""}" data-like="${id}" aria-pressed="${liked.has(id)}" title="Ocena społeczności">${icon("heart")}<span>${n || 0}</span><span class="sr-only"> polubień, polub (ocena społeczności)</span></button>`;
 const saveBtn = id => `<button class="mini-act save-b ${SAVED[id] ? "on" : ""}" data-save="${id}" aria-pressed="${!!SAVED[id]}" aria-label="Zapisz" title="${SAVED[id] ? "Zapisane" : "Zapisz na później"}">${icon("bookmark")}</button>`;
+
+// WAI-ARIA tabs: arrows / Home / End move between tabs (roving tabindex), the panel is labelled by the active tab
+function ariaTabs(list, panel, pick) {
+  const tabs = $$('[role="tab"]', list);
+  const set = t => { tabs.forEach(b => { const on = b === t; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; b.classList.toggle("on", on); });
+    panel.setAttribute("aria-labelledby", t.id); };
+  tabs.forEach(b => { b.setAttribute("aria-controls", panel.id); b.onclick = () => { set(b); pick(b); }; });
+  list.addEventListener("keydown", e => { const i = tabs.indexOf(document.activeElement); if (i < 0) return;
+    const j = {ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1}[e.key]; if (j === undefined) return;
+    e.preventDefault(); const t = tabs[(j + tabs.length) % tabs.length]; t.focus(); set(t); pick(t); });
+  return set;
+}
 
 function ideaItem(i, extra = "") {
   IDX[i.card_id] = i;
@@ -111,8 +124,8 @@ async function pageHome(v) {
       .map(([ic, n, t]) => `<div class="kpi reveal">${icon(ic)}<b data-count="${n}">${n}</b><span>${t}</span></div>`).join("")}</div>
     <section class="sec-block reveal"><div class="sec-h"><h2>Kim jesteś?</h2><span class="faint">pokażemy to, co ma dla Ciebie sens biznesowy</span></div>
       <div class="who-row">${PERSONAS.map(p => `<a class="who-chip" href="#/dopasuj?edit=1&role=${p.key}" style="--img:url('${heroImg(p.key)}')"><span>${icon(p.icon)}</span><b>${esc(p.name.split(" i ")[0])}</b></a>`).join("")}</div></section>
-    <section class="sec-block reveal"><div class="sec-h"><h2>Na dziś</h2><div class="tabs" role="tablist">${TABS.map(([key, lab, ic], n) => `<button role="tab" class="tab ${n ? "" : "on"}" data-tab="${key}" aria-selected="${!n}">${icon(ic)}${lab}</button>`).join("")}</div></div>
-      <p class="faint rule" id="hrule"></p><div class="tiles" id="hpicks"></div><a class="more" id="hmore" href="#/odkrywaj">Zobacz wszystkie ${icon("arrow-right")}</a></section>
+    <section class="sec-block reveal"><div class="sec-h"><h2>Na dziś</h2><div class="tabs" role="tablist" aria-label="Na dziś">${TABS.map(([key, lab, ic], n) => `<button role="tab" id="htab-${key}" class="tab ${n ? "" : "on"}" data-tab="${key}" aria-selected="${!n}" tabindex="${n ? -1 : 0}">${icon(ic)}${lab}</button>`).join("")}</div></div>
+      <p class="faint rule" id="hrule"></p><div class="tiles" id="hpicks" role="tabpanel" aria-labelledby="htab-standouts"></div><a class="more" id="hmore" href="#/odkrywaj">Zobacz wszystkie ${icon("arrow-right")}</a></section>
     <section class="sec-block reveal"><div class="sec-h"><h2>Rynek w pigułce</h2><a class="more" href="#/klastry">Tematy i rynki ${icon("arrow-right")}</a></div>
       <div class="grid g-5-7 start"><div class="card">${cardH("map", "Gdzie powstają", "kliknij województwo")}<div class="card-b" id="minimap"></div></div>
       <div class="card">${cardH("trending-up", "Gorące obszary", "rozpęd: nowe pomysły, oceny i polubienia", "", true)}<div class="card-b"><div class="bars">${d.trends.slice(0, 7).map(t => `<div class="bar" data-tech="${esc(t.key)}">${icon(TECH_ICON[t.key] || "layers")}<span>${esc(t.pl)}</span><div class="track"><i style="width:${Math.round(t.heat / Math.max(...d.trends.map(x => x.heat), 1) * 100)}%"></i></div><span class="v">${t.heat}</span></div>`).join("")}</div></div></div></div></section>`;
@@ -120,7 +133,7 @@ async function pageHome(v) {
     const box = $("#hpicks"); box.classList.add("fade"); setTimeout(() => { box.innerHTML = (d[key] || []).slice(0, 6).map(ideaTile).join("") || `<p class="faint">Brak pozycji.</p>`;
       box.classList.remove("fade"); stagger(box); bindCards(box); }, 140);
     $("#hrule").textContent = d.rules[key] || ""; $("#hmore").href = "#/odkrywaj?" + qs(MORE[key] || {}); };
-  $$(".tab", v).forEach(b => b.onclick = () => show(b.dataset.tab)); show("standouts");
+  ariaTabs($(".sec-h [role=tablist]", v), $("#hpicks"), b => show(b.dataset.tab)); show("standouts");
   countUp(v);
   $$(".bar[data-tech]", v).forEach(b => b.onclick = () => go("odkrywaj", {tech_area: b.dataset.tech}));
   drawPoland($("#minimap"), await api("/api/regions"), {compact: true});
@@ -159,12 +172,12 @@ async function pageIdea(v) {
     ${kpis.length ? `<div class="kpis4">${kpis.map(([ic, val, t]) => `<div class="kpi reveal">${icon(ic)}<b>${val}</b><span>${t}</span></div>`).join("")}</div>` : ""}
     <section class="card reveal idea-sum"><div class="card-b"><p class="pretitle">${icon("sparkles")}W skrócie</p><p class="clamp" id="sum">${esc(tidy(a.summary || c.summary_pl || ""))}</p><button class="link" id="sum-more">Czytaj całość</button>
       <div class="idea-acts">${saveBtnBig(c.id)}${dealActions(c)}</div></div></section>
-    <div class="tabs big reveal" role="tablist">${tabs.map(([k, l, ic], n) => `<button role="tab" class="tab ${n ? "" : "on"}" data-t="${k}" aria-selected="${!n}">${icon(ic)}${l}</button>`).join("")}</div>
-    <section class="card reveal"><div class="card-b" id="tabbody"></div></section>`;
+    <div class="tabs big reveal" role="tablist" aria-label="Szczegóły pomysłu">${tabs.map(([k, l, ic], n) => `<button role="tab" id="tab-${k}" class="tab ${n ? "" : "on"}" data-t="${k}" aria-selected="${!n}" tabindex="${n ? -1 : 0}">${icon(ic)}${l}</button>`).join("")}</div>
+    <section class="card reveal"><div class="card-b" id="tabbody" role="tabpanel" tabindex="0" aria-labelledby="tab-${tabs[0][0]}"></div></section>`;
   const showTab = k => { const t = tabs.find(x => x[0] === k); $$(".tab[data-t]", v).forEach(b => { const on = b.dataset.t === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
     const box = $("#tabbody"); box.classList.add("fade"); setTimeout(() => { box.innerHTML = t[3](); box.classList.remove("fade"); bindCards(box);
       $$("[data-d]", box).forEach(bt => bt.onclick = async () => { await api(`/api/cards/${id}/decision`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({decision: bt.dataset.d})}); toast("Zapisano decyzję"); }); }, 120); };
-  $$(".tab[data-t]", v).forEach(b => b.onclick = () => showTab(b.dataset.t)); showTab(tabs[0][0]);
+  ariaTabs($(".tabs[role=tablist]", v), $("#tabbody"), b => showTab(b.dataset.t)); showTab(tabs[0][0]);
   $("#sum-more").onclick = () => { $("#sum").classList.toggle("open"); $("#sum-more").textContent = $("#sum").classList.contains("open") ? "Zwiń" : "Czytaj całość"; };
   bindDealActions(c);
   const sb = $("#savebig"); sb.onclick = () => { const on = toggleSave(idea); sb.classList.toggle("on", on); sb.innerHTML = icon("bookmark") + (on ? "Zapisane" : "Zapisz"); toast(on ? "Zapisano · Portfel → Zapisane" : "Usunięto z zapisanych"); };
@@ -366,8 +379,8 @@ async function pageClusters(v) {
         <div class="cl-b"><h3>${esc(c.name)}</h3>${c.keywords?.length ? `<div class="kw">${c.keywords.slice(0, 4).map(w => `<span>${esc(w)}</span>`).join("")}</div>` : ""}
           <div class="mat" title="badania · technologia · gotowe · na rynku">${c.maturity.map((m, k) => `<i style="flex:${m / tot};" class="m${k}"></i>`).join("")}</div>
           <div class="plates">${plate("circle-check", c.ready + " gotowych", "", "sm")}${plate("map-pin", c.regions + " woj.", "", "sm red")}${c.adopters ? plate("users", c.adopters.toLocaleString("pl-PL") + " odbiorców", "", "sm") : ""}${plate("heart", c.likes + " polubień", "", "sm")}</div>
-          <button class="link cl-open" aria-expanded="false">${icon("chevron-down")}Pokaż najlepsze</button></div>
-        <div class="cl-items"><div class="items">${c.items.map(i => ideaItem(i)).join("")}</div>
+          <button class="link cl-open" aria-expanded="false" aria-controls="cl-${n}">${icon("chevron-down")}Pokaż najlepsze</button></div>
+        <div class="cl-items" id="cl-${n}"><div class="items">${c.items.map(i => ideaItem(i)).join("")}</div>
           ${c.sector ? `<a class="more" href="#/odkrywaj?${qs({sector: c.sector, tech_area: c.tech_area || ""})}">Wszystkie ${c.size} ${icon("arrow-right")}</a>` : ""}</div></article>`; }).join("") || emptyArt("brak", "Za mało danych do grupowania.")}</div>`;
   $$("[data-mode]", v).forEach(b => b.onclick = () => go("klastry", {mode: b.dataset.mode}));
   $$(".cl-open", v).forEach(b => b.onclick = () => { const el = b.closest(".cluster"), on = !el.classList.contains("open"); el.classList.toggle("open", on); b.setAttribute("aria-expanded", on); b.innerHTML = icon("chevron-down") + (on ? "Zwiń" : "Pokaż najlepsze"); });

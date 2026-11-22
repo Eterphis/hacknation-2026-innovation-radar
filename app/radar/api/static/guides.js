@@ -11,7 +11,7 @@ if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {};
 function guideDock() {
   if ($("#gdock")) return;
   const d = document.createElement("div"); d.id = "gdock"; d.className = "gdock";
-  d.innerHTML = `<button class="gface" id="gface" aria-label="Przewodnik: posłuchaj albo poproś o pomoc"><img alt="" width="68" height="68" decoding="async" data-ai><span class="gai" aria-hidden="true">AI</span><span class="gwave"><i></i><i></i><i></i></span></button>
+  d.innerHTML = `<button class="gface" id="gface" aria-label="Przewodnik: posłuchaj albo poproś o pomoc" aria-expanded="false" aria-controls="gpanel"><img alt="" width="68" height="68" decoding="async" data-ai><span class="gwave"><i></i><i></i><i></i></span></button><span class="gai" aria-hidden="true">AI</span>
     <section class="gpanel" id="gpanel" aria-live="polite" hidden><div class="ghead"><img alt="" width="84" height="84" decoding="async" data-ai><div><b id="gname"></b><small id="grole"></small></div>
       <button class="btn-icon" id="gclose" aria-label="Zamknij">${icon("x")}</button></div>
       <p class="gsub" id="gsub"></p><div class="gmeta" id="gmeta"></div>
@@ -31,7 +31,9 @@ function paintGuide() {
   $$("#gpick [data-g]").forEach(b => b.onclick = () => { try { localStorage.setItem("radar-guide", b.dataset.g); } catch (e) {}
     GUIDE = GUIDES.find(g => g.key === b.dataset.g); paintGuide(); say(`Cześć, tu ${GUIDE.name}, ${GUIDE.role}. Wejdź w pomysł i kliknij „Posłuchaj”, a opowiem Ci o nim.`); });
 }
-function togglePanel(open) { const p = $("#gpanel"); const on = open ?? p.hidden; p.hidden = !on; $("#gdock").classList.toggle("open", on); }
+function togglePanel(open) { const p = $("#gpanel"); const on = open ?? p.hidden; p.hidden = !on; $("#gdock").classList.toggle("open", on); $("#gface").setAttribute("aria-expanded", on); }
+// Escape closes the guide's panel and puts focus back on the portrait that opened it
+document.addEventListener("keydown", e => { const p = $("#gpanel"); if (e.key !== "Escape" || !p || p.hidden) return; stopSpeech(); togglePanel(false); $("#gface").focus(); });
 function stopSpeech() { try { speechSynthesis.cancel(); } catch (e) {} SPEAKING = false; $("#gdock")?.classList.remove("talking"); }
 
 function say(text, meta = "") {
