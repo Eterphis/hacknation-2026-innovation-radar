@@ -120,7 +120,7 @@ async function pageHome(v) {
       <p class="pretitle">${icon("radar")}Radar sam przeszukuje ${live} źródeł · ${records.toLocaleString("pl-PL")} rekordów</p>
       <h1>Polskie innowacje, które warto wdrożyć</h1>
       <p class="lead">Znajdujemy pomysły w uczelniach, szkołach, instytutach i samorządach, wyceniamy je i pokazujemy, kto może je wdrożyć.</p>
-      <div class="chips"><a class="btn big" href="#/dopasuj?edit=1">${icon("target")}Dopasuj w 30 sekund</a><a class="btn-soft" href="#/rolki">${icon("clapperboard")}Przeglądaj rolki</a><a class="btn-soft" href="#/zglos">${icon("lightbulb")}Zgłoś innowację</a></div></div></section>
+      <div class="chips"><a class="btn big" href="#/dopasuj?edit=1">${icon("target")}Dopasuj w 30 sekund</a><a class="btn-soft" href="#/rolki">${icon("clapperboard")}Przeglądaj rolki</a></div></div></section>
     <div class="kpis3">${[["copy", k.ready_to_copy, "gotowych do powielenia"], ["piggy-bank", k.cheap_wins, "szybkich wdrożeń za mały budżet"], ["map-pin", k.voivodeships, "województw z pomysłami"]]
       .map(([ic, n, t]) => `<div class="kpi reveal">${icon(ic)}<b data-count="${n}">${n}</b><span>${t}</span></div>`).join("")}</div>
     <section class="sec-block reveal"><div class="sec-h"><h2>Kim jesteś?</h2><span class="faint">pokażemy to, co ma dla Ciebie sens biznesowy</span></div>
@@ -298,7 +298,7 @@ async function pageMatch(v) {
 function wizard(v, prof) {
   const steps = flowFor(prof), st = steps[prof.step], opts = st.opts(prof), total = steps.length;
   const sel = val => st.multi ? (prof[st.k] || []).includes(val) : prof[st.k] === val;
-  v.innerHTML = `<section class="wiz">
+  const html = `<section class="wiz">
     <div class="wiz-side reveal"><img src="/static/wizard/${st.img}.webp" alt="" width="480" height="480" decoding="async" data-ai onerror="this.style.visibility='hidden'"><span class="reel-ai">${icon("sparkles")}ilustracja AI</span></div>
     <div class="wiz-main"><div class="wiz-top"><p class="pretitle">${icon("target")}Dopasuj radar · ${prof.step + 1} z ${total}</p><div class="wiz-bar"><i style="width:${(prof.step + 1) / total * 100}%"></i></div></div>
       <div class="wiz-q" key="${prof.step}"><h1 tabindex="-1">${esc(st.q)}</h1>${st.hint ? `<p class="lead">${esc(st.hint)}</p>` : ""}
@@ -307,6 +307,14 @@ function wizard(v, prof) {
         ${st.multi ? `<button class="btn" id="wnext">${icon("arrow-right")}<span id="wnl">${(prof[st.k] || []).length ? "Dalej" : "Wszystkie obszary"}</span></button>` : ""}
         ${st.skip ? `<button class="btn-soft" id="wskip">Pomiń</button>` : ""}
         ${prof.step >= 3 && prof.step < total - 1 ? `<button class="btn-soft" id="wnow">${icon("check")}Pokaż wyniki</button>` : ""}</div></div></section>`;
+  // the picture and the frame stay put between questions; only the question is replaced (no flicker, no jump)
+  const old = $(".wiz", v);
+  if (old) {
+    const t = document.createElement("template"); t.innerHTML = html;
+    old.querySelector(".wiz-main").replaceWith($(".wiz-main", t.content));
+    const ni = $(".wiz-side img", t.content), oi = $(".wiz-side img", old);
+    if (!prof.role && oi && ni && oi.getAttribute("src") !== ni.getAttribute("src")) oi.src = ni.getAttribute("src");
+  } else v.innerHTML = html;
   // results: a hash change re-routes; when the wizard was opened from bare #/dopasuj the hash is already there
   const finish = () => { delete prof.step; saveProfile(prof); if (location.hash === "#/dopasuj") route(); else go("dopasuj", {}); };
   const next = () => { if (prof.step < total - 1) { prof.step++; WIZ_FOCUS = true; anim(v, () => wizard(v, prof)); } else finish(); };
@@ -322,7 +330,7 @@ function wizard(v, prof) {
   if ($("#wnow")) $("#wnow").onclick = finish;
   // keyboard and screen-reader users land on the new question, not at the top of the page
   if (WIZ_FOCUS) { WIZ_FOCUS = false; $(".wiz-q h1", v)?.focus({preventScroll: true}); }
-  stagger(v);
+  if (!old) stagger(v);
 }
 let WIZ_FOCUS = false;
 function anim(v, fn, back = false) { const q = $(".wiz-main", v); if (!q || matchMedia("(prefers-reduced-motion: reduce)").matches) return fn();
@@ -413,7 +421,7 @@ async function pageSaved(v) {
 // ------------------------------------------------------------------ ZGŁOŚ (submission + live pipeline tracker)
 const STAGE_PL = {normalize: "Ujednolicenie danych", resolve_org: "Rozpoznanie instytucji", dedup: "Szukanie duplikatów", gate: "Klasyfikacja Basal",
   link: "Powiązania", extract: "Karta pomysłu", maturity: "Dojrzałość", score: "Ocena i ścieżka"};
-ROUTES.zglos = pageSubmit;
+// no submission form: the radar finds new ideas in its sources by itself (#/zglos falls back to the home page)
 async function pageSubmit(v) {
   const types = [["szkola", "Szkoła / placówka"], ["uczelnia", "Uczelnia"], ["instytut", "Instytut badawczy"], ["jst", "Samorząd (JST)"], ["inna_publiczna", "Inna instytucja publiczna"], ["firma", "Firma / startup"]];
   v.innerHTML = header("Zgłoś innowację", "lightbulb", "Masz pomysł albo rozwiązanie, które działa?", "Zgłoszenie przechodzi ten sam potok co dane z baz publicznych: klasyfikacja, karta, ocena, ścieżka i odbiorcy. Bez konta. Nie podawaj danych osobowych.", "", "dopasuj") +

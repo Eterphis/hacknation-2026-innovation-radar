@@ -83,7 +83,7 @@ pageIdea = async function (v) {
   await _pageIdea(v);
   const acts = $(".idea-acts", v); if (!acts) return;
   await loadGuides();
-  acts.insertAdjacentHTML("afterbegin", `<button class="btn guide-btn" id="glisten"><img src="${GUIDE.img}" alt="" width="26" height="26" decoding="async" data-ai>Posłuchaj: ${esc(GUIDE.name)} opowie</button>`);
+  acts.insertAdjacentHTML("afterbegin", `<button class="btn guide-btn" id="glisten"><img src="${GUIDE.img}" alt="" width="26" height="26" decoding="async" data-ai>${esc(GUIDE.name)}: projekt w skrócie</button>`);
   $("#glisten").onclick = () => tellAbout(+F._sub);
 };
 ROUTES.pomysl = pageIdea;
@@ -102,7 +102,7 @@ wizard = function (v, prof) {
   const g = GUIDES.find(x => x.key === (GUIDE_BY_ROLE[prof.role] || "radek")) || GUIDES[0];
   const hint = $(".wiz-q .lead", v);
   if (hint) { hint.outerHTML = `<div class="wiz-guide"><img src="${g.img}" alt="" width="56" height="56" decoding="async" data-ai><p class="lead">${hint.innerHTML}</p></div>`; }
-  const side = $(".wiz-side img", v); if (side && prof.role) { side.src = g.img; side.classList.add("guide-portrait"); }
+  const side = $(".wiz-side img", v); if (side && prof.role && side.getAttribute("src") !== g.img) { side.src = g.img; side.classList.add("guide-portrait"); }
 };
 loadGuides().then(guideDock).catch(() => {});
 window.addEventListener("hashchange", () => { stopSpeech(); if ($("#gpanel")) togglePanel(false); });  // a new page = a new story
