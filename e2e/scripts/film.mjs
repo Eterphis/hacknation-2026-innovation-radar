@@ -114,7 +114,8 @@ await scene("07-rolki", async len => {
   await page.keyboard.press("ArrowDown"); await pause(len * .3); await page.keyboard.press("ArrowDown");
 });
 await scene("08-dostepnosc", async () => {
-  await go(""); await cap("08-dostepnosc"); await pause(600);
+  await page.goto(pathToFileURL(path.join(ROOT, "docs/film/mobile.html")).href); await pause(5200);  // the app on a phone
+  await go(""); await cap("08-dostepnosc"); await pause(400);
   await click(page.locator("#a11ybtn")); await pause(900);
   await click(page.locator('[data-fs="2"]')); await pause(1200);
   await click(page.locator('[data-sw="contrast"]')); await pause(1400);
