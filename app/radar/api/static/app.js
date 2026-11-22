@@ -75,8 +75,10 @@ async function route() {
   $$("#nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#/" + path));
   document.body.classList.toggle("reels-on", path === "rolki");
   const v = $("#view");
+  v.setAttribute("aria-busy", "true");  // screen readers wait for the view; tests wait for this instead of sleeping
   v.innerHTML = '<div class="skel" style="width:40%;height:2.4rem;margin-top:2rem"></div><div class="skel"></div><div class="skel" style="width:70%"></div>';
   try { await (ROUTES[path] || pageHome)(v); } catch (e) { v.innerHTML = empty("Nie udało się wczytać widoku: " + e); }
+  v.removeAttribute("aria-busy");
   stagger(v); window.scrollTo(0, 0);
 }
 const go = (path, f) => { const q = qs(f || {}); location.hash = "#/" + path + (q ? "?" + q : ""); };

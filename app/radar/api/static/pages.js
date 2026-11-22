@@ -13,7 +13,7 @@ function header(pre, preIcon, title, lead, actions = "", banner = "") {
   return `<div class="page-header reveal ${banner ? "has-banner" : ""}" ${banner ? `style="--banner:url('${bannerImg(banner)}')"` : ""}><div><p class="pretitle">${icon(preIcon)}${pre}</p><h1>${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ""}</div>${actions}</div>`;
 }
 function emptyArt(kind, msg, action = "") {
-  return `<div class="empty art reveal"><img src="/static/empty/${kind}.webp" alt="" loading="lazy" onerror="this.remove()"><p>${esc(msg)}</p>${action}</div>`;
+  return `<div class="empty art reveal"><img src="/static/empty/${kind}.webp" alt="" width="160" height="160" decoding="async" loading="lazy" data-ai onerror="this.remove()"><small class="ai-note">${icon("sparkles")}ilustracja AI</small><p>${esc(msg)}</p>${action}</div>`;
 }
 
 // saved ideas (this browser) + community likes (server, anonymous voter id)
@@ -282,14 +282,17 @@ function wizard(v, prof) {
   const steps = flowFor(prof), st = steps[prof.step], opts = st.opts(prof), total = steps.length;
   const sel = val => st.multi ? (prof[st.k] || []).includes(val) : prof[st.k] === val;
   v.innerHTML = `<section class="wiz">
-    <div class="wiz-side reveal"><img src="/static/wizard/${st.img}.webp" alt="" onerror="this.style.visibility='hidden'"></div>
+    <div class="wiz-side reveal"><img src="/static/wizard/${st.img}.webp" alt="" width="480" height="480" decoding="async" data-ai onerror="this.style.visibility='hidden'"><span class="reel-ai">${icon("sparkles")}ilustracja AI</span></div>
     <div class="wiz-main"><div class="wiz-top"><p class="pretitle">${icon("target")}Dopasuj radar · ${prof.step + 1} z ${total}</p><div class="wiz-bar"><i style="width:${(prof.step + 1) / total * 100}%"></i></div></div>
-      <div class="wiz-q" key="${prof.step}"><h1>${esc(st.q)}</h1>${st.hint ? `<p class="lead">${esc(st.hint)}</p>` : ""}
+      <div class="wiz-q" key="${prof.step}"><h1 tabindex="-1">${esc(st.q)}</h1>${st.hint ? `<p class="lead">${esc(st.hint)}</p>` : ""}
       <div class="wiz-opts ${opts.length > 8 ? "many" : ""}" role="${st.multi ? "group" : "radiogroup"}">${opts.map(([val, lab, ic]) => `<button class="wiz-opt ${sel(val) ? "on" : ""}" data-v="${esc(val)}" role="${st.multi ? "checkbox" : "radio"}" aria-checked="${sel(val)}">${avatar(ic)}<span>${esc(lab)}</span>${st.multi ? `<i class="tick">${icon("check")}</i>` : ""}</button>`).join("")}</div></div>
       <div class="chips wiz-nav">${prof.step ? `<button class="btn-soft" id="wback">${icon("chevron-left")}Wstecz</button>` : ""}
         ${st.multi ? `<button class="btn" id="wnext">${icon("arrow-right")}<span id="wnl">${(prof[st.k] || []).length ? "Dalej" : "Wszystkie obszary"}</span></button>` : ""}
-        ${st.skip ? `<button class="btn-soft" id="wskip">Pomiń</button>` : ""}</div></div></section>`;
-  const next = () => { if (prof.step < total - 1) { prof.step++; anim(v, () => wizard(v, prof)); } else { delete prof.step; saveProfile(prof); go("dopasuj", {}); } };
+        ${st.skip ? `<button class="btn-soft" id="wskip">Pomiń</button>` : ""}
+        ${prof.step >= 3 && prof.step < total - 1 ? `<button class="btn-soft" id="wnow">${icon("check")}Pokaż wyniki</button>` : ""}</div></div></section>`;
+  // results: a hash change re-routes; when the wizard was opened from bare #/dopasuj the hash is already there
+  const finish = () => { delete prof.step; saveProfile(prof); if (location.hash === "#/dopasuj") route(); else go("dopasuj", {}); };
+  const next = () => { if (prof.step < total - 1) { prof.step++; WIZ_FOCUS = true; anim(v, () => wizard(v, prof)); } else finish(); };
   $$(".wiz-opt", v).forEach(b => b.onclick = () => {
     if (st.multi) {  // toggle in place: no re-render, no jump
       const s = new Set(prof[st.k] || []); s.has(b.dataset.v) ? s.delete(b.dataset.v) : s.add(b.dataset.v); prof[st.k] = [...s];
@@ -298,9 +301,13 @@ function wizard(v, prof) {
       $$(".wiz-opt", v).forEach(x => x.classList.toggle("on", x === b)); setTimeout(next, 180); } });
   if ($("#wnext")) $("#wnext").onclick = next;
   if ($("#wskip")) $("#wskip").onclick = () => { prof[st.k] = st.multi ? [] : ""; next(); };
-  if ($("#wback")) $("#wback").onclick = () => { prof.step--; anim(v, () => wizard(v, prof), true); };
+  if ($("#wback")) $("#wback").onclick = () => { prof.step--; WIZ_FOCUS = true; anim(v, () => wizard(v, prof), true); };
+  if ($("#wnow")) $("#wnow").onclick = finish;
+  // keyboard and screen-reader users land on the new question, not at the top of the page
+  if (WIZ_FOCUS) { WIZ_FOCUS = false; $(".wiz-q h1", v)?.focus({preventScroll: true}); }
   stagger(v);
 }
+let WIZ_FOCUS = false;
 function anim(v, fn, back = false) { const q = $(".wiz-main", v); if (!q || matchMedia("(prefers-reduced-motion: reduce)").matches) return fn();
   q.classList.add(back ? "out-back" : "out"); setTimeout(fn, 160); }
 function matchCard(i, metric) {
@@ -317,12 +324,12 @@ function matchCard(i, metric) {
 // ------------------------------------------------------------------ ROLKI (illustration you can see, three facts, one action)
 async function pageReels(v) {
   const items = await api("/api/feed?limit=50");
-  v.innerHTML = `<div class="reels" id="reels">${items.map((i, n) => { const b = i.brief || {}, lvl = LVLK[b.maturity] ?? 0; IDX[i.card_id] = {...i, title: b.solution, maturity: b.maturity, score: b.score};
+  v.innerHTML = `<h1 class="sr-only">Rolki: pomysły w skrócie</h1><div class="reels" id="reels">${items.map((i, n) => { const b = i.brief || {}, lvl = LVLK[b.maturity] ?? 0; IDX[i.card_id] = {...i, title: b.solution, maturity: b.maturity, score: b.score};
     return `<section class="reel" data-n="${n}" aria-label="Pomysł ${n + 1} z ${items.length}" style="--reel-bg:url('${sectorImg(i.sector) || heroImg("innowatorzy")}')">
       <article class="reel-card"><div class="reel-art" style="--img:url('${sectorImg(i.sector) || heroImg("innowatorzy")}')"><div class="reel-progress" aria-hidden="true"><i></i></div>
           <div class="plates">${sectorPlate(i.sector, "sm glass")}${locPlate(i, "sm glass")}</div><span class="reel-ai">${icon("sparkles")}ilustracja AI</span></div>
         <div class="reel-body"><div class="reel-top">${avatar(INST_ICON[i.institution_type] || "building-2")}<div class="who"><b>${esc(i.institution || INST_PL[i.institution_type] || "Instytucja")}</b><small>${esc(INST_PL[i.institution_type] || "")} ${demo(i.synthetic)}</small></div>${ring(b.score, "sm")}</div>
-          <div class="reel-title">${esc(b.solution)}</div>
+          <h2 class="reel-title">${esc(b.solution)}</h2>
           <div class="reel-hook">${esc(tidy(b.hook))}</div>
           <div class="reel-facts"><div>${icon("banknote")}<small>Budżet</small><b>${esc(i.amount ? pln(i.amount) : (COST_RANGE[i.cost_level] || "—"))}</b></div>
             <div>${icon("gauge")}<small>Etap</small><b>${esc(LVL[lvl])}</b></div><div>${icon("target")}<small>Pierwszy krok</small><b>${esc(short(b.next_step || "—", 60))}</b></div></div>

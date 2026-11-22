@@ -259,3 +259,13 @@ ul.why .ic { width:14px; height:14px; color:var(--red); flex:none; margin-top:.2
 .track.live li.warn { color:var(--ink); } .track.live li.warn i { background:color-mix(in srgb, var(--red) 40%, var(--white)); }
 .btn.busy { opacity:.6; pointer-events:none; }
 @media (max-width: 720px) { .sub-form .two { grid-template-columns:1fr; } }
+
+/* ---- issue #31: dostępność (a11y) */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+h2.reel-title { margin:0; }
+/* każda grafika AI oznaczona: także na telefonie (wcześniej .reel-ai znikało poniżej 720 px) */
+@media (max-width: 720px) { .reel-art .reel-ai { display:inline-flex; } }
+.wiz-side { position:relative; }
+.ai-note { display:inline-flex; gap:.3rem; align-items:center; margin:-.5rem 0 .5rem; font-size:.6875rem; color:var(--ink-3); }
+.ai-note .ic { width:12px; height:12px; }
+.gai { position:absolute; left:-4px; top:-4px; padding:1px 5px; border-radius:99px; font:700 .625rem/1.4 var(--sans); color:var(--ink-2); background:var(--bg); box-shadow:var(--sh-sm); }

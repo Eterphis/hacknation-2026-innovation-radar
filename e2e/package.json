@@ -1,0 +1,17 @@
+{
+  "name": "radar-e2e",
+  "private": true,
+  "description": "Testy UI i jakości Radaru Innowacji (Playwright, axe, Lighthouse CI). Tylko narzędzia testowe: nic stąd nie trafia do obrazu aplikacji.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:repeat": "playwright test --repeat-each=3",
+    "lhci": "lhci autorun --config=lighthouserc.json",
+    "pitch": "node scripts/pitch.ts"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@lhci/cli": "0.16.0",
+    "@playwright/test": "1.65.0"
+  }
+}
