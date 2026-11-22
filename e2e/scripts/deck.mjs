@@ -26,6 +26,14 @@ await shot.screenshot({ path: path.join(IMG, "kreator.png") });
 const first = await shot.locator("main article[data-card]").first().getAttribute("data-card").catch(() => null);
 await shot.goto(`${BASE}/?theme=light#/pomysl/${first || 1243}`); await settled();
 await shot.screenshot({ path: path.join(IMG, "pomysl.png") });
+// phone screenshots (390x844, like an iPhone 14) for the mobile slide
+const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+await phone.addInitScript(() => { const s = document.createElement("style"); s.textContent = "#gdock{display:none!important}"; document.addEventListener("DOMContentLoaded", () => document.head.appendChild(s)); });
+for (const [hash, name] of [["", "mobile-home"], ["rolki", "mobile-rolki"]]) {
+  await phone.goto(`${BASE}/?theme=light#/${hash}`);
+  await phone.waitForFunction(() => !document.querySelector("#view")?.hasAttribute("aria-busy"), null, { timeout: 30000 }).catch(() => {});
+  await phone.waitForTimeout(2500); await phone.screenshot({ path: path.join(IMG, name + ".png") });
+}
 await shot.goto(`${GRAFANA}/d/radar?orgId=1&kiosk&from=now-1h&to=now`); await shot.waitForLoadState("networkidle").catch(() => {}); await shot.waitForTimeout(2500);
 await shot.screenshot({ path: path.join(IMG, "grafana.png") });
 

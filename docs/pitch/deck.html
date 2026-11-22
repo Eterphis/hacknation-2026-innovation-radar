@@ -33,15 +33,21 @@
   ul.clean { list-style:none; padding:0; margin:0; display:grid; gap:14px; } ul.clean li { font-size:22px; line-height:1.35; padding-left:30px; position:relative; color:var(--ink2); }
   ul.clean li::before { content:""; position:absolute; left:0; top:.45em; width:14px; height:14px; border-radius:4px; background:var(--red); }
   ul.clean li b { color:var(--ink); }
+  .bg { position:absolute; inset:0 0 0 auto; width:58%; background:var(--img) center/cover no-repeat; z-index:0;
+    -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 38%); mask-image:linear-gradient(90deg, transparent 0, #000 38%); opacity:.95; }
+  .s > *:not(.bg):not(.n) { position:relative; z-index:1; } .n { z-index:1; }
+  .phones { display:flex; gap:22px; justify-content:center; }
+  .phone { width:210px; border-radius:30px; padding:8px; background:#1c1b1a; box-shadow:0 18px 40px rgba(40,25,10,.25); }
+  .phone img { display:block; width:100%; border-radius:23px; }
   .code { font-family:Consolas,monospace; font-size:16px; background:#1c1b1a; color:#f3efe8; border-radius:14px; padding:16px 20px; line-height:1.5; white-space:pre; }
 </style></head><body>
 
-<section class="s title"><div class="logo"><svg width="56" height="56" viewBox="0 0 48 48"><rect x="2" y="1" width="44" height="44" rx="12" fill="#BE1A34"/><circle cx="24" cy="23" r="13" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.6"/><circle cx="24" cy="23" r="7.5" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.6"/><circle cx="24" cy="23" r="2.6" fill="#fff"/><circle cx="31" cy="15.5" r="1.8" fill="#fff"/></svg><b>Radar Innowacji</b></div>
+<section class="s title"><div class="bg" style="--img:url('../../app/radar/api/static/banners/home.webp')"></div><div class="logo"><svg width="56" height="56" viewBox="0 0 48 48"><rect x="2" y="1" width="44" height="44" rx="12" fill="#BE1A34"/><circle cx="24" cy="23" r="13" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.6"/><circle cx="24" cy="23" r="7.5" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.6"/><circle cx="24" cy="23" r="2.6" fill="#fff"/><circle cx="31" cy="15.5" r="1.8" fill="#fff"/></svg><b>Radar Innowacji</b></div>
   <h1>Od pomysłu<br>do wdrożenia.</h1>
   <p class="lead">Radar, który sam znajduje polskie innowacje, wycenia je i pokazuje, kto może je wdrożyć.</p>
   <p class="src">HackNation 2026 · Podkarpackie Centrum Innowacji</p><span class="n">1</span></section>
 
-<section class="s"><p class="eyebrow">Problem</p>
+<section class="s"><div class="bg" style="--img:url('../../app/radar/api/static/banners/odkrywaj.webp'); width:46%; opacity:.55"></div><p class="eyebrow">Problem</p>
   <h2>Polska tworzy świetne rozwiązania. Wiele z nich pozostaje nieodkrytych.</h2>
   <div class="grid g3" style="margin-top:20px">
     <div class="card"><h3>Rozproszone dane</h3><p>Pomysły leżą w kilkunastu bazach, raportach i serwisach uczelni.</p></div>
@@ -108,15 +114,16 @@
   </div>
   <p class="lead" style="margin-top:30px">Po przekazaniu wszystko działa na infrastrukturze zamawiającego. Żadna płatna usługa nie jest potrzebna do działania.</p><span class="n">8</span></section>
 
-<section class="s"><p class="eyebrow">Dostępność i jakość</p>
-  <h2>Dla każdego, także dla osób z niepełnosprawnościami.</h2>
-  <div class="grid g3">
-    <div class="card"><h3>Dostępność</h3><p>Powiększenie tekstu, wysoki kontrast, czytelne odstępy, bez animacji, pełna obsługa klawiaturą.</p></div>
-    <div class="card"><h3>Jakość</h3><p>Testy automatyczne każdej strony w jasnym i ciemnym motywie, 0 błędów dostępności (axe), Lighthouse 99.</p></div>
-    <div class="card"><h3>Tryb regionalny</h3><p>Urząd marszałkowski widzi tylko swoje województwo: listy, mapę, dopasowanie i wdrożenia.</p></div>
-  </div><span class="n">9</span></section>
+<section class="s"><p class="eyebrow">Na każdym urządzeniu</p>
+  <h2>Telefon, komputer i dostępność dla każdego.</h2>
+  <div class="row"><ul class="clean" style="flex:1">
+      <li><b>Wersja mobilna</b>: dolny pasek nawigacji, rolki na jeden ekran, Lighthouse 99 na telefonie</li>
+      <li><b>Dostępność</b>: powiększenie tekstu do 144%, wysoki kontrast, bez animacji, pełna obsługa klawiaturą</li>
+      <li><b>Jakość</b>: każda strona testowana automatycznie, 0 błędów dostępności (axe)</li>
+      <li><b>Tryb regionalny</b>: urząd marszałkowski widzi tylko swoje województwo</li></ul>
+    <div class="phones" style="flex:1"><div class="phone"><img src="img/mobile-home.png" alt=""></div><div class="phone"><img src="img/mobile-rolki.png" alt=""></div></div></div><span class="n">9</span></section>
 
-<section class="s title"><p class="eyebrow">Następny krok</p>
+<section class="s title"><div class="bg" style="--img:url('../../app/radar/api/static/banners/wdrozenia.webp'); width:50%"></div><p class="eyebrow">Następny krok</p>
   <h2>Pilotaż z Podkarpackim Centrum Innowacji.</h2>
   <ul class="clean" style="max-width:900px"><li>Prawdziwe źródła jednego regionu w trybie regionalnym</li><li>Cotygodniowy skrót dla samorządów, inwestorów i uczelni</li><li>Specyfikacja wdrożenia z karty pomysłu prosto do zapytania ofertowego</li></ul>
   <p class="lead" style="margin-top:34px"><b>Radar Innowacji.</b> Sprawmy razem, aby każdy dobry pomysł miał szansę na wdrożenie.</p><span class="n">10</span></section>
