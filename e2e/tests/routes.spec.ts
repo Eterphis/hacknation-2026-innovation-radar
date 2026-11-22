@@ -17,7 +17,8 @@ for (const r of ROUTE_DEFS) {
         await openRoute(page, hash, theme);
         await expect(failText(page)).toHaveCount(0);
         await expect(mainHeading(page)).toBeVisible();
-        await page.screenshot({ path: screenPath(testInfo, shot), fullPage: true });
+        // scale css: na Pixel 5 (DPR 2,75) natywne zrzuty całej strony to setki MB bitmap i wyczerpanie zasobów Chromium
+        await page.screenshot({ path: screenPath(testInfo, shot), fullPage: true, scale: "css" });
       });
     }
   });

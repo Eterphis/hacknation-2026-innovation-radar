@@ -124,6 +124,24 @@ docker compose --profile observability up -d   # Grafana :3000 (dashboard „Rad
 - Schemat bazy: migracje Alembic (`radar migrate`; w Helm Job post-install/pre-upgrade, API też migruje pod blokadą doradczą Postgresa). Baza utworzona wcześniej przez `create_all` jest najpierw oznaczana jako rewizja `0001`, więc dane zostają.
 - `radar reassess` przelicza graf i oceny (też codziennie z beat).
 
+## Testy UI i jakości
+
+Narzędzia testowe są poza aplikacją: `e2e/` (Node: Playwright, axe, Lighthouse CI) i `loadtest/` (locust). Nic stąd nie trafia do obrazu.
+
+```powershell
+cd e2e; npm ci; npx playwright install chromium
+npx playwright test                    # sam startuje serwer: SQLite + `radar demo` + uvicorn :8010 (app/.venv albo RADAR_PYTHON)
+npx playwright test --repeat-each=3    # sprawdzenie stabilności
+```
+
+- **Co jest testowane:** każda trasa (lista w `e2e/routes.ts`; nowa trasa bez wpisu = czerwony test) bez błędów konsoli i odpowiedzi ≥ 400, „3 kliknięcia do wyniku” < 20 s, kreator wielokrotnego wyboru bez przeładowania, zapis i polubienia, klawiatura (kreator, zakładki ARIA, klastry, Escape), axe WCAG 2.1 AA (0 naruszeń krytycznych i kontrastu), brak poziomego przewijania na 375 px, oznaczenie grafik AI, `prefers-reduced-motion`, scenariusz demo (`docs/scenariusz-demo.md`).
+- **Projekty:** `desktop-light`, `desktop-dark` (1280×800), `mobile-light`, `mobile-dark` (375×812). Zrzuty: `e2e/test-results/screens/<projekt>/`, wyniki axe: `e2e/test-results/axe/`.
+- **Na compose:** `$env:RADAR_DEMO_MODE=1; docker compose up -d --build postgres rabbitmq api worker-ingest worker-llm`, potem `docker compose exec -T api radar demo` i `$env:E2E_BASE_URL="http://localhost:8000"; npx playwright test`.
+- **Lighthouse:** serwer na :8011 (`$env:E2E_PORT=8011; node scripts/serve.mjs`), potem `npx lhci autorun --config=lighthouserc.json` (mobile, 3 przebiegi, mediana, próg 0,9 dla wydajności i dostępności). Raporty: `docs/reports/lighthouse/`, podsumowanie: `.house/reports/lighthouse.md`.
+- **Obciążenie:** `pip install -r loadtest/requirements.txt`, profil 2 vCPU / 4 GB: `docker compose --profile public -f docker-compose.yml -f loadtest/compose.limits.yml up -d --build`, potem `locust -f loadtest/locustfile.py --host http://localhost:8000 --headless -u 70 -r 10 -t 3m`. Wynik i wąskie gardła: `.house/reports/load.md`.
+- **Pitch:** `node e2e/scripts/pitch.ts` (z `E2E_BASE_URL` działającej aplikacji) generuje `docs/pitch/pitch.pdf` z liczbami z `/api/insights`; tekst lektora: `docs/pitch/narracja.md`.
+- **CI:** joby `e2e` (compose w trybie demo, artefakty: raport, zrzuty, axe, pitch PDF; przy porażce logi compose i trace'y), `lighthouse` i `load-smoke` (30 s, 10 użytkowników, bez progu rps, `--exit-code-on-error 1`).
+
 ## Dokumenty dla jury i zespołu
 
 - [Scenariusz walidacji a–e na 2 przypadkach](docs/scenariusz-walidacji.md)
