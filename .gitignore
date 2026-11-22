@@ -26,3 +26,8 @@ data/
 
 # nightly database dumps (compose profile public)
 backups/
+
+# film demo: surowe nagranie i pliki z lokalnymi ścieżkami (generowane)
+docs/film/raw/
+docs/film/durations.json
+docs/film/timeline.json

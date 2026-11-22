@@ -1,0 +1,11 @@
+[
+ {"id": "01-start", "text": "Radar Innowacji. Polskie pomysły, które warto wdrożyć. Radar sam przeszukuje czternaście publicznych źródeł: NCBR, Kohesio, OpenAIRE, uczelnie i zgłoszenia. Dziś to tysiąc dwieście dwadzieścia osiem pomysłów z dwustu osiemdziesięciu jeden instytucji, ze wszystkich szesnastu województw."},
+ {"id": "02-mapa", "text": "Problem jest prosty: dobre rozwiązania giną w raportach, a gmina buduje od zera to, co sąsiednia gmina już ma. Mapa pokazuje, gdzie powstają pomysły, a gdzie ich brakuje."},
+ {"id": "03-kreator", "text": "Każdy zaczyna od jednej decyzji. Samorząd odpowiada na trzy pytania: kim jest, jaką ma instytucję i gdzie działa. Po chwili widzi dopasowane rozwiązania, z procentem dopasowania i powodami: region, budżet, dojrzałość."},
+ {"id": "04-pomysl", "text": "Strona pomysłu zaczyna od pieniędzy: koszt wdrożenia u siebie, zwrot i liczba potencjalnych odbiorców. Wycena to jawne reguły, bez dużego modelu językowego. Program szkolny wyceniamy oszczędnością odbiorców, a technologię wartością licencji."},
+ {"id": "05-specyfikacja", "text": "Jednym kliknięciem samorząd dostaje specyfikację wdrożenia do zapytania ofertowego: przedmiot, kryteria i to, kto może je wykonać."},
+ {"id": "06-inwestor", "text": "Ten sam radar inwestor widzi inaczej: gotowość inwestycyjna od zera do stu, ochrona własności intelektualnej, trakcja i porównywalne projekty. Pomysł trafia do portfela, w lejek od pierwszego kontaktu do term sheetu."},
+ {"id": "07-przewodnik", "text": "O projektach opowiadają przewodnicy. Tekst przygotował wcześniej lokalny model Bielik, a głos nagraliśmy raz, więc nic nie jest generowane na żywo.", "then": "app/radar/api/static/audio/1019-ada.mp3", "then_seconds": 11},
+ {"id": "08-zgloszenie", "text": "Jury może zgłosić własny pomysł. Zgłoszenie trafia do kolejki z najwyższym priorytetem i po kilku sekundach ma ocenioną kartę. Urząd marszałkowski może pracować tylko w swoim województwie, a panel dostępności powiększa tekst i zwiększa kontrast."},
+ {"id": "09-koniec", "text": "Całość działa na jednym serwerze z dwoma rdzeniami: sto dziesięć zapytań na sekundę bez błędów, czyli kilkaset osób jednocześnie. Kod, testy i raporty są w repozytorium. Radar Innowacji: od pomysłu do wdrożenia."}
+]
