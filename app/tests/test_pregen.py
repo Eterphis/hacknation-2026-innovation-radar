@@ -167,3 +167,23 @@ def test_nightly_beat_runs_pregenerate():
 
     e = beat_schedule()["pregenerate-nightly"]
     assert e["task"] == "radar.pipeline.tasks.pregenerate" and e["options"]["queue"] == "score"
+
+
+def test_slogan_is_reused_when_its_text_is_unchanged():
+    calls = []
+
+    def model(s, u):
+        calls.append(u)
+        return {"haslo": "Robotyka dla małych szkół"}
+
+    r, c = rec(), card()
+    c.pregen = pregen.pregenerate(r, c, model)
+    assert len(calls) == 1 and c.pregen["llm_calls"] == 1
+    c.score = 95.0  # reassess: new score, same text
+    again = pregen.pregenerate(r, c, model)
+    assert len(calls) == 1 and again["slogan"] == "Robotyka dla małych szkół" and again["llm_calls"] == 0
+    c.problem_solved = "Inny problem"  # text changed: ask again
+    pregen.pregenerate(r, c, model)
+    assert len(calls) == 2
+    pregen.pregenerate(r, c, model, reuse=False)  # --force
+    assert len(calls) == 3
